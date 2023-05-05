@@ -30,8 +30,8 @@ Some features such as conditional breakpoints or modifying variables are not ava
 
 Codea 3.9
 
-## Release Notes
+## License
+[MIT License](LICENSE)
 
-### 1.0.0
-
-Initial release
+## Change Log
+See the change log [here](CHANGELOG.md)
