@@ -1,0 +1,269 @@
+{
+  "name": "codea-debugger",
+  "displayName": "Codea Debugger",
+  "description": "A remote debugger for Codea applications.",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.76.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onFileSystem:codea"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codea-sidebar",
+          "title": "Codea Sidebar",
+          "icon": "resources/codea.svg"
+        }
+      ]
+    },
+    "views": {
+      "codea-sidebar": [
+        {
+          "type": "webview",
+          "id": "codea-parameters",
+          "name": "Parameters",
+          "when": "workspaceFolderCount > 0"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "codea-debugger.connectToHost",
+        "title": "Codea: Connect to Host..."
+      },
+      {
+        "command": "codea-debugger.executeLine",
+        "title": "Codea: Execute current line"
+      },
+      {
+        "command": "codea-debugger.executeSelection",
+        "title": "Codea: Execute selection"
+      },
+      {
+        "command": "codea-debugger.executeCommand",
+        "title": "Codea: Execute command..."
+      },
+      {
+        "command": "codea-debugger.restartProject",
+        "title": "Codea: Restart project"
+      },
+      {
+        "command": "codea-debugger.addDependency",
+        "title": "Codea: Add dependency..."
+      }
+    ],
+    "languages": [
+      {
+        "id": "codea-output",
+        "mimetypes": [
+          "text/x-codea-output"
+        ]
+      }
+    ],
+    "grammars": [
+      {
+        "language": "codea-output",
+        "scopeName": "codea.output",
+        "path": "./syntaxes/codea-output.tmLanguage"
+      }
+    ],
+    "breakpoints": [
+      {
+        "language": "lua"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "lua",
+        "label": "Lua Debugger",
+        "program": "../DebugAdapter/bin/release/net7.0/DebugAdapter.dll",
+        "osx": {
+          "runtime": "dotnet"
+        },
+        "linux": {
+          "runtime": "dotnet"
+        },
+        "initialConfigurations": [
+          {
+            "name": "wait",
+            "displayName": "Attach to Codea",
+            "type": "lua",
+            "request": "attach",
+            "workingDirectory": "${workspaceRoot}",
+            "sourceBasePath": "${workspaceRoot}",
+            "listenPublicly": false,
+            "listenPort": 56789,
+            "encoding": "UTF-8"
+          }
+        ],
+        "configurationAttributes": {
+          "attach": {
+            "required": [
+              "name",
+              "type",
+              "request",
+              "workingDirectory",
+              "listenPublicly",
+              "listenPort"
+            ],
+            "properties": {
+              "workingDirectory": {
+                "type": "string",
+                "description": "Working directory",
+                "default": "${workspaceRoot}"
+              },
+              "sourceBasePath": {
+                "type": "string",
+                "description": "Base path of lua source files",
+                "default": "${workspaceRoot}"
+              },
+              "listenPublicly": {
+                "type": "boolean",
+                "description": "Set this to true if the debuggee will run in different computer.",
+                "default": false
+              },
+              "listenPort": {
+                "type": "integer",
+                "description": "Local TCP port to communicate between debug adapter and debuggee.",
+                "default": 56789
+              },
+              "encoding": {
+                "type": "string",
+                "description": "Encoding of the debuggee. (Example: 'UTF-8', '949')",
+                "default": "UTF-8"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "luaInline",
+        "label": "Lua Debugger",
+        "initialConfigurations": [
+          {
+            "name": "wait",
+            "displayName": "Attach to Codea",
+            "type": "lua",
+            "request": "attach",
+            "workingDirectory": "${workspaceRoot}",
+            "sourceBasePath": "${workspaceRoot}",
+            "listenPublicly": false,
+            "listenPort": 56789,
+            "encoding": "UTF-8"
+          }
+        ],
+        "configurationAttributes": {
+          "attach": {
+            "required": [
+              "name",
+              "type",
+              "request",
+              "workingDirectory",
+              "listenPublicly",
+              "listenPort"
+            ],
+            "properties": {
+              "workingDirectory": {
+                "type": "string",
+                "description": "Working directory",
+                "default": "${workspaceRoot}"
+              },
+              "sourceBasePath": {
+                "type": "string",
+                "description": "Base path of lua source files",
+                "default": "${workspaceRoot}"
+              },
+              "listenPublicly": {
+                "type": "boolean",
+                "description": "Set this to true if the debuggee will run in different computer.",
+                "default": false
+              },
+              "listenPort": {
+                "type": "integer",
+                "description": "Local TCP port to communicate between debug adapter and debuggee.",
+                "default": 56789
+              },
+              "encoding": {
+                "type": "string",
+                "description": "Encoding of the debuggee. (Example: 'UTF-8', '949')",
+                "default": "UTF-8"
+              }
+            }
+          }
+        }
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "resourceLangId == lua && editorHasSelection",
+          "command": "codea-debugger.executeSelection",
+          "group": "a_codea"
+        },
+        {
+          "when": "resourceLangId == lua && !editorHasSelection",
+          "command": "codea-debugger.executeLine",
+          "group": "a_codea"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "codea-debugger.executeLine",
+          "when": "workspaceFolderCount > 0 && editorLangId == lua"
+        },
+        {
+          "command": "codea-debugger.executeSelection",
+          "when": "workspaceFolderCount > 0 && editorLangId == lua"
+        },
+        {
+          "command": "codea-debugger.executeCommand",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "codea-debugger.restartProject",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "codea-debugger.addDependency",
+          "when": "workspaceFolderCount > 0"
+        }
+      ]      
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "dependencies": {
+    "@types/vscode-webview": "^1.57.1",
+    "ws": "8.12.0"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "16.x",
+    "@types/vscode": "^1.76.0",
+    "@types/vscode-webview": "^1.57.1",
+    "@types/ws": "8.5.4",
+    "@typescript-eslint/eslint-plugin": "^5.53.0",
+    "@typescript-eslint/parser": "^5.53.0",
+    "@vscode/debugadapter": "^1.59.0",
+    "@vscode/debugprotocol": "^1.59.0",
+    "@vscode/test-electron": "^2.2.3",
+    "eslint": "^8.34.0",
+    "glob": "^8.1.0",
+    "mocha": "^10.2.0",
+    "typescript": "^4.9.5"
+  }
+}
