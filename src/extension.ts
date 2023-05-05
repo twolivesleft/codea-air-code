@@ -35,7 +35,7 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.window.registerWebviewViewProvider(ParametersViewProvider.viewType, parametersViewProvider)
 	);	
 
-	console.log(`"codea-debugger" is now active`);
+	console.log(`"codea-air-code" is now active`);
 	
 	parametersViewProvider.airCode = airCode;
 
@@ -54,7 +54,7 @@ export function activate(context: vscode.ExtensionContext) {
 		airCode.loadString(uri, "_debuggee.start(json)");
 	}));
 
-	context.subscriptions.push(vscode.commands.registerCommand('codea-debugger.connectToHost', async () => {
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.connectToHost', async () => {
 		let defaultHost = "127.0.0.1:18513";
 
 		let host = await vscode.window.showInputBox({
@@ -74,7 +74,7 @@ export function activate(context: vscode.ExtensionContext) {
 		await vscode.commands.executeCommand("vscode.openFolder", uri);
 	}));
 
-	context.subscriptions.push(vscode.commands.registerCommand('codea-debugger.executeLine', async () => {
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.executeLine', async () => {
 		let activeEditor = vscode.window.activeTextEditor;
 		let line = activeEditor?.document.lineAt(activeEditor.selection.active.line);
 		let text = line?.text;
@@ -86,7 +86,7 @@ export function activate(context: vscode.ExtensionContext) {
 		airCode.loadString(activeEditor?.document.uri, text);
 	}));
 
-	context.subscriptions.push(vscode.commands.registerCommand('codea-debugger.executeSelection', async () => {
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.executeSelection', async () => {
 		let activeEditor = vscode.window.activeTextEditor;
 		let text = activeEditor?.document.getText(activeEditor.selection);
 
@@ -97,7 +97,7 @@ export function activate(context: vscode.ExtensionContext) {
 		airCode.loadString(activeEditor?.document.uri, text);
 	}));
 
-	context.subscriptions.push(vscode.commands.registerCommand('codea-debugger.executeCommand', async () => {
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.executeCommand', async () => {
 		let command = await vscode.window.showInputBox({
 			prompt: "Enter a Lua command."
 		});
@@ -114,7 +114,7 @@ export function activate(context: vscode.ExtensionContext) {
 		airCode.loadString(uri, command);
 	}));
 
-	context.subscriptions.push(vscode.commands.registerCommand('codea-debugger.restartProject', async () => {
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.restartProject', async () => {
 		const uri = getWorkspaceUri();
 		if (uri === undefined) {
 			return;
@@ -123,7 +123,7 @@ export function activate(context: vscode.ExtensionContext) {
 		airCode.restart(uri);
 	}));
 
-	context.subscriptions.push(vscode.commands.registerCommand('codea-debugger.addDependency', async () => {
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.addDependency', async () => {
 		const uri = getWorkspaceUri();
 		if (uri === undefined) {
 			return;

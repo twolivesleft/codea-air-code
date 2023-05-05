@@ -1,4 +1,4 @@
-# Codea Debugger
+# Codea Air Code
 
 This extension can connect remotely to the Codea iOS application, allowing to modify, tweak and debug Codea projects directly from Visual Studio Code.
 

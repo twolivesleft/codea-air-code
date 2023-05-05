@@ -1,6 +1,6 @@
 {
-  "name": "codea-debugger",
-  "displayName": "Codea Debugger",
+  "name": "codea-air-code",
+  "displayName": "Codea Air Code",
   "description": "A remote debugger for Codea applications.",
   "version": "0.0.1",
   "license": "MIT",
@@ -41,27 +41,27 @@
     },
     "commands": [
       {
-        "command": "codea-debugger.connectToHost",
+        "command": "codea-air-code.connectToHost",
         "title": "Codea: Connect to Host..."
       },
       {
-        "command": "codea-debugger.executeLine",
+        "command": "codea-air-code.executeLine",
         "title": "Codea: Execute current line"
       },
       {
-        "command": "codea-debugger.executeSelection",
+        "command": "codea-air-code.executeSelection",
         "title": "Codea: Execute selection"
       },
       {
-        "command": "codea-debugger.executeCommand",
+        "command": "codea-air-code.executeCommand",
         "title": "Codea: Execute command..."
       },
       {
-        "command": "codea-debugger.restartProject",
+        "command": "codea-air-code.restartProject",
         "title": "Codea: Restart project"
       },
       {
-        "command": "codea-debugger.addDependency",
+        "command": "codea-air-code.addDependency",
         "title": "Codea: Add dependency..."
       }
     ],
@@ -147,34 +147,34 @@
       "editor/context": [
         {
           "when": "resourceLangId == lua && editorHasSelection",
-          "command": "codea-debugger.executeSelection",
+          "command": "codea-air-code.executeSelection",
           "group": "a_codea"
         },
         {
           "when": "resourceLangId == lua && !editorHasSelection",
-          "command": "codea-debugger.executeLine",
+          "command": "codea-air-code.executeLine",
           "group": "a_codea"
         }
       ],
       "commandPalette": [
         {
-          "command": "codea-debugger.executeLine",
+          "command": "codea-air-code.executeLine",
           "when": "workspaceFolderCount > 0 && editorLangId == lua"
         },
         {
-          "command": "codea-debugger.executeSelection",
+          "command": "codea-air-code.executeSelection",
           "when": "workspaceFolderCount > 0 && editorLangId == lua"
         },
         {
-          "command": "codea-debugger.executeCommand",
+          "command": "codea-air-code.executeCommand",
           "when": "workspaceFolderCount > 0"
         },
         {
-          "command": "codea-debugger.restartProject",
+          "command": "codea-air-code.restartProject",
           "when": "workspaceFolderCount > 0"
         },
         {
-          "command": "codea-debugger.addDependency",
+          "command": "codea-air-code.addDependency",
           "when": "workspaceFolderCount > 0"
         }
       ]      
