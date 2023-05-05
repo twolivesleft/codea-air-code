@@ -81,69 +81,6 @@
     ],
     "debuggers": [
       {
-        "type": "lua",
-        "label": "Lua Debugger",
-        "program": "../DebugAdapter/bin/release/net7.0/DebugAdapter.dll",
-        "osx": {
-          "runtime": "dotnet"
-        },
-        "linux": {
-          "runtime": "dotnet"
-        },
-        "initialConfigurations": [
-          {
-            "name": "wait",
-            "displayName": "Attach to Codea",
-            "type": "lua",
-            "request": "attach",
-            "workingDirectory": "${workspaceRoot}",
-            "sourceBasePath": "${workspaceRoot}",
-            "listenPublicly": false,
-            "listenPort": 56789,
-            "encoding": "UTF-8"
-          }
-        ],
-        "configurationAttributes": {
-          "attach": {
-            "required": [
-              "name",
-              "type",
-              "request",
-              "workingDirectory",
-              "listenPublicly",
-              "listenPort"
-            ],
-            "properties": {
-              "workingDirectory": {
-                "type": "string",
-                "description": "Working directory",
-                "default": "${workspaceRoot}"
-              },
-              "sourceBasePath": {
-                "type": "string",
-                "description": "Base path of lua source files",
-                "default": "${workspaceRoot}"
-              },
-              "listenPublicly": {
-                "type": "boolean",
-                "description": "Set this to true if the debuggee will run in different computer.",
-                "default": false
-              },
-              "listenPort": {
-                "type": "integer",
-                "description": "Local TCP port to communicate between debug adapter and debuggee.",
-                "default": 56789
-              },
-              "encoding": {
-                "type": "string",
-                "description": "Encoding of the debuggee. (Example: 'UTF-8', '949')",
-                "default": "UTF-8"
-              }
-            }
-          }
-        }
-      },
-      {
         "type": "luaInline",
         "label": "Lua Debugger",
         "initialConfigurations": [
