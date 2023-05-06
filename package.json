@@ -47,7 +47,7 @@
           "type": "webview",
           "id": "codea-parameters",
           "name": "Parameters",
-          "when": "workspaceFolderCount > 0"
+          "when": "codea-air-code.hasWorkspaceUri == true"
         }
       ]
     },

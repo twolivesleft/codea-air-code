@@ -15,9 +15,11 @@ export function getWorkspaceUri(): vscode.Uri {
 
 export function activate(context: vscode.ExtensionContext) {
 
+	let workspaceUri = getWorkspaceUri();
+	vscode.commands.executeCommand('setContext', 'codea-air-code.hasWorkspaceUri', workspaceUri.scheme == "codea");
+
 	const parametersViewProvider = new ParametersViewProvider(context.extensionUri);
 	const outputChannel = vscode.window.createOutputChannel("Codea", "codea-output");
-
 	const airCode = new AirCode(outputChannel, parametersViewProvider);
 
 	//Register configurations	
