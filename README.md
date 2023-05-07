@@ -22,7 +22,7 @@ This extension can connect remotely to the [Codea](https://codea.io/) iOS applic
 
 Once connected to Codea, Visual Studio Code will list the files for the currently opened project, allowing to modify them, even if the project is running.
 
-<img height="400" alt="Screenshot of the editor" src="images/editor.png">
+<img width="720" alt="Screenshot of the editor" src="images/editor.png">
 
 ### Parameters
 
@@ -30,7 +30,7 @@ The Codea button on the Visual Studio Code Sidebar will show the current paramet
 
 All parameters can be controlled directly from Visual Studio Code even if the parameters are hidden in Codea, making it easier to tweak the projects.
 
-<img width="250" alt="Screenshot of parameters" src="images/parameters.png">
+<img width="255" alt="Screenshot of parameters" src="images/parameters.png">
 
 ### Debugger
 
@@ -38,7 +38,7 @@ With a project running, Visual Studio Code can be used to attach to the running 
 
 Some features such as conditional breakpoints or modifying variables are not available yet but will be added in future updates of Codea and the extension.
 
-<img height="400" alt="Screenshot of the debugger" src="images/debugger.png">
+<img width="806" alt="Screenshot of the debugger" src="images/debugger.png">
 
 ## Usage
 
