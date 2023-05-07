@@ -15,7 +15,6 @@ export namespace Command {
         | "deleteFile"
         | "renameFile"
         | "loadString"
-        | "loadBuffer"
         | "restart"
         | "listProjects"
         | "listUnimportedProjects"
@@ -59,12 +58,6 @@ export namespace Command {
     export interface LoadString extends Command {
         command: 'loadString';
         content: string;
-    }
-
-    export interface LoadBuffer extends Command {
-        command: 'loadBuffer';
-        content: string;
-        path: string;
     }
 
     export interface Restart extends Command {
@@ -139,12 +132,6 @@ export namespace Command {
     export namespace LoadString {
         export function from(content: string): LoadString {
             return { command: 'loadString', content };
-        }
-    }
-
-    export namespace LoadBuffer {
-        export function from(content: string, path: string): LoadBuffer {
-            return { command: 'loadBuffer', content, path };
         }
     }
 
