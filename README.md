@@ -1,6 +1,6 @@
 # Codea Air Code
 
-This extension can connect remotely to the Codea iOS application, allowing to modify, tweak and debug Codea projects directly from Visual Studio Code.
+This extension can connect remotely to the [Codea](https://codea.io/) iOS application, allowing to modify, tweak and debug Codea projects directly from Visual Studio Code.
 
 ## Table of Contents 
 
@@ -46,7 +46,13 @@ Some features such as conditional breakpoints or modifying variables are not ava
 
 After installing the extension, open the Command Palette (Ctrl+Shift+P on Windows, ⇧⌘P on Mac), and use the `Codea: Connect to Host...` command to connect to a running instance of Codea on an iOS device.
 
-To find the device's IP to connect to, use the Air Code icon on the project selection screen in Codea.
+To find the device's IP to connect to, use the Air Code icon on the project selection screen in Codea. The default port is `18513`.
+
+#### Fun Fact
+
+> The idea for this extension started as a proof-of-concept of a browser based "Remote Console". The idea was to see a Codea project's logs and execute commands directly from a web browser.
+>
+> Air Code's default port 18513 is actually based on the letters R (18) E (5) M (13), for REMote console.
 
 ### Files and Dependencies
 
@@ -72,6 +78,8 @@ All commands included with this extension are prefixed with `Codea:`.
 ## Requirements
 
 Codea 3.9
+
+[![Codea](images/App-Store-Badge.svg)](http://itunes.apple.com/app/id439571171?mt=8)
 
 ## License
 [MIT License](LICENSE)
