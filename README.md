@@ -66,14 +66,14 @@ To remove a dependency, simply delete its corresponding folder in the Explorer.
 
 All commands included with this extension are prefixed with `Codea:`.
 
-| Command              | Description  |
-|----------------------|--------------|
-| Connect to Host...   | Enter the IP and port to connect to a running instance of Codea. |
-| Execute current line | Executes the Lua code on the active line.                        |
-| Execute selection    | Executes the select Lua code in Codea.                           |
-| Execute command...   | Enter a Lua command to execute in Codea.                         |
-| Restart project      | Restart the running project in Codea.                            |
-| Add dependency...    | Select a dependency to add to the active Codea project.          |
+| Command                | Description                                                      |
+|------------------------|------------------------------------------------------------------|
+| `Connect to Host...`   | Enter the IP and port to connect to a running instance of Codea. |
+| `Execute current line` | Executes the Lua code on the active line.                        |
+| `Execute selection`    | Executes the select Lua code in Codea.                           |
+| `Execute command...`   | Enter a Lua command to execute in Codea.                         |
+| `Restart project`      | Restart the running project in Codea.                            |
+| `Add dependency...`    | Select a dependency to add to the active Codea project.          |
 
 ## Requirements
 
