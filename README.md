@@ -44,7 +44,7 @@ Some features such as conditional breakpoints or modifying variables are not ava
 
 ### Connection
 
-After installing the extension, open the Command Palette (Ctrl+Shift+P on Windows, ⇧⌘P on Mac), and use the `Codea: Connect to Host...` command to connect to a running instance of Codea on an iOS device.
+After installing the extension, open the Command Palette (Ctrl+Shift+P on Windows, ⇧⌘P on Mac), and run the `Codea: Connect to Host...` command to connect to a running instance of Codea on an iOS device. After typing Enter or selecting the command, Visual Studio Code will ask for Codea's IP.
 
 To find the device's IP to connect to, use the Air Code icon on the project selection screen in Codea. The default port is `18513`.
 
