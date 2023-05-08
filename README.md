@@ -77,7 +77,7 @@ All commands included with this extension are prefixed with `Codea:`.
 
 ## Requirements
 
-Codea 3.9
+Codea 3.8
 
 [![Codea](images/App-Store-Badge.svg)](http://itunes.apple.com/app/id439571171?mt=8)
 
