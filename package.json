@@ -1,11 +1,11 @@
 {
   "name": "codea-air-code",
   "displayName": "Codea Air Code",
-  "description": "A remote debugger for Codea applications.",
+  "description": "A remote editor and debugger for Codea projects.",
   "version": "1.0.0",
   "publisher": "Two Lives Left",
   "license": "MIT",
-  "homepage": "https://github.com/twolivesleft/codea-air-code",
+  "homepage": "https://twolivesleft.github.io/codea-air-code/",
   "repository": {
     "type": "git",
     "url": "https://github.com/twolivesleft/codea-air-code.git"
