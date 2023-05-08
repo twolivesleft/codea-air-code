@@ -8,6 +8,7 @@ This extension can connect remotely to the [Codea](https://codea.io/) iOS applic
   - [Editor](#editor)
   - [Parameters](#parameters)
   - [Debugger](#debugger)
+- [Installation](#installation)
 - [Usage](#usage)
   - [Connection](#connection)
   - [Files and Dependencies](#files-and-dependencies)
@@ -40,11 +41,23 @@ Some features such as conditional breakpoints or modifying variables are not ava
 
 <img width="806" alt="Screenshot of the debugger" src="images/debugger.png">
 
+## Installation
+
+Search for "Codea Air Code" in Visual Studio Code's Marketplace and install the extension.
+
+<img width="302" alt="Screenshot of the debugger" src="images/marketplace.png">
+
 ## Usage
 
 ### Connection
 
-After installing the extension, open the Command Palette (Ctrl+Shift+P on Windows, ⇧⌘P on Mac), and run the `Codea: Connect to Host...` command to connect to a running instance of Codea on an iOS device. After typing Enter or clicking the command, Visual Studio Code will ask for Codea's IP.
+After installing the extension, open the Command Palette (Ctrl+Shift+P on Windows, ⇧⌘P on Mac), and run the `Codea: Connect to Host...` command to connect to a running instance of Codea on an iOS device.
+
+<img width="605" alt="Screenshot of the debugger" src="images/palette.png">
+
+After typing Enter or clicking the command, Visual Studio Code will ask for Codea's IP:
+
+<img width="605" alt="Screenshot of the debugger" src="images/connect.png">
 
 To find the device's IP to connect to, use the Air Code icon on the project selection screen in Codea. The default port is `18513`.
 
