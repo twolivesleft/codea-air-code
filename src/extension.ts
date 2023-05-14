@@ -59,7 +59,7 @@ export function activate(context: vscode.ExtensionContext) {
 			host = defaultHost;
 		}
 
-		let uri = vscode.Uri.parse(`codea://${host}/`);
+		let uri = vscode.Uri.parse(`codea://${host}/${AirCode.rootFolder}/`);
 		await vscode.commands.executeCommand("vscode.openFolder", uri);
 	}));
 
@@ -127,7 +127,7 @@ export function activate(context: vscode.ExtensionContext) {
 					airCode.onDependenciesCreated();
 				}
 
-				let path = `codea://${uri.authority}/Dependencies/${choice}.codea`;
+				let path = `codea://${uri.authority}/${AirCode.rootFolder}/Dependencies/${choice}.codea`;
 				let newUri = vscode.Uri.parse(path);
 				airCode.fileCreated(newUri);	
 			}

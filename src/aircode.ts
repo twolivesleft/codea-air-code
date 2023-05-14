@@ -9,6 +9,8 @@ import * as Parameters from './parameters';
 import { getWorkspaceUri } from './extension';
 
 export class AirCode implements vscode.FileSystemProvider {
+    public static readonly rootFolder = 'Codea';
+
     webSockets = new Map<string, WebSocket>();
     commandId: number = 0;
     promises = new Map<number, (data: any) => void>();
@@ -30,7 +32,6 @@ export class AirCode implements vscode.FileSystemProvider {
                 "name": "Attach to Codea",
                 "type": "luaInline",
                 "request": "attach",
-                "workingDirectory": "codea://AUTHORITY/",
                 "sourceBasePath": "codea://AUTHORITY/",
                 "listenPublicly": false,
                 "listenPort": 56789,
@@ -40,14 +41,14 @@ export class AirCode implements vscode.FileSystemProvider {
     }`;
 
     internalFiles: Map<string, [string, vscode.FileStat]> = new Map([
-        ["/.vscode", ["", {
+        [`/${AirCode.rootFolder}/.vscode`, ["", {
             type: vscode.FileType.Directory,
             ctime: Date.now(),
             mtime: Date.now(),
             size: 0,
             permissions: vscode.FilePermission.Readonly
         }]],
-        ["/.vscode/launch.json", [this.launchContent, {
+        [`/${AirCode.rootFolder}/.vscode/launch.json`, [this.launchContent, {
             type: vscode.FileType.File,
             ctime: Date.now(),
             mtime: Date.now(),
@@ -335,7 +336,7 @@ export class AirCode implements vscode.FileSystemProvider {
             if (response instanceof Error) {
                 return Result.error(response);
             } else {
-                if (path === "/") {
+                if (path === `/${AirCode.rootFolder}`) {
                     response.push([".vscode", vscode.FileType.Directory]);
                 }
                 return Result.success(response);
@@ -373,7 +374,7 @@ export class AirCode implements vscode.FileSystemProvider {
     }
 
     getDependenciesUri(): vscode.Uri {
-        let path = `codea://${getWorkspaceUri().authority}/Dependencies`;
+        let path = `codea://${getWorkspaceUri().authority}/${AirCode.rootFolder}/Dependencies`;
         return vscode.Uri.parse(path);
     }
 

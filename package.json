@@ -107,7 +107,6 @@
             "displayName": "Attach to Codea",
             "type": "lua",
             "request": "attach",
-            "workingDirectory": "${workspaceRoot}",
             "sourceBasePath": "${workspaceRoot}",
             "listenPublicly": false,
             "listenPort": 56789,
@@ -120,16 +119,10 @@
               "name",
               "type",
               "request",
-              "workingDirectory",
               "listenPublicly",
               "listenPort"
             ],
             "properties": {
-              "workingDirectory": {
-                "type": "string",
-                "description": "Working directory",
-                "default": "${workspaceRoot}"
-              },
               "sourceBasePath": {
                 "type": "string",
                 "description": "Base path of lua source files",
