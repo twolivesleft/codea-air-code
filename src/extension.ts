@@ -43,19 +43,6 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(vscode.workspace.registerFileSystemProvider('codea', airCode, { isCaseSensitive: true }));
 
-	context.subscriptions.push(vscode.debug.onDidReceiveDebugSessionCustomEvent((e) => {
-		if (e.event !== 'waitingForDebuggee') {
-			return;
-		}
-
-		const uri = getWorkspaceUri();
-		if (uri === undefined) {
-			return;
-		}
-
-		airCode.loadString(uri, "_debuggee.start(json)");
-	}));
-
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.connectToHost', async () => {
 		let defaultHost = "127.0.0.1:18513";
 
