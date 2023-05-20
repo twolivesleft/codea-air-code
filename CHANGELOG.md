@@ -1,7 +1,10 @@
 # Change Log
 
-Not released yet.
+## 1.0.0 (2023/05/08)
+
+- Initial release
 
 ## [Unreleased]
 
-- Initial release
+- Improved the folders hierarchy.
+- Fixed issues following connection loss with Codea.
