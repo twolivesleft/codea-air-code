@@ -5,7 +5,8 @@ enum ErrorType {
     fileNotFound = "fileNotFound",
     unableToReadFile = "unableToReadFile",
     unableToDeleteFile = "unableToDeleteFile",
-    unableToRenameFile = "unableToRenameFile"
+    unableToRenameFile = "unableToRenameFile",
+    connectionLost = "connectionLost"
 }
 
 export type AddDependencyResponse = {
@@ -36,7 +37,9 @@ export namespace Response {
                     return vscode.FileSystemError.NoPermissions(errorString);
                 case 'unableToRenameFile':
                     return vscode.FileSystemError.NoPermissions(errorString);
-            }
+                case 'connectionLost':
+                    return vscode.FileSystemError.Unavailable(errorString);
+                }
         }
 
         return Error(errorString);

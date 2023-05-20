@@ -213,6 +213,12 @@ export class AirCode implements vscode.FileSystemProvider {
         };
 
         ws.onclose = function () {
+            for (let [id, promise] of parent.promises) {
+                promise({
+                    error: "connectionLost"
+                });
+            }
+            parent.promises.clear();
             vscode.window.showErrorMessage(`Connection lost to ${host}.`);
             vscode.debug.stopDebugging();
             parent.parametersView.clearParameters();
