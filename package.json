@@ -15,8 +15,7 @@
   },
   "icon": "images/codea.png",
   "galleryBanner": {
-    "color": "#E0F8F4",
-    "theme": "dark"
+    "color": "#E0F8F4"
   },
   "bugs": {
     "url": "https://github.com/twolivesleft/codea-air-code/issues"
