@@ -127,7 +127,7 @@ export function activate(context: vscode.ExtensionContext) {
 					airCode.onDependenciesCreated();
 				}
 
-				let path = `codea://${uri.authority}/${AirCode.rootFolder}/Dependencies/${choice}.codea`;
+				let path = `codea://${uri.authority}/${AirCode.rootFolder}/Dependencies/${choice}`;
 				let newUri = vscode.Uri.parse(path);
 				airCode.fileCreated(newUri);	
 			}
