@@ -19,6 +19,7 @@ export type DeleteFileResponse = {
 
 export type Response<T> = {
     id: number;
+    project?: String;
     data?: T;
     error?: ErrorType;
 };
