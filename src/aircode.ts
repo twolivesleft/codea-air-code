@@ -214,6 +214,7 @@ export class AirCode implements vscode.FileSystemProvider {
 
         ws.onclose = function () {
             vscode.window.showErrorMessage(`Connection lost to ${host}.`);
+            vscode.debug.stopDebugging();
             parent.parametersView.clearParameters();
         };
 
