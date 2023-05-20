@@ -1,12 +1,18 @@
 import * as vscode from 'vscode';
 
+import { compareVersions } from 'compare-versions';
 import { TextDecoder, TextEncoder } from 'util';
-import { WebSocket, Event, OPEN, MessageEvent, CONNECTING } from 'ws';
+import { WebSocket, Event, OPEN, MessageEvent, CloseEvent, CONNECTING } from 'ws';
 import { Result } from './result';
-import { Response, AddDependencyResponse, DeleteFileResponse } from './responses';
+import { Response, GetInformationResponse, AddDependencyResponse, DeleteFileResponse } from './responses';
 import { Command } from './commands';
 import * as Parameters from './parameters';
 import { getWorkspaceUri } from './extension';
+
+enum CloseEventCode {
+    None = 1000,
+    IncompatibleVersion = 4001
+}
 
 export class AirCode implements vscode.FileSystemProvider {
     public static readonly rootFolder = 'Codea';
@@ -17,10 +23,12 @@ export class AirCode implements vscode.FileSystemProvider {
     outputChannel: vscode.OutputChannel;
     parametersView: Parameters.ParametersViewProvider;
     debugEvents = new vscode.EventEmitter<string>();
+    extensionVersion: string; 
 
-    constructor(outputChannel: vscode.OutputChannel, parametersView: Parameters.ParametersViewProvider) {
+    constructor(outputChannel: vscode.OutputChannel, parametersView: Parameters.ParametersViewProvider, extensionVersion: string) {
         this.outputChannel = outputChannel;
         this.parametersView = parametersView;
+        this.extensionVersion = extensionVersion
     }
 
     // Internal Files
@@ -125,6 +133,20 @@ export class AirCode implements vscode.FileSystemProvider {
         let airCode = this;
 
         ws.onopen = async function () {
+            let information = await airCode.getInformation(uri);
+
+            if (compareVersions(airCode.extensionVersion, information.extensionMinVersion) < 0) {
+                vscode.window.showErrorMessage(`Codea Air Code must be updated to version ${information.extensionMinVersion} or higher.`,
+                ...["Show Updates"]).then(selection => {
+                    if (selection) {
+                        vscode.commands.executeCommand("workbench.extensions.action.extensionUpdates");
+                    }
+                });
+                airCode.webSockets.delete(host);
+                ws.close(CloseEventCode.IncompatibleVersion);
+                return;
+            }
+
             vscode.window.showInformationMessage(`Connected to ${host}.`);
 
             let parameters = await airCode.getParameters(uri);
@@ -212,14 +234,16 @@ export class AirCode implements vscode.FileSystemProvider {
             }
         };
 
-        ws.onclose = function () {
+        ws.onclose = function (event: CloseEvent) {
             for (let [id, promise] of parent.promises) {
                 promise({
                     error: "connectionLost"
                 });
             }
             parent.promises.clear();
-            vscode.window.showErrorMessage(`Connection lost to ${host}.`);
+            if (event.code != CloseEventCode.IncompatibleVersion) {
+                vscode.window.showErrorMessage(`Connection lost to ${host}.`);
+            }
             vscode.debug.stopDebugging();
             parent.parametersView.clearParameters();
         };
@@ -288,6 +312,10 @@ export class AirCode implements vscode.FileSystemProvider {
     loadString(uri: vscode.Uri, content: string) {
         this.sendCommand(uri, Command.LoadString.from(content));
     }
+
+    async getInformation(uri: vscode.Uri) : Promise<GetInformationResponse> {
+        return this.sendCommand<GetInformationResponse>(uri, Command.GetInformation.from());
+    }    
 
     async addDependency(uri: vscode.Uri, path: string) : Promise<AddDependencyResponse> {
         return this.sendCommand<AddDependencyResponse>(uri, Command.AddDependency.from(path));

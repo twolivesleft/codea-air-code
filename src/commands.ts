@@ -8,6 +8,7 @@ export interface Command {
 export namespace Command {
 
     export type Type =
+        | "getInformation"
         | "listFiles"
         | "readFile"
         | "statFile"
@@ -22,6 +23,10 @@ export namespace Command {
         | "getParameters"
         | "setParameter"
         | "debugMessage";
+
+    export interface GetInformation extends Command {
+        command: 'getInformation';
+    }
 
     export interface ListFiles extends Command {
         command: 'listFiles';
@@ -92,6 +97,12 @@ export namespace Command {
     }
 
     // Convenience Initializers
+
+    export namespace GetInformation {
+        export function from(): GetInformation {
+            return { command: 'getInformation' };
+        }
+    }
 
     export namespace ListFiles {
         export function from(path: string): ListFiles {
