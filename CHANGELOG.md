@@ -8,3 +8,4 @@
 
 - Improved the folders hierarchy.
 - Fixed issues following connection loss with Codea.
+- Added version compatibility checks.

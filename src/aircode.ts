@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 
-import { compareVersions } from 'compare-versions';
 import { TextDecoder, TextEncoder } from 'util';
 import { WebSocket, Event, OPEN, MessageEvent, CloseEvent, CONNECTING } from 'ws';
 import { Result } from './result';
@@ -9,9 +8,19 @@ import { Command } from './commands';
 import * as Parameters from './parameters';
 import { getWorkspaceUri } from './extension';
 
+const semver = require('semver');
+
+const codeaVersion = "3.8";
+
 enum CloseEventCode {
     None = 1000,
     IncompatibleVersion = 4001
+}
+
+enum VersionComparison {
+    Compatible,
+    UpdateCodea,
+    UpdateExtension
 }
 
 export class AirCode implements vscode.FileSystemProvider {
@@ -108,6 +117,19 @@ export class AirCode implements vscode.FileSystemProvider {
         });
     }
 
+    compareVersions(airCodeVersion: string): VersionComparison {
+        let diff = semver.diff(airCodeVersion, this.extensionVersion);
+        if (diff == null || diff == 'patch') {
+            return VersionComparison.Compatible;
+        }
+
+        if (semver.lt(airCodeVersion, this.extensionVersion)) {
+            return VersionComparison.UpdateCodea;
+        }
+
+        return VersionComparison.UpdateExtension;
+    }
+
     async getSocketForUri(uri: vscode.Uri, showError: boolean = true): Promise<WebSocket | undefined> {
         const host = uri.authority;
         if (host === undefined) {
@@ -135,13 +157,26 @@ export class AirCode implements vscode.FileSystemProvider {
         ws.onopen = async function () {
             let information = await airCode.getInformation(uri);
 
-            if (compareVersions(airCode.extensionVersion, information.version) < 0) {
-                vscode.window.showErrorMessage(`Codea Air Code must be updated to version ${information.version} or higher.`,
-                ...["Show Updates"]).then(selection => {
-                    if (selection) {
-                        vscode.commands.executeCommand("workbench.extensions.action.extensionUpdates");
-                    }
-                });
+            let version = information.version;
+            let versionComparison = airCode.compareVersions(version);
+
+            if (versionComparison != VersionComparison.Compatible) {
+                if (versionComparison == VersionComparison.UpdateCodea) {
+                    vscode.window.showErrorMessage(`Codea must be updated to version ${codeaVersion} or higher.`,
+                        ...["App Store"]).then(selection => {
+                            if (selection) {
+                                vscode.env.openExternal(vscode.Uri.parse('https://apps.apple.com/us/app/codea/id439571171'));
+                            }
+                        });
+                }
+                else {
+                    vscode.window.showErrorMessage(`The extension must be updated to version ${semver.major(version)}.${semver.minor(version)}.x`,
+                        ...["Show Updates"]).then(selection => {
+                            if (selection) {
+                                vscode.commands.executeCommand("workbench.extensions.action.extensionUpdates");
+                            }
+                        });    
+                }
                 airCode.webSockets.delete(host);
                 ws.close(CloseEventCode.IncompatibleVersion);
                 return;
