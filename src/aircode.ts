@@ -135,8 +135,8 @@ export class AirCode implements vscode.FileSystemProvider {
         ws.onopen = async function () {
             let information = await airCode.getInformation(uri);
 
-            if (compareVersions(airCode.extensionVersion, information.extensionMinVersion) < 0) {
-                vscode.window.showErrorMessage(`Codea Air Code must be updated to version ${information.extensionMinVersion} or higher.`,
+            if (compareVersions(airCode.extensionVersion, information.version) < 0) {
+                vscode.window.showErrorMessage(`Codea Air Code must be updated to version ${information.version} or higher.`,
                 ...["Show Updates"]).then(selection => {
                     if (selection) {
                         vscode.commands.executeCommand("workbench.extensions.action.extensionUpdates");

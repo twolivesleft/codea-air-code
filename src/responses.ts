@@ -10,7 +10,7 @@ enum ErrorType {
 }
 
 export type GetInformationResponse = {
-    extensionMinVersion: string;
+    version: string;
 }
 
 export type AddDependencyResponse = {
