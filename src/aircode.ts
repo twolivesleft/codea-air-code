@@ -1,12 +1,27 @@
 import * as vscode from 'vscode';
 
 import { TextDecoder, TextEncoder } from 'util';
-import { WebSocket, Event, OPEN, MessageEvent, CONNECTING } from 'ws';
+import { WebSocket, Event, OPEN, MessageEvent, CloseEvent, CONNECTING } from 'ws';
 import { Result } from './result';
-import { Response, AddDependencyResponse, DeleteFileResponse } from './responses';
+import { Response, GetInformationResponse, AddDependencyResponse, DeleteFileResponse } from './responses';
 import { Command } from './commands';
 import * as Parameters from './parameters';
 import { getWorkspaceUri } from './extension';
+
+const semver = require('semver');
+
+const codeaVersion = "3.8";
+
+enum CloseEventCode {
+    None = 1000,
+    IncompatibleVersion = 4001
+}
+
+enum VersionComparison {
+    Compatible,
+    UpdateCodea,
+    UpdateExtension
+}
 
 export class AirCode implements vscode.FileSystemProvider {
     public static readonly rootFolder = 'Codea';
@@ -17,11 +32,13 @@ export class AirCode implements vscode.FileSystemProvider {
     outputChannel: vscode.OutputChannel;
     parametersView: Parameters.ParametersViewProvider;
     debugEvents = new vscode.EventEmitter<string>();
+    extensionVersion: string; 
     projectName? : string;
 
-    constructor(outputChannel: vscode.OutputChannel, parametersView: Parameters.ParametersViewProvider) {
+    constructor(outputChannel: vscode.OutputChannel, parametersView: Parameters.ParametersViewProvider, extensionVersion: string) {
         this.outputChannel = outputChannel;
         this.parametersView = parametersView;
+        this.extensionVersion = extensionVersion
     }
 
     // Internal Files
@@ -42,6 +59,13 @@ export class AirCode implements vscode.FileSystemProvider {
     }`;
 
     internalFiles: Map<string, [string, vscode.FileStat]> = new Map([
+        [`/${AirCode.rootFolder}`, ["", {
+            type: vscode.FileType.Directory,
+            ctime: Date.now(),
+            mtime: Date.now(),
+            size: 0,
+            permissions: vscode.FilePermission.Readonly
+        }]],
         [`/${AirCode.rootFolder}/.vscode`, ["", {
             type: vscode.FileType.Directory,
             ctime: Date.now(),
@@ -76,7 +100,7 @@ export class AirCode implements vscode.FileSystemProvider {
 
     // Web Socket
 
-    async waitForSocket(ws: WebSocket, showError: boolean = true) {
+    async waitForSocket(ws: WebSocket, showError: boolean = true) : Promise<boolean> {
         return new Promise((resolve, reject) => {
             const maxNumberOfAttempts = 10;
             const intervalTime = 200;
@@ -85,7 +109,7 @@ export class AirCode implements vscode.FileSystemProvider {
             const interval = setInterval(() => {
                 if (ws.readyState === ws.OPEN) {
                     clearInterval(interval);
-                    resolve(ws);
+                    resolve(true);
                     return;
                 }
                 else if (currentAttempt > maxNumberOfAttempts - 1 || ws.readyState !== CONNECTING) {
@@ -93,12 +117,25 @@ export class AirCode implements vscode.FileSystemProvider {
                     if (showError) {
                         vscode.window.showErrorMessage(`Failed connecting to ${ws.url}.`);
                     }
-                    reject();
+                    resolve(false);
                     return;
                 }
                 currentAttempt++;
             }, intervalTime);
         });
+    }
+
+    compareVersions(airCodeVersion: string): VersionComparison {
+        let diff = semver.diff(airCodeVersion, this.extensionVersion);
+        if (diff == null || diff == 'patch') {
+            return VersionComparison.Compatible;
+        }
+
+        if (semver.lt(airCodeVersion, this.extensionVersion)) {
+            return VersionComparison.UpdateCodea;
+        }
+
+        return VersionComparison.UpdateExtension;
     }
 
     async getSocketForUri(uri: vscode.Uri, showError: boolean = true): Promise<WebSocket | undefined> {
@@ -121,11 +158,36 @@ export class AirCode implements vscode.FileSystemProvider {
 
         let ws = new WebSocket(`ws://${host}/`);
 
-        this.webSockets.set(host, ws);
-
         let airCode = this;
 
         ws.onopen = async function () {
+            let information = await airCode.getInformation(uri);
+
+            let version = information.version;
+            let versionComparison = airCode.compareVersions(version);
+
+            if (versionComparison != VersionComparison.Compatible) {
+                if (versionComparison == VersionComparison.UpdateCodea) {
+                    vscode.window.showErrorMessage(`Codea must be updated to version ${codeaVersion} or higher.`,
+                        ...["App Store"]).then(selection => {
+                            if (selection) {
+                                vscode.env.openExternal(vscode.Uri.parse('https://apps.apple.com/us/app/codea/id439571171'));
+                            }
+                        });
+                }
+                else {
+                    vscode.window.showErrorMessage(`The extension must be updated to version ${semver.major(version)}.${semver.minor(version)}.0 or higher.`,
+                        ...["Show Updates"]).then(selection => {
+                            if (selection) {
+                                vscode.commands.executeCommand("workbench.extensions.action.extensionUpdates");
+                            }
+                        });    
+                }
+                airCode.webSockets.delete(host);
+                ws.close(CloseEventCode.IncompatibleVersion);
+                return;
+            }
+
             vscode.window.showInformationMessage(`Connected to ${host}.`);
 
             let parameters = await airCode.getParameters(uri);
@@ -217,7 +279,7 @@ export class AirCode implements vscode.FileSystemProvider {
             }
         };
 
-        ws.onclose = function () {
+        ws.onclose = function (event: CloseEvent) {
             for (let [id, promise] of parent.promises) {
                 promise({
                     error: "connectionLost"
@@ -226,13 +288,22 @@ export class AirCode implements vscode.FileSystemProvider {
             parent.promises.clear();
             parent.projectName = undefined;
             vscode.window.showErrorMessage(`Connection lost to ${host}.`);
+            if (event.code != CloseEventCode.IncompatibleVersion) {
+                vscode.window.showErrorMessage(`Connection lost to ${host}.`);
+            }
             vscode.debug.stopDebugging();
             parent.parametersView.clearParameters();
+            vscode.commands.executeCommand("workbench.files.action.refreshFilesExplorer");
         };
 
-        await this.waitForSocket(ws, showError);
+        let success = await this.waitForSocket(ws, showError);
 
-        return ws;
+        if (success) {
+            this.webSockets.set(host, ws);
+            return ws;
+        }
+
+        return undefined;
     }
 
     // Sending Commands
@@ -248,25 +319,31 @@ export class AirCode implements vscode.FileSystemProvider {
         return new Promise((resolve, reject) => {
             this.getSocketForUri(uri).then(ws => {
                 if (ws === undefined) {
-                    reject();
-                    return;
+                    const result = map(Response.from('connectionLost'));
+                    if (result.success) {
+                        resolve(result.value);
+                    } else {
+                        reject(result.error);
+                    }    
                 }
+                else {
+                    this.send<R>(ws, command, response => {
+                        let responseData : any = Response.from('connectionLost');
+                
+                        if (response.error !== null && response.error !== undefined) {
+                            responseData = Response.from(response.error);
+                        } else if (response.data !== null && response.data !== undefined) {
+                            responseData = response.data;
+                        }
 
-                this.send<R>(ws, command, response => {
-                    if (response.error !== null && response.error !== undefined) {
-                        const error = Response.from(response.error);
-                        reject(error);
-                    } else if (response.data !== null && response.data !== undefined) {
-                        const result = map(response.data);
+                        const result = map(responseData);
                         if (result.success) {
                             resolve(result.value);
                         } else {
                             reject(result.error);
-                        }
-                    }
-                });
-            }).then(undefined, error => {
-                reject(error);
+                        }    
+                    });    
+                }
             });
         });
     }
@@ -294,6 +371,10 @@ export class AirCode implements vscode.FileSystemProvider {
     loadString(uri: vscode.Uri, content: string) {
         this.sendCommand(uri, Command.LoadString.from(content));
     }
+
+    async getInformation(uri: vscode.Uri) : Promise<GetInformationResponse> {
+        return this.sendCommand<GetInformationResponse>(uri, Command.GetInformation.from());
+    }    
 
     async addDependency(uri: vscode.Uri, path: string) : Promise<AddDependencyResponse> {
         return this.sendCommand<AddDependencyResponse>(uri, Command.AddDependency.from(path));
@@ -340,13 +421,16 @@ export class AirCode implements vscode.FileSystemProvider {
         const path = uri.path;
         const internal = this.internalFiles.get(path);
 
-        if (internal !== undefined) {
+        if (internal !== undefined && path !== `/${AirCode.rootFolder}`) {
             const contents = this.internalDirectoryContents(path);
             return contents;
         }
 
         return this.sendCommandMapResponse<[string, vscode.FileType][], [string, vscode.FileType][]>(uri, Command.ListFiles.from(path), response => {
             if (response instanceof Error) {
+                if (path === `/${AirCode.rootFolder}`) {
+                    return Result.success([[".vscode", vscode.FileType.Directory]]);
+                }
                 return Result.error(response);
             } else {
                 if (path === `/${AirCode.rootFolder}`) {

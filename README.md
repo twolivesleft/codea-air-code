@@ -23,7 +23,7 @@ This extension can connect remotely to the [Codea](https://codea.io/) iOS applic
 
 Once connected to Codea, Visual Studio Code will list the files for the currently opened project, allowing to modify them, even if the project is running.
 
-<img width="720" alt="Screenshot of the editor" src="images/editor.png">
+<img width="851" alt="Screenshot of the editor" src="images/editor.png">
 
 ### Parameters
 
@@ -37,9 +37,19 @@ All parameters can be controlled directly from Visual Studio Code even if the pa
 
 With a project running, Visual Studio Code can be used to attach to the running project and then used for debugging.
 
-Some features such as conditional breakpoints or modifying variables are not available yet but will be added in future updates of Codea and the extension.
+Some features such as modifying variables are not available yet but will be added in future updates of Codea and the extension.
 
 <img width="806" alt="Screenshot of the debugger" src="images/debugger.png">
+
+#### Conditional Breakpoints
+
+To set a condition on a breakpoint, right click a breakpoint and select `Edit Breakpoint...`:
+
+<img width="457" alt="Screenshot of parameters" src="images/edit_breakpoint.png">
+
+Enter a valid Lua expression which must be `true` for the breakpoint to hit.
+
+<img width="319" alt="Screenshot of parameters" src="images/breakpoint_condition.png">
 
 ## Installation
 

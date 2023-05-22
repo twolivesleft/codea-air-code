@@ -20,7 +20,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	const parametersViewProvider = new ParametersViewProvider(context.extensionUri);
 	const outputChannel = vscode.window.createOutputChannel("Codea", "codea-output");
-	const airCode = new AirCode(outputChannel, parametersViewProvider);
+	const airCode = new AirCode(outputChannel, parametersViewProvider, context.extension.packageJSON.version);
 
 	//Register configurations	
 	const codeaProvider = new CodeaDebugConfigurationProvider();
