@@ -17,7 +17,7 @@ export class AirCode implements vscode.FileSystemProvider {
     outputChannel: vscode.OutputChannel;
     parametersView: Parameters.ParametersViewProvider;
     debugEvents = new vscode.EventEmitter<string>();
-    projectName = "";
+    projectName? : string;
 
     constructor(outputChannel: vscode.OutputChannel, parametersView: Parameters.ParametersViewProvider) {
         this.outputChannel = outputChannel;
@@ -224,6 +224,7 @@ export class AirCode implements vscode.FileSystemProvider {
                 });
             }
             parent.promises.clear();
+            parent.projectName = undefined;
             vscode.window.showErrorMessage(`Connection lost to ${host}.`);
             vscode.debug.stopDebugging();
             parent.parametersView.clearParameters();
