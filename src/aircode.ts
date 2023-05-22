@@ -33,6 +33,7 @@ export class AirCode implements vscode.FileSystemProvider {
     parametersView: Parameters.ParametersViewProvider;
     debugEvents = new vscode.EventEmitter<string>();
     extensionVersion: string; 
+    projectName? : string;
 
     constructor(outputChannel: vscode.OutputChannel, parametersView: Parameters.ParametersViewProvider, extensionVersion: string) {
         this.outputChannel = outputChannel;
@@ -198,6 +199,10 @@ export class AirCode implements vscode.FileSystemProvider {
 
         ws.onmessage = function (evt: MessageEvent) {
             let result = JSON.parse(evt.data as string);
+
+            // Keep track of the last known project name based on the response
+            parent.projectName = result.project;
+
             if (result.id !== undefined) {
                 let id = result.id as number;
                 let data = result;
@@ -281,6 +286,8 @@ export class AirCode implements vscode.FileSystemProvider {
                 });
             }
             parent.promises.clear();
+            parent.projectName = undefined;
+            vscode.window.showErrorMessage(`Connection lost to ${host}.`);
             if (event.code != CloseEventCode.IncompatibleVersion) {
                 vscode.window.showErrorMessage(`Connection lost to ${host}.`);
             }
@@ -464,7 +471,7 @@ export class AirCode implements vscode.FileSystemProvider {
     }
 
     getDependenciesUri(): vscode.Uri {
-        let path = `codea://${getWorkspaceUri().authority}/${AirCode.rootFolder}/Dependencies`;
+        let path = `codea://${getWorkspaceUri().authority}/${AirCode.rootFolder}/${this.projectName}/Dependencies`;
         return vscode.Uri.parse(path);
     }
 
