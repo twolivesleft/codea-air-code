@@ -158,6 +158,9 @@ export class AirCode implements vscode.FileSystemProvider {
 
         let ws = new WebSocket(`ws://${host}/`);
 
+        // Keep the pending request so new calls can wait for it.
+        this.webSockets.set(host, ws);
+
         let airCode = this;
 
         ws.onopen = async function () {
@@ -298,12 +301,13 @@ export class AirCode implements vscode.FileSystemProvider {
 
         let success = await this.waitForSocket(ws, showError);
 
-        if (success) {
-            this.webSockets.set(host, ws);
-            return ws;
+        if (!success) {
+            this.webSockets.clear();
+            ws.close();
+            return undefined;
         }
 
-        return undefined;
+        return ws;
     }
 
     // Sending Commands

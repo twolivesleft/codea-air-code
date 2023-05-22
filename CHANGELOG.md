@@ -1,5 +1,8 @@
 # Change Log
 
+## 1.1.1 (2023/05/22)
+
+- Fixed an issue with too many sockets being opened.
 
 ## 1.1.0 (2023/05/22)
 
@@ -15,4 +18,3 @@
 ## [Unreleased]
 
 - Nothing yet!
-- 
