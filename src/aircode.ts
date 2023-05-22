@@ -170,7 +170,7 @@ export class AirCode implements vscode.FileSystemProvider {
                         });
                 }
                 else {
-                    vscode.window.showErrorMessage(`The extension must be updated to version ${semver.major(version)}.${semver.minor(version)}.x`,
+                    vscode.window.showErrorMessage(`The extension must be updated to version ${semver.major(version)}.${semver.minor(version)}.0 or higher.`,
                         ...["Show Updates"]).then(selection => {
                             if (selection) {
                                 vscode.commands.executeCommand("workbench.extensions.action.extensionUpdates");
