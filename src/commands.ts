@@ -16,6 +16,8 @@ export namespace Command {
         | "deleteFile"
         | "renameFile"
         | "loadString"
+        | "startHost"
+        | "stopHost"
         | "restart"
         | "listProjects"
         | "listUnimportedProjects"
@@ -63,6 +65,14 @@ export namespace Command {
     export interface LoadString extends Command {
         command: 'loadString';
         content: string;
+    }
+
+    export interface StartHost extends Command {
+        command: 'startHost'
+    }
+
+    export interface StopHost extends Command {
+        command: 'stopHost'
     }
 
     export interface Restart extends Command {
@@ -143,6 +153,18 @@ export namespace Command {
     export namespace LoadString {
         export function from(content: string): LoadString {
             return { command: 'loadString', content };
+        }
+    }
+
+    export namespace StartHost {
+        export function from(): StartHost {
+            return { command: 'startHost' };
+        }
+    }
+
+    export namespace StopHost {
+        export function from(): StopHost {
+            return { command: 'stopHost' };
         }
     }
 

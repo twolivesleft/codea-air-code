@@ -11,6 +11,7 @@ enum ErrorType {
 
 export type GetInformationResponse = {
     version: string;
+    hasHost: boolean;
 }
 
 export type AddDependencyResponse = {

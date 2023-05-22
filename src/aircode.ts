@@ -98,6 +98,14 @@ export class AirCode implements vscode.FileSystemProvider {
         return directoryEntries;
     }
 
+    startDebugging() {
+        const folder = vscode.workspace.workspaceFolders?.[0];
+        
+        if (folder !== undefined && vscode.debug.activeDebugSession === undefined) {
+            vscode.debug.startDebugging(folder, "Attach to Codea");
+        }
+    }
+
     // Web Socket
 
     async waitForSocket(ws: WebSocket, showError: boolean = true) : Promise<boolean> {
@@ -196,6 +204,10 @@ export class AirCode implements vscode.FileSystemProvider {
             let parameters = await airCode.getParameters(uri);
 
             airCode.parametersView.setParameters(parameters);
+
+            if (information.hasHost) {
+                airCode.startDebugging();
+            }
         };
 
         let parent = this;
@@ -253,16 +265,20 @@ export class AirCode implements vscode.FileSystemProvider {
     
                                 break;
                             }
+                        case "projectStarted":
+                            {
+                                parent.startDebugging();
+                                break;
+                            }
                         case "clearParameters":
                         case "projectStopped":
                             {
                                 parent.parametersView.clearParameters();
+                                vscode.debug.stopDebugging();
                                 break;
                             }
                         case "projectClosed":
-                            {
-                                
-                                vscode.commands.executeCommand("workbench.action.closeAllEditors");
+                            {                                
                                 vscode.commands.executeCommand("workbench.files.action.refreshFilesExplorer");
                                 break;
                             }
@@ -374,6 +390,14 @@ export class AirCode implements vscode.FileSystemProvider {
 
     loadString(uri: vscode.Uri, content: string) {
         this.sendCommand(uri, Command.LoadString.from(content));
+    }
+
+    startHost(uri: vscode.Uri) {
+        this.sendCommand(uri, Command.StartHost.from());
+    }
+
+    stopHost(uri: vscode.Uri) {
+        this.sendCommand(uri, Command.StopHost.from());
     }
 
     async getInformation(uri: vscode.Uri) : Promise<GetInformationResponse> {

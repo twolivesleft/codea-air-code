@@ -37,6 +37,20 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.window.registerWebviewViewProvider(ParametersViewProvider.viewType, parametersViewProvider)
 	);	
 
+	// Overwrite the debug actions if we are under a codea workspace
+	if (workspaceUri.scheme == "codea") {
+		vscode.commands.registerCommand('workbench.action.debug.start', () => {
+			// The user has clicked the "Start" button or used the keyboard shortcut
+			airCode.startHost(workspaceUri);
+		});
+	
+		vscode.commands.registerCommand('workbench.action.debug.disconnect', () => {
+			// The user has clicked the "Disconnect" button or used the keyboard shortcut
+			vscode.debug.stopDebugging();
+			airCode.stopHost(workspaceUri);
+		});	
+	}
+	
 	console.log(`"codea-air-code" is now active`);
 	
 	parametersViewProvider.airCode = airCode;
