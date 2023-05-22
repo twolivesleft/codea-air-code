@@ -1,12 +1,27 @@
 import * as vscode from 'vscode';
 
 import { TextDecoder, TextEncoder } from 'util';
-import { WebSocket, Event, OPEN, MessageEvent, CONNECTING } from 'ws';
+import { WebSocket, Event, OPEN, MessageEvent, CloseEvent, CONNECTING } from 'ws';
 import { Result } from './result';
-import { Response, AddDependencyResponse, DeleteFileResponse } from './responses';
+import { Response, GetInformationResponse, AddDependencyResponse, DeleteFileResponse } from './responses';
 import { Command } from './commands';
 import * as Parameters from './parameters';
 import { getWorkspaceUri } from './extension';
+
+const semver = require('semver');
+
+const codeaVersion = "3.8";
+
+enum CloseEventCode {
+    None = 1000,
+    IncompatibleVersion = 4001
+}
+
+enum VersionComparison {
+    Compatible,
+    UpdateCodea,
+    UpdateExtension
+}
 
 export class AirCode implements vscode.FileSystemProvider {
     public static readonly rootFolder = 'Codea';
@@ -17,10 +32,12 @@ export class AirCode implements vscode.FileSystemProvider {
     outputChannel: vscode.OutputChannel;
     parametersView: Parameters.ParametersViewProvider;
     debugEvents = new vscode.EventEmitter<string>();
+    extensionVersion: string; 
 
-    constructor(outputChannel: vscode.OutputChannel, parametersView: Parameters.ParametersViewProvider) {
+    constructor(outputChannel: vscode.OutputChannel, parametersView: Parameters.ParametersViewProvider, extensionVersion: string) {
         this.outputChannel = outputChannel;
         this.parametersView = parametersView;
+        this.extensionVersion = extensionVersion
     }
 
     // Internal Files
@@ -100,6 +117,19 @@ export class AirCode implements vscode.FileSystemProvider {
         });
     }
 
+    compareVersions(airCodeVersion: string): VersionComparison {
+        let diff = semver.diff(airCodeVersion, this.extensionVersion);
+        if (diff == null || diff == 'patch') {
+            return VersionComparison.Compatible;
+        }
+
+        if (semver.lt(airCodeVersion, this.extensionVersion)) {
+            return VersionComparison.UpdateCodea;
+        }
+
+        return VersionComparison.UpdateExtension;
+    }
+
     async getSocketForUri(uri: vscode.Uri, showError: boolean = true): Promise<WebSocket | undefined> {
         const host = uri.authority;
         if (host === undefined) {
@@ -125,6 +155,33 @@ export class AirCode implements vscode.FileSystemProvider {
         let airCode = this;
 
         ws.onopen = async function () {
+            let information = await airCode.getInformation(uri);
+
+            let version = information.version;
+            let versionComparison = airCode.compareVersions(version);
+
+            if (versionComparison != VersionComparison.Compatible) {
+                if (versionComparison == VersionComparison.UpdateCodea) {
+                    vscode.window.showErrorMessage(`Codea must be updated to version ${codeaVersion} or higher.`,
+                        ...["App Store"]).then(selection => {
+                            if (selection) {
+                                vscode.env.openExternal(vscode.Uri.parse('https://apps.apple.com/us/app/codea/id439571171'));
+                            }
+                        });
+                }
+                else {
+                    vscode.window.showErrorMessage(`The extension must be updated to version ${semver.major(version)}.${semver.minor(version)}.0 or higher.`,
+                        ...["Show Updates"]).then(selection => {
+                            if (selection) {
+                                vscode.commands.executeCommand("workbench.extensions.action.extensionUpdates");
+                            }
+                        });    
+                }
+                airCode.webSockets.delete(host);
+                ws.close(CloseEventCode.IncompatibleVersion);
+                return;
+            }
+
             vscode.window.showInformationMessage(`Connected to ${host}.`);
 
             let parameters = await airCode.getParameters(uri);
@@ -212,14 +269,16 @@ export class AirCode implements vscode.FileSystemProvider {
             }
         };
 
-        ws.onclose = function () {
+        ws.onclose = function (event: CloseEvent) {
             for (let [id, promise] of parent.promises) {
                 promise({
                     error: "connectionLost"
                 });
             }
             parent.promises.clear();
-            vscode.window.showErrorMessage(`Connection lost to ${host}.`);
+            if (event.code != CloseEventCode.IncompatibleVersion) {
+                vscode.window.showErrorMessage(`Connection lost to ${host}.`);
+            }
             vscode.debug.stopDebugging();
             parent.parametersView.clearParameters();
         };
@@ -288,6 +347,10 @@ export class AirCode implements vscode.FileSystemProvider {
     loadString(uri: vscode.Uri, content: string) {
         this.sendCommand(uri, Command.LoadString.from(content));
     }
+
+    async getInformation(uri: vscode.Uri) : Promise<GetInformationResponse> {
+        return this.sendCommand<GetInformationResponse>(uri, Command.GetInformation.from());
+    }    
 
     async addDependency(uri: vscode.Uri, path: string) : Promise<AddDependencyResponse> {
         return this.sendCommand<AddDependencyResponse>(uri, Command.AddDependency.from(path));

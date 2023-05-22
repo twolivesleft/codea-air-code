@@ -9,6 +9,10 @@ enum ErrorType {
     connectionLost = "connectionLost"
 }
 
+export type GetInformationResponse = {
+    version: string;
+}
+
 export type AddDependencyResponse = {
     isFirstDependency: boolean;
 };
