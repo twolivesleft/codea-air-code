@@ -41,6 +41,13 @@ export class AirCode implements vscode.FileSystemProvider {
     }`;
 
     internalFiles: Map<string, [string, vscode.FileStat]> = new Map([
+        [`/${AirCode.rootFolder}`, ["", {
+            type: vscode.FileType.Directory,
+            ctime: Date.now(),
+            mtime: Date.now(),
+            size: 0,
+            permissions: vscode.FilePermission.Readonly
+        }]],
         [`/${AirCode.rootFolder}/.vscode`, ["", {
             type: vscode.FileType.Directory,
             ctime: Date.now(),
@@ -75,7 +82,7 @@ export class AirCode implements vscode.FileSystemProvider {
 
     // Web Socket
 
-    async waitForSocket(ws: WebSocket, showError: boolean = true) {
+    async waitForSocket(ws: WebSocket, showError: boolean = true) : Promise<boolean> {
         return new Promise((resolve, reject) => {
             const maxNumberOfAttempts = 10;
             const intervalTime = 200;
@@ -84,7 +91,7 @@ export class AirCode implements vscode.FileSystemProvider {
             const interval = setInterval(() => {
                 if (ws.readyState === ws.OPEN) {
                     clearInterval(interval);
-                    resolve(ws);
+                    resolve(true);
                     return;
                 }
                 else if (currentAttempt > maxNumberOfAttempts - 1 || ws.readyState !== CONNECTING) {
@@ -92,7 +99,7 @@ export class AirCode implements vscode.FileSystemProvider {
                     if (showError) {
                         vscode.window.showErrorMessage(`Failed connecting to ${ws.url}.`);
                     }
-                    reject();
+                    resolve(false);
                     return;
                 }
                 currentAttempt++;
@@ -119,8 +126,6 @@ export class AirCode implements vscode.FileSystemProvider {
         }
 
         let ws = new WebSocket(`ws://${host}/`);
-
-        this.webSockets.set(host, ws);
 
         let airCode = this;
 
@@ -222,11 +227,17 @@ export class AirCode implements vscode.FileSystemProvider {
             vscode.window.showErrorMessage(`Connection lost to ${host}.`);
             vscode.debug.stopDebugging();
             parent.parametersView.clearParameters();
+            vscode.commands.executeCommand("workbench.files.action.refreshFilesExplorer");
         };
 
-        await this.waitForSocket(ws, showError);
+        let success = await this.waitForSocket(ws, showError);
 
-        return ws;
+        if (success) {
+            this.webSockets.set(host, ws);
+            return ws;
+        }
+
+        return undefined;
     }
 
     // Sending Commands
@@ -242,25 +253,31 @@ export class AirCode implements vscode.FileSystemProvider {
         return new Promise((resolve, reject) => {
             this.getSocketForUri(uri).then(ws => {
                 if (ws === undefined) {
-                    reject();
-                    return;
+                    const result = map(Response.from('connectionLost'));
+                    if (result.success) {
+                        resolve(result.value);
+                    } else {
+                        reject(result.error);
+                    }    
                 }
+                else {
+                    this.send<R>(ws, command, response => {
+                        let responseData : any = Response.from('connectionLost');
+                
+                        if (response.error !== null && response.error !== undefined) {
+                            responseData = Response.from(response.error);
+                        } else if (response.data !== null && response.data !== undefined) {
+                            responseData = response.data;
+                        }
 
-                this.send<R>(ws, command, response => {
-                    if (response.error !== null && response.error !== undefined) {
-                        const error = Response.from(response.error);
-                        reject(error);
-                    } else if (response.data !== null && response.data !== undefined) {
-                        const result = map(response.data);
+                        const result = map(responseData);
                         if (result.success) {
                             resolve(result.value);
                         } else {
                             reject(result.error);
-                        }
-                    }
-                });
-            }).then(undefined, error => {
-                reject(error);
+                        }    
+                    });    
+                }
             });
         });
     }
@@ -334,13 +351,16 @@ export class AirCode implements vscode.FileSystemProvider {
         const path = uri.path;
         const internal = this.internalFiles.get(path);
 
-        if (internal !== undefined) {
+        if (internal !== undefined && path !== `/${AirCode.rootFolder}`) {
             const contents = this.internalDirectoryContents(path);
             return contents;
         }
 
         return this.sendCommandMapResponse<[string, vscode.FileType][], [string, vscode.FileType][]>(uri, Command.ListFiles.from(path), response => {
             if (response instanceof Error) {
+                if (path === `/${AirCode.rootFolder}`) {
+                    return Result.success([[".vscode", vscode.FileType.Directory]]);
+                }
                 return Result.error(response);
             } else {
                 if (path === `/${AirCode.rootFolder}`) {
