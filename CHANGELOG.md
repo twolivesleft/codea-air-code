@@ -6,6 +6,7 @@
 
 ## [Unreleased]
 
-- Improved the folders hierarchy.
-- Fixed issues following connection loss with Codea.
+- Added conditional breakpoints support.
+- Improved folders hierarchy.
+- Fixed connection loss issues.
 - Added version compatibility checks.
