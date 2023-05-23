@@ -1,5 +1,9 @@
 # Change Log
 
+## 1.1.2 (2023/05/23)
+
+- Keep opened tabs after closing a project.
+
 ## 1.1.1 (2023/05/22)
 
 - Fixed an issue with too many sockets being opened.

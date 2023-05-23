@@ -261,8 +261,6 @@ export class AirCode implements vscode.FileSystemProvider {
                             }
                         case "projectClosed":
                             {
-                                
-                                vscode.commands.executeCommand("workbench.action.closeAllEditors");
                                 vscode.commands.executeCommand("workbench.files.action.refreshFilesExplorer");
                                 break;
                             }
