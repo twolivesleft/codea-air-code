@@ -245,6 +245,30 @@ export class AirCode implements vscode.FileSystemProvider {
     
                                 break;
                             }
+                        case "userMessage":
+                            {
+                                switch (data.style) {
+                                    case "print":
+                                        {
+                                            vscode.window.showInformationMessage(data.text);
+                                            break;
+    
+                                        }
+                                    case "warning":
+                                        {
+                                            vscode.window.showWarningMessage(data.text);
+                                            break;
+    
+                                        }
+                                    case "error":
+                                        {
+                                            vscode.window.showErrorMessage(data.text);
+                                            break;
+                                        }
+                                }
+    
+                                break;
+                            }                            
                         case "updateParameter":
                             {
                                 const parameter = JSON.parse(data.parameter);

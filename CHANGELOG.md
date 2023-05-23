@@ -1,5 +1,9 @@
 # Change Log
 
+## 1.1.3 (2023/05/23)
+
+- Added support for showing notifications from Codea such as Lua load errors.
+
 ## 1.1.2 (2023/05/23)
 
 - Keep opened tabs after closing a project.
