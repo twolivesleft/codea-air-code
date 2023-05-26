@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { TextDecoder, TextEncoder } from 'util';
 import { WebSocket, Event, OPEN, MessageEvent, CloseEvent, CONNECTING } from 'ws';
 import { Result } from './result';
-import { Response, GetInformationResponse, AddDependencyResponse, DeleteFileResponse } from './responses';
+import { Response, StartHostResponse, GetInformationResponse, AddDependencyResponse, DeleteFileResponse } from './responses';
 import { Command } from './commands';
 import * as Parameters from './parameters';
 import { getWorkspaceUri } from './extension';
@@ -295,6 +295,10 @@ export class AirCode implements vscode.FileSystemProvider {
                                 break;
                             }
                         case "clearParameters":
+                            {
+                                parent.parametersView.clearParameters();
+                                break;
+                            }
                         case "projectStopped":
                             {
                                 parent.parametersView.clearParameters();
@@ -416,8 +420,8 @@ export class AirCode implements vscode.FileSystemProvider {
         this.sendCommand(uri, Command.LoadString.from(content));
     }
 
-    startHost(uri: vscode.Uri) {
-        this.sendCommand(uri, Command.StartHost.from());
+    async startHost(uri: vscode.Uri) : Promise<StartHostResponse> {
+        return this.sendCommand<StartHostResponse>(uri, Command.StartHost.from());
     }
 
     stopHost(uri: vscode.Uri) {

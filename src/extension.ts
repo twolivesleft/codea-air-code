@@ -39,9 +39,12 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Overwrite the debug actions if we are under a codea workspace
 	if (workspaceUri.scheme == "codea") {
-		vscode.commands.registerCommand('workbench.action.debug.start', () => {
+		vscode.commands.registerCommand('workbench.action.debug.start', async () => {
 			// The user has clicked the "Start" button or used the keyboard shortcut
-			airCode.startHost(workspaceUri);
+			let response = await airCode.startHost(workspaceUri);
+			if (response.alreadyStarted) {
+				airCode.startDebugging();
+			}
 		});
 	
 		vscode.commands.registerCommand('workbench.action.debug.disconnect', () => {
