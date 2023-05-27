@@ -25,4 +25,4 @@
 
 ## [Unreleased]
 
-- Nothing yet!
+- Automatically connect the debugger when a project is running.
