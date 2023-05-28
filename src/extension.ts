@@ -46,6 +46,11 @@ export function activate(context: vscode.ExtensionContext) {
 				airCode.startDebugging();
 			}
 		});
+
+		vscode.commands.registerCommand('workbench.action.debug.restart', async () => {
+			// The user has clicked the "Restart" button or used the keyboard shortcut
+			airCode.restart(workspaceUri);
+		});
 	
 		vscode.commands.registerCommand('workbench.action.debug.disconnect', () => {
 			// The user has clicked the "Disconnect" button or used the keyboard shortcut
