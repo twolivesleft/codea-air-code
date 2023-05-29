@@ -12,6 +12,8 @@ const semver = require('semver');
 
 const codeaVersion = "3.8";
 
+var statusBarResource: vscode.Disposable | undefined;
+
 enum CloseEventCode {
     None = 1000,
     IncompatibleVersion = 4001
@@ -199,7 +201,8 @@ export class AirCode implements vscode.FileSystemProvider {
                 return;
             }
 
-            vscode.window.showInformationMessage(`Connected to ${host}.`);
+            statusBarResource?.dispose();
+            statusBarResource = vscode.window.setStatusBarMessage(`Connected to ${host}`);
 
             let parameters = await airCode.getParameters(uri);
 
@@ -334,9 +337,12 @@ export class AirCode implements vscode.FileSystemProvider {
             }
             parent.promises.clear();
             parent.projectName = undefined;
-            vscode.window.showErrorMessage(`Connection lost to ${host}.`);
+
+            statusBarResource?.dispose();
+            statusBarResource = vscode.window.setStatusBarMessage(`Connection lost to ${host}`);
             if (event.code != CloseEventCode.IncompatibleVersion) {
-                vscode.window.showErrorMessage(`Connection lost to ${host}.`);
+                statusBarResource?.dispose();
+                statusBarResource = vscode.window.setStatusBarMessage(`Connection lost to ${host}`);
             }
             vscode.debug.stopDebugging();
             parent.parametersView.clearParameters();
