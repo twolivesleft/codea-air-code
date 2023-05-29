@@ -368,10 +368,7 @@ export class AirCode implements vscode.FileSystemProvider {
 
             statusBarResource?.dispose();
             statusBarResource = vscode.window.setStatusBarMessage(`Connection lost to ${host}`);
-            if (event.code != CloseEventCode.IncompatibleVersion) {
-                statusBarResource?.dispose();
-                statusBarResource = vscode.window.setStatusBarMessage(`Connection lost to ${host}`);
-            }
+
             await vscode.debug.stopDebugging();
             parent.parametersView.clearParameters();
             vscode.commands.executeCommand("workbench.files.action.refreshFilesExplorer");
