@@ -1,6 +1,6 @@
 # Change Log
 
-## 1.2.0 (2023/05/29)
+## 1.1.4 (2023/05/29)
 
 - Automatically connect the debugger when a project is running.
 - Replace the connection notifications with a status bar message.
