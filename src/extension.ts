@@ -66,7 +66,8 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.workspace.registerFileSystemProvider('codea', airCode, { isCaseSensitive: true }));
 
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.connectToHost', async () => {
-		let defaultHost = "127.0.0.1:18513";
+		let defaultPort = "18513";
+		let defaultHost = `127.0.0.1:${defaultPort}`;
 
 		let host = await vscode.window.showInputBox({
 			placeHolder: defaultHost,
@@ -79,6 +80,11 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 		else if (host === "") {
 			host = defaultHost;
+		}
+		else {
+			if (!host.includes(":")) {
+				host += `:${defaultPort}`;
+			}
 		}
 
 		let uri = vscode.Uri.parse(`codea://${host}/${AirCode.rootFolder}/`);
