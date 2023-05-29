@@ -37,6 +37,28 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.window.registerWebviewViewProvider(ParametersViewProvider.viewType, parametersViewProvider)
 	);	
 
+	// Overwrite the debug actions if we are under a codea workspace
+	if (workspaceUri.scheme == "codea") {
+		vscode.commands.registerCommand('workbench.action.debug.start', async () => {
+			// The user has clicked the "Start" button or used the keyboard shortcut
+			let response = await airCode.startHost(workspaceUri);
+			if (response.alreadyStarted) {
+				airCode.startDebugging();
+			}
+		});
+
+		vscode.commands.registerCommand('workbench.action.debug.restart', async () => {
+			// The user has clicked the "Restart" button or used the keyboard shortcut
+			airCode.restart(workspaceUri);
+		});
+	
+		vscode.commands.registerCommand('workbench.action.debug.disconnect', () => {
+			// The user has clicked the "Disconnect" button or used the keyboard shortcut
+			vscode.debug.stopDebugging();
+			airCode.stopHost(workspaceUri);
+		});	
+	}
+	
 	console.log(`"codea-air-code" is now active`);
 	
 	parametersViewProvider.airCode = airCode;
@@ -44,7 +66,8 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.workspace.registerFileSystemProvider('codea', airCode, { isCaseSensitive: true }));
 
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.connectToHost', async () => {
-		let defaultHost = "127.0.0.1:18513";
+		let defaultPort = "18513";
+		let defaultHost = `127.0.0.1:${defaultPort}`;
 
 		let host = await vscode.window.showInputBox({
 			placeHolder: defaultHost,
@@ -57,6 +80,11 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 		else if (host === "") {
 			host = defaultHost;
+		}
+		else {
+			if (!host.includes(":")) {
+				host += `:${defaultPort}`;
+			}
 		}
 
 		let uri = vscode.Uri.parse(`codea://${host}/${AirCode.rootFolder}/`);

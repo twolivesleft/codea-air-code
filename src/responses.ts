@@ -9,8 +9,13 @@ enum ErrorType {
     connectionLost = "connectionLost"
 }
 
+export type StartHostResponse = {
+    alreadyStarted: boolean;
+}
+
 export type GetInformationResponse = {
     version: string;
+    hasHost: boolean;
 }
 
 export type AddDependencyResponse = {

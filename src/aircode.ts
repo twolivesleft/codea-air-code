@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { TextDecoder, TextEncoder } from 'util';
 import { WebSocket, Event, OPEN, MessageEvent, CloseEvent, CONNECTING } from 'ws';
 import { Result } from './result';
-import { Response, GetInformationResponse, AddDependencyResponse, DeleteFileResponse } from './responses';
+import { Response, StartHostResponse, GetInformationResponse, AddDependencyResponse, DeleteFileResponse } from './responses';
 import { Command } from './commands';
 import * as Parameters from './parameters';
 import { getWorkspaceUri } from './extension';
@@ -11,6 +11,8 @@ import { getWorkspaceUri } from './extension';
 const semver = require('semver');
 
 const codeaVersion = "3.8";
+
+var statusBarResource: vscode.Disposable | undefined;
 
 enum CloseEventCode {
     None = 1000,
@@ -27,6 +29,7 @@ export class AirCode implements vscode.FileSystemProvider {
     public static readonly rootFolder = 'Codea';
 
     webSockets = new Map<string, WebSocket>();
+    closingSocket = false;
     commandId: number = 0;
     promises = new Map<number, (data: any) => void>();
     outputChannel: vscode.OutputChannel;
@@ -98,6 +101,14 @@ export class AirCode implements vscode.FileSystemProvider {
         return directoryEntries;
     }
 
+    startDebugging() {
+        const folder = vscode.workspace.workspaceFolders?.[0];
+        
+        if (folder !== undefined && vscode.debug.activeDebugSession === undefined) {
+            vscode.debug.startDebugging(folder, "Attach to Codea");
+        }
+    }
+
     // Web Socket
 
     async waitForSocket(ws: WebSocket, showError: boolean = true) : Promise<boolean> {
@@ -125,6 +136,27 @@ export class AirCode implements vscode.FileSystemProvider {
         });
     }
 
+    async waitForClosingSocket() : Promise<boolean> {
+        return new Promise((resolve, reject) => {
+            const maxNumberOfAttempts = 10;
+            const intervalTime = 200;
+
+            let currentAttempt = 0;
+            const interval = setInterval(() => {
+                if (!this.closingSocket) {
+                    resolve(true);
+                    return;
+                }
+                else if (currentAttempt > maxNumberOfAttempts - 1) {
+                    clearInterval(interval);
+                    resolve(false);
+                    return;
+                }
+                currentAttempt++;
+            }, intervalTime);            
+        });
+    }
+
     compareVersions(airCodeVersion: string): VersionComparison {
         let diff = semver.diff(airCodeVersion, this.extensionVersion);
         if (diff == null || diff == 'patch') {
@@ -142,6 +174,10 @@ export class AirCode implements vscode.FileSystemProvider {
         const host = uri.authority;
         if (host === undefined) {
             return undefined;
+        }
+
+        if (this.closingSocket) {
+            await this.waitForClosingSocket();
         }
 
         if (this.webSockets.has(host)) {
@@ -191,11 +227,16 @@ export class AirCode implements vscode.FileSystemProvider {
                 return;
             }
 
-            vscode.window.showInformationMessage(`Connected to ${host}.`);
+            statusBarResource?.dispose();
+            statusBarResource = vscode.window.setStatusBarMessage(`Connected to ${host}`);
 
             let parameters = await airCode.getParameters(uri);
 
             airCode.parametersView.setParameters(parameters);
+
+            if (information.hasHost) {
+                airCode.startDebugging();
+            }
         };
 
         let parent = this;
@@ -277,14 +318,24 @@ export class AirCode implements vscode.FileSystemProvider {
     
                                 break;
                             }
+                        case "projectStarted":
+                            {
+                                parent.startDebugging();
+                                break;
+                            }
                         case "clearParameters":
-                        case "projectStopped":
                             {
                                 parent.parametersView.clearParameters();
                                 break;
                             }
-                        case "projectClosed":
+                        case "projectStopped":
                             {
+                                parent.parametersView.clearParameters();
+                                vscode.debug.stopDebugging();
+                                break;
+                            }
+                        case "projectClosed":
+                            {                                
                                 vscode.commands.executeCommand("workbench.files.action.refreshFilesExplorer");
                                 break;
                             }
@@ -304,7 +355,9 @@ export class AirCode implements vscode.FileSystemProvider {
             }
         };
 
-        ws.onclose = function (event: CloseEvent) {
+        ws.onclose = async function (event: CloseEvent) {
+            airCode.closingSocket = true;
+
             for (let [id, promise] of parent.promises) {
                 promise({
                     error: "connectionLost"
@@ -312,13 +365,18 @@ export class AirCode implements vscode.FileSystemProvider {
             }
             parent.promises.clear();
             parent.projectName = undefined;
-            vscode.window.showErrorMessage(`Connection lost to ${host}.`);
+
+            statusBarResource?.dispose();
+            statusBarResource = vscode.window.setStatusBarMessage(`Connection lost to ${host}`);
             if (event.code != CloseEventCode.IncompatibleVersion) {
-                vscode.window.showErrorMessage(`Connection lost to ${host}.`);
+                statusBarResource?.dispose();
+                statusBarResource = vscode.window.setStatusBarMessage(`Connection lost to ${host}`);
             }
-            vscode.debug.stopDebugging();
+            await vscode.debug.stopDebugging();
             parent.parametersView.clearParameters();
             vscode.commands.executeCommand("workbench.files.action.refreshFilesExplorer");
+
+            airCode.closingSocket = false;
         };
 
         let success = await this.waitForSocket(ws, showError);
@@ -396,6 +454,14 @@ export class AirCode implements vscode.FileSystemProvider {
 
     loadString(uri: vscode.Uri, content: string) {
         this.sendCommand(uri, Command.LoadString.from(content));
+    }
+
+    async startHost(uri: vscode.Uri) : Promise<StartHostResponse> {
+        return this.sendCommand<StartHostResponse>(uri, Command.StartHost.from());
+    }
+
+    stopHost(uri: vscode.Uri) {
+        this.sendCommand(uri, Command.StopHost.from());
     }
 
     async getInformation(uri: vscode.Uri) : Promise<GetInformationResponse> {

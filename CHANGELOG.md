@@ -1,5 +1,11 @@
 # Change Log
 
+## 1.2.0 (2023/05/29)
+
+- Automatically connect the debugger when a project is running.
+- Replace the connection notifications with a status bar message.
+- Support debugging Codea projects running in a new window.
+
 ## 1.1.3 (2023/05/23)
 
 - Added support for showing notifications from Codea such as Lua load errors.
