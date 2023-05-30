@@ -12,8 +12,6 @@ const semver = require('semver');
 
 const codeaVersion = "3.8";
 
-var statusBarResource: vscode.Disposable | undefined;
-
 enum CloseEventCode {
     None = 1000,
     IncompatibleVersion = 4001
@@ -37,6 +35,8 @@ export class AirCode implements vscode.FileSystemProvider {
     debugEvents = new vscode.EventEmitter<string>();
     extensionVersion: string; 
     projectName? : string;
+
+    statusBarItem: vscode.StatusBarItem | undefined;
 
     constructor(outputChannel: vscode.OutputChannel, parametersView: Parameters.ParametersViewProvider, extensionVersion: string) {
         this.outputChannel = outputChannel;
@@ -125,9 +125,6 @@ export class AirCode implements vscode.FileSystemProvider {
                 }
                 else if (currentAttempt > maxNumberOfAttempts - 1 || ws.readyState !== CONNECTING) {
                     clearInterval(interval);
-                    if (showError) {
-                        vscode.window.showErrorMessage(`Failed connecting to ${ws.url}.`);
-                    }
                     resolve(false);
                     return;
                 }
@@ -192,6 +189,11 @@ export class AirCode implements vscode.FileSystemProvider {
             }
         }
 
+        if (this.statusBarItem) {
+            this.statusBarItem.text = "Connecting...";
+            this.statusBarItem.backgroundColor = new vscode.ThemeColor("statusBarItem.warningBackground");
+        }
+
         let ws = new WebSocket(`ws://${host}/`);
 
         // Keep the pending request so new calls can wait for it.
@@ -227,8 +229,11 @@ export class AirCode implements vscode.FileSystemProvider {
                 return;
             }
 
-            statusBarResource?.dispose();
-            statusBarResource = vscode.window.setStatusBarMessage(`Connected to ${host}`);
+            if (parent.statusBarItem) {
+                parent.statusBarItem.text = "Connected";
+                parent.statusBarItem.backgroundColor = new vscode.ThemeColor("statusBarItem.remoteBackground");
+                parent.statusBarItem.show();
+            }
 
             let parameters = await airCode.getParameters(uri);
 
@@ -366,8 +371,10 @@ export class AirCode implements vscode.FileSystemProvider {
             parent.promises.clear();
             parent.projectName = undefined;
 
-            statusBarResource?.dispose();
-            statusBarResource = vscode.window.setStatusBarMessage(`Connection lost to ${host}`);
+            if (parent.statusBarItem) {
+                parent.statusBarItem.text = "Connection lost";
+                parent.statusBarItem.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
+            }
 
             await vscode.debug.stopDebugging();
             parent.parametersView.clearParameters();
@@ -379,6 +386,11 @@ export class AirCode implements vscode.FileSystemProvider {
         let success = await this.waitForSocket(ws, showError);
 
         if (!success) {
+            if (parent.statusBarItem) {
+                parent.statusBarItem.text = "Connection failed";
+                parent.statusBarItem.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
+            }
+
             this.webSockets.clear();
             ws.close();
             return undefined;

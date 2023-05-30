@@ -63,7 +63,28 @@ export function activate(context: vscode.ExtensionContext) {
 	
 	parametersViewProvider.airCode = airCode;
 
+	airCode.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+	airCode.statusBarItem.text = "Not connected";
+	airCode.statusBarItem.command = "codea-air-code.refreshConnection";
+	airCode.statusBarItem.tooltip = "Click to refresh connection...";
+	airCode.statusBarItem.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
+	airCode.statusBarItem.show();
+	context.subscriptions.push(airCode.statusBarItem);
+
 	context.subscriptions.push(vscode.workspace.registerFileSystemProvider('codea', airCode, { isCaseSensitive: true }));
+
+	context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(async (textDocument) => {
+		if (textDocument.uri.scheme == "codea" && textDocument.eol == vscode.EndOfLine.CRLF) {
+			const edit = new vscode.WorkspaceEdit();
+			const edits = [vscode.TextEdit.setEndOfLine(vscode.EndOfLine.LF)];
+			edit.set(textDocument.uri, edits);
+			vscode.workspace.applyEdit(edit);
+		}
+	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.refreshConnection', async () => {
+		await airCode.getSocketForUri(workspaceUri, true);
+	}));
 
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.connectToHost', async () => {
 		let defaultPort = "18513";

@@ -1,5 +1,10 @@
 # Change Log
 
+## 1.1.5 (2023/05/29)
+
+- Better connection status indication.
+- Fixed line ending issues for files created under Windows.
+
 ## 1.1.4 (2023/05/29)
 
 - Automatically connect the debugger when a project is running.
