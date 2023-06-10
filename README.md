@@ -100,7 +100,7 @@ All commands included with this extension are prefixed with `Codea:`.
 
 ## Requirements
 
-Codea 3.8
+Codea 3.9
 
 <a href="http://itunes.apple.com/app/id439571171?mt=8"><img height="40" alt="Screenshot of the editor" src="images/App-Store-Badge.png"></a>
 

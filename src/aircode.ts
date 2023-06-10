@@ -10,7 +10,7 @@ import { getWorkspaceUri } from './extension';
 
 const semver = require('semver');
 
-const codeaVersion = "3.8";
+const codeaVersion = "3.9";
 
 enum CloseEventCode {
     None = 1000,
