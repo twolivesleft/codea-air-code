@@ -182,15 +182,6 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		});
 	}));
-
-	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.clearOutput', async () => {
-		const uri = getWorkspaceUri();
-		if (uri === undefined) {
-			return;
-		}
-
-		airCode.clearOutput(uri);
-	}));
 }
 
 // This method is called when your extension is deactivated
