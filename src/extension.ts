@@ -39,24 +39,24 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Overwrite the debug actions if we are under a codea workspace
 	if (workspaceUri.scheme == "codea") {
-		vscode.commands.registerCommand('workbench.action.debug.start', async () => {
+		context.subscriptions.push(vscode.commands.registerCommand('workbench.action.debug.start', async () => {
 			// The user has clicked the "Start" button or used the keyboard shortcut
 			let response = await airCode.startHost(workspaceUri);
 			if (response.alreadyStarted) {
 				airCode.startDebugging();
 			}
-		});
+		}));
 
-		vscode.commands.registerCommand('workbench.action.debug.restart', async () => {
+		context.subscriptions.push(vscode.commands.registerCommand('workbench.action.debug.restart', async () => {
 			// The user has clicked the "Restart" button or used the keyboard shortcut
 			airCode.restart(workspaceUri);
-		});
+		}));
 	
-		vscode.commands.registerCommand('workbench.action.debug.disconnect', () => {
+		context.subscriptions.push(vscode.commands.registerCommand('workbench.action.debug.disconnect', () => {
 			// The user has clicked the "Disconnect" button or used the keyboard shortcut
 			vscode.debug.stopDebugging();
 			airCode.stopHost(workspaceUri);
-		});	
+		}));	
 	}
 	
 	console.log(`"codea-air-code" is now active`);
@@ -181,6 +181,15 @@ export function activate(context: vscode.ExtensionContext) {
 				airCode.fileCreated(newUri);	
 			}
 		});
+	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.clearOutput', async () => {
+		const uri = getWorkspaceUri();
+		if (uri === undefined) {
+			return;
+		}
+
+		airCode.clearOutput(uri);
 	}));
 }
 
