@@ -3,6 +3,7 @@
 ## 1.2.0 (Unreleased)
 
 - Prevent creating a file if it already exists with a different casing.
+- Show the Codea output channel when opening a Codea workspace.
 
 ## 1.1.5 (2023/05/29)
 

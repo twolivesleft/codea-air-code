@@ -56,7 +56,9 @@ export function activate(context: vscode.ExtensionContext) {
 			// The user has clicked the "Disconnect" button or used the keyboard shortcut
 			vscode.debug.stopDebugging();
 			airCode.stopHost(workspaceUri);
-		}));	
+		}));
+
+		outputChannel.show();
 	}
 	
 	console.log(`"codea-air-code" is now active`);
