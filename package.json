@@ -183,7 +183,7 @@
         },
         {
           "command": "codea-air-code.addDependency",
-          "when": "workspaceFolderCount > 0"
+          "when": "workspaceFolderCount > 0 && resourceLangId == lua"
         }
       ]      
     }

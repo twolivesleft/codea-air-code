@@ -458,7 +458,7 @@ export class AirCode implements vscode.FileSystemProvider {
     }
 
     listUnimportedProjects(uri: vscode.Uri): string[] | Thenable<string[]> {
-        return this.sendCommand(uri, Command.ListUnimportedProjects.from());
+        return this.sendCommand(uri, Command.ListUnimportedProjects.from(uri.path));
     }
 
     loadString(uri: vscode.Uri, content: string) {

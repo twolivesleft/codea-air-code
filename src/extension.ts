@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { AirCode } from './aircode';
+import { AirCodePath } from './aircodepath';
 import { ParametersViewProvider } from './parameters';
 import { CodeaDebugConfigurationProvider } from './debug-adapter/CodeaDebugConfigurationProvider';
 import { InlineDebugAdapterFactory } from './debug-adapter/InlineDebugAdapterFactory';
@@ -164,16 +165,22 @@ export function activate(context: vscode.ExtensionContext) {
 	}));
 
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.addDependency', async () => {
-		const uri = getWorkspaceUri();
+		let activeEditor = vscode.window.activeTextEditor;
+
+		const uri = activeEditor?.document.uri;
 		if (uri === undefined) {
 			return;
 		}
 
-		const projects = airCode.listUnimportedProjects(uri);
+		const airCodePath = new AirCodePath(uri.path);
 
-		vscode.window.showQuickPick(projects).then(async choice => {
+		const projects = await airCode.listUnimportedProjects(uri);
+
+		vscode.window.showQuickPick(projects.map(label => ({ label })), { 
+			title: `Add a dependency to ${airCodePath.project}`,
+			canPickMany: false }).then(async choice => {
 			if (choice !== undefined) {
-				let response = await airCode.addDependency(uri, choice);
+				let response = await airCode.addDependency(uri, choice.label);
 				if (response.isFirstDependency) {
 					airCode.onDependenciesCreated();
 				}

@@ -85,6 +85,7 @@ export namespace Command {
 
     export interface ListUnimportedProjects extends Command {
         command: 'listUnimportedProjects';
+        path: string;
     }
 
     export interface AddDependency extends Command {
@@ -181,8 +182,8 @@ export namespace Command {
     }
 
     export namespace ListUnimportedProjects {
-        export function from(): ListUnimportedProjects {
-            return { command: 'listUnimportedProjects' };
+        export function from(path: string): ListUnimportedProjects {
+            return { command: 'listUnimportedProjects', path };
         }
     }
 
