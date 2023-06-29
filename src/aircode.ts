@@ -36,7 +36,8 @@ export class AirCode implements vscode.FileSystemProvider {
     extensionVersion: string; 
     projectName? : string;
 
-    statusBarItem: vscode.StatusBarItem | undefined;
+    connectionStatusItem: vscode.StatusBarItem | undefined;
+    playProjectItem: vscode.StatusBarItem | undefined;
 
     constructor(outputChannel: vscode.OutputChannel, parametersView: Parameters.ParametersViewProvider, extensionVersion: string) {
         this.outputChannel = outputChannel;
@@ -50,7 +51,7 @@ export class AirCode implements vscode.FileSystemProvider {
         "version": "0.2.0",
         "configurations": [
             {
-                "name": "Attach to Codea",
+                "name": "Play in Codea",
                 "type": "luaInline",
                 "request": "attach",
                 "sourceBasePath": "codea://AUTHORITY/",
@@ -59,6 +60,10 @@ export class AirCode implements vscode.FileSystemProvider {
                 "encoding": "UTF-8"
             }
         ]
+    }`;
+
+    settingsContent = `{
+        "debug.showInStatusBar": "never"
     }`;
 
     internalFiles: Map<string, [string, vscode.FileStat]> = new Map([
@@ -82,7 +87,14 @@ export class AirCode implements vscode.FileSystemProvider {
             mtime: Date.now(),
             size: 1,
             permissions: vscode.FilePermission.Readonly
-        }]]
+        }]],
+        [`/${AirCode.rootFolder}/.vscode/settings.json`, [this.settingsContent, {
+            type: vscode.FileType.File,
+            ctime: Date.now(),
+            mtime: Date.now(),
+            size: 1,
+            permissions: vscode.FilePermission.Readonly
+        }]],
     ]);
 
     internalDirectoryContents(path: string): [string, vscode.FileType][] {
@@ -105,7 +117,7 @@ export class AirCode implements vscode.FileSystemProvider {
         const folder = vscode.workspace.workspaceFolders?.[0];
         
         if (folder !== undefined && vscode.debug.activeDebugSession === undefined) {
-            vscode.debug.startDebugging(folder, "Attach to Codea");
+            vscode.debug.startDebugging(folder, "Play in Codea");
         }
     }
 
@@ -189,9 +201,9 @@ export class AirCode implements vscode.FileSystemProvider {
             }
         }
 
-        if (this.statusBarItem) {
-            this.statusBarItem.text = "Connecting...";
-            this.statusBarItem.backgroundColor = new vscode.ThemeColor("statusBarItem.warningBackground");
+        if (this.connectionStatusItem) {
+            this.connectionStatusItem.text = "Connecting...";
+            this.connectionStatusItem.backgroundColor = new vscode.ThemeColor("statusBarItem.warningBackground");
         }
 
         let ws = new WebSocket(`ws://${host}/`);
@@ -229,10 +241,10 @@ export class AirCode implements vscode.FileSystemProvider {
                 return;
             }
 
-            if (parent.statusBarItem) {
-                parent.statusBarItem.text = "Connected";
-                parent.statusBarItem.backgroundColor = new vscode.ThemeColor("statusBarItem.remoteBackground");
-                parent.statusBarItem.show();
+            if (parent.connectionStatusItem) {
+                parent.connectionStatusItem.text = "Connected";
+                parent.connectionStatusItem.backgroundColor = new vscode.ThemeColor("statusBarItem.remoteBackground");
+                parent.connectionStatusItem.show();
             }
 
             let parameters = await airCode.getParameters(uri);
@@ -371,9 +383,9 @@ export class AirCode implements vscode.FileSystemProvider {
             parent.promises.clear();
             parent.projectName = undefined;
 
-            if (parent.statusBarItem) {
-                parent.statusBarItem.text = "Connection lost";
-                parent.statusBarItem.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
+            if (parent.connectionStatusItem) {
+                parent.connectionStatusItem.text = "Connection lost";
+                parent.connectionStatusItem.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
             }
 
             await vscode.debug.stopDebugging();
@@ -386,9 +398,9 @@ export class AirCode implements vscode.FileSystemProvider {
         let success = await this.waitForSocket(ws, showError);
 
         if (!success) {
-            if (parent.statusBarItem) {
-                parent.statusBarItem.text = "Connection failed";
-                parent.statusBarItem.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
+            if (parent.connectionStatusItem) {
+                parent.connectionStatusItem.text = "Connection failed";
+                parent.connectionStatusItem.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
             }
 
             this.webSockets.clear();
@@ -466,7 +478,7 @@ export class AirCode implements vscode.FileSystemProvider {
     }
 
     async startHost(uri: vscode.Uri) : Promise<StartHostResponse> {
-        return this.sendCommand<StartHostResponse>(uri, Command.StartHost.from());
+        return this.sendCommand<StartHostResponse>(uri, Command.StartHost.from(uri.path));
     }
 
     stopHost(uri: vscode.Uri) {

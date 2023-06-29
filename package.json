@@ -107,7 +107,7 @@
         "initialConfigurations": [
           {
             "name": "wait",
-            "displayName": "Attach to Codea",
+            "displayName": "Play in Codea",
             "type": "lua",
             "request": "attach",
             "sourceBasePath": "${workspaceRoot}",

@@ -15,7 +15,6 @@ export function getWorkspaceUri(): vscode.Uri {
 }
 
 export function activate(context: vscode.ExtensionContext) {
-
 	let workspaceUri = getWorkspaceUri();
 	vscode.commands.executeCommand('setContext', 'codea-air-code.hasWorkspaceUri', workspaceUri.scheme == "codea");
 
@@ -41,8 +40,13 @@ export function activate(context: vscode.ExtensionContext) {
 	// Overwrite the debug actions if we are under a codea workspace
 	if (workspaceUri.scheme == "codea") {
 		context.subscriptions.push(vscode.commands.registerCommand('workbench.action.debug.start', async () => {
+			const uri = vscode.window.activeTextEditor?.document.uri;
+			if (uri === undefined || uri.scheme != "codea") {
+				return;
+			}
+
 			// The user has clicked the "Start" button or used the keyboard shortcut
-			let response = await airCode.startHost(workspaceUri);
+			let response = await airCode.startHost(uri);
 			if (response.alreadyStarted) {
 				airCode.startDebugging();
 			}
@@ -66,15 +70,41 @@ export function activate(context: vscode.ExtensionContext) {
 	
 	parametersViewProvider.airCode = airCode;
 
-	airCode.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
-	airCode.statusBarItem.text = "Not connected";
-	airCode.statusBarItem.command = "codea-air-code.refreshConnection";
-	airCode.statusBarItem.tooltip = "Click to refresh connection...";
-	airCode.statusBarItem.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
-	airCode.statusBarItem.show();
-	context.subscriptions.push(airCode.statusBarItem);
+	airCode.connectionStatusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+	airCode.connectionStatusItem.text = "Not connected";
+	airCode.connectionStatusItem.command = "codea-air-code.refreshConnection";
+	airCode.connectionStatusItem.tooltip = "Click to refresh connection...";
+	airCode.connectionStatusItem.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
+	airCode.connectionStatusItem.show();
+	context.subscriptions.push(airCode.connectionStatusItem);
+
+	airCode.playProjectItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 99);
+	airCode.playProjectItem.text = "";
+	airCode.playProjectItem.command = "workbench.action.debug.start";
+	airCode.playProjectItem.tooltip = "Click to Play this project in Codea...";
+	airCode.playProjectItem.color = "white";
+	airCode.playProjectItem.backgroundColor = new vscode.ThemeColor("statusBarItem.prominentBackground");
+	context.subscriptions.push(airCode.playProjectItem);
 
 	context.subscriptions.push(vscode.workspace.registerFileSystemProvider('codea', airCode, { isCaseSensitive: true }));
+
+	context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(async (textEditor) => {
+		if (textEditor?.document.uri.scheme != "codea") {
+			airCode.playProjectItem?.hide();
+			return;
+		}
+
+		const airCodePath = new AirCodePath(textEditor?.document.uri.path);
+		if (airCodePath.collection == ".vscode") {
+			airCode.playProjectItem?.hide();
+			return;
+		}
+
+		if (airCode.playProjectItem) {
+			airCode.playProjectItem.text = `▶️ Play ${airCodePath.project} in Codea`;
+			airCode.playProjectItem.show();
+		}
+	}));
 
 	context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(async (textDocument) => {
 		if (textDocument.uri.scheme == "codea" && textDocument.eol == vscode.EndOfLine.CRLF) {

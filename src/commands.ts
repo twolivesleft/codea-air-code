@@ -69,6 +69,7 @@ export namespace Command {
 
     export interface StartHost extends Command {
         command: 'startHost'
+        path: string;
     }
 
     export interface StopHost extends Command {
@@ -158,8 +159,8 @@ export namespace Command {
     }
 
     export namespace StartHost {
-        export function from(): StartHost {
-            return { command: 'startHost' };
+        export function from(path: string): StartHost {
+            return { command: 'startHost', path };
         }
     }
 
