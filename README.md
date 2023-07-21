@@ -77,6 +77,10 @@ To find the device's IP to connect to, use the Air Code icon on the project sele
 >
 > Air Code's default port 18513 is actually based on the letters R (18) E (5) M (13), for REMote console.
 
+#### Multi-window
+
+Air Code does not currently support multiple Codea windows or running projects. For this reason, when running a project from Air Code, all windows will be closed except one before running the project.
+
 ### Files and Dependencies
 
 Files can be added, removed or renamed in Codea using the corresponding operations in Visual Studio Code.
