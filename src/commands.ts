@@ -92,6 +92,7 @@ export namespace Command {
     export interface AddDependency extends Command {
         command: 'addDependency';
         path: string;
+        dependency: string;
     }
 
     export interface GetParameters extends Command {
@@ -189,8 +190,8 @@ export namespace Command {
     }
 
     export namespace AddDependency {
-        export function from(path: string): AddDependency {
-            return { command: 'addDependency', path };
+        export function from(path: string, dependency: string): AddDependency {
+            return { command: 'addDependency', path, dependency };
         }
     }
 

@@ -11,7 +11,6 @@ enum ErrorType {
 }
 
 export type StartHostResponse = {
-    alreadyStarted: boolean;
 }
 
 export type GetInformationResponse = {

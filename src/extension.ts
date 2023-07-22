@@ -46,10 +46,7 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 
 			// The user has clicked the "Start" button or used the keyboard shortcut
-			let response = await airCode.startHost(uri);
-			if (response.alreadyStarted) {
-				airCode.startDebugging();
-			}
+			await airCode.startHost(uri);
 		}));
 
 		context.subscriptions.push(vscode.commands.registerCommand('workbench.action.debug.restart', async () => {
@@ -212,10 +209,10 @@ export function activate(context: vscode.ExtensionContext) {
 			if (choice !== undefined) {
 				let response = await airCode.addDependency(uri, choice.label);
 				if (response.isFirstDependency) {
-					airCode.onDependenciesCreated();
+					airCode.onDependenciesCreated(airCodePath.project);
 				}
 
-				let path = `codea://${uri.authority}/${AirCode.rootFolder}/${airCode.projectName}/Dependencies/${choice}`;
+				let path = `codea://${uri.authority}/${AirCode.rootFolder}/${airCodePath.project}/Dependencies/${choice}`;
 				let newUri = vscode.Uri.parse(path);
 				airCode.fileCreated(newUri);	
 			}

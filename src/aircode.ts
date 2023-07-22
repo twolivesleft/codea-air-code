@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 
+import { AirCodePath } from './aircodepath';
 import { TextDecoder, TextEncoder } from 'util';
 import { WebSocket, Event, OPEN, MessageEvent, CloseEvent, CONNECTING } from 'ws';
 import { Result } from './result';
@@ -34,7 +35,6 @@ export class AirCode implements vscode.FileSystemProvider {
     parametersView: Parameters.ParametersViewProvider;
     debugEvents = new vscode.EventEmitter<string>();
     extensionVersion: string; 
-    projectName? : string;
 
     connectionStatusItem: vscode.StatusBarItem | undefined;
     playProjectItem: vscode.StatusBarItem | undefined;
@@ -261,9 +261,6 @@ export class AirCode implements vscode.FileSystemProvider {
         ws.onmessage = function (evt: MessageEvent) {
             let result = JSON.parse(evt.data as string);
 
-            // Keep track of the last known project name based on the response
-            parent.projectName = result.project;
-
             if (result.id !== undefined) {
                 let id = result.id as number;
                 let data = result;
@@ -381,7 +378,6 @@ export class AirCode implements vscode.FileSystemProvider {
                 });
             }
             parent.promises.clear();
-            parent.projectName = undefined;
 
             if (parent.connectionStatusItem) {
                 parent.connectionStatusItem.text = "Connection lost";
@@ -489,8 +485,8 @@ export class AirCode implements vscode.FileSystemProvider {
         return this.sendCommand<GetInformationResponse>(uri, Command.GetInformation.from());
     }    
 
-    async addDependency(uri: vscode.Uri, path: string) : Promise<AddDependencyResponse> {
-        return this.sendCommand<AddDependencyResponse>(uri, Command.AddDependency.from(path));
+    async addDependency(uri: vscode.Uri, dependency: string) : Promise<AddDependencyResponse> {
+        return this.sendCommand<AddDependencyResponse>(uri, Command.AddDependency.from(uri.path, dependency));
     }
 
     getParameters(uri: vscode.Uri): any[] | Thenable<any[]> {
@@ -555,6 +551,7 @@ export class AirCode implements vscode.FileSystemProvider {
     }
 
     createDirectory(uri: vscode.Uri): void | Thenable<void> {
+        throw vscode.FileSystemError.Unavailable("Creating directories and projects is not supported yet.");
     }
 
     readFile(uri: vscode.Uri): Uint8Array | Thenable<Uint8Array> {
@@ -583,17 +580,17 @@ export class AirCode implements vscode.FileSystemProvider {
         return this.sendCommand(uri, Command.WriteFile.from(path, dec.decode(content)));
     }
 
-    getDependenciesUri(): vscode.Uri {
-        let path = `codea://${getWorkspaceUri().authority}/${AirCode.rootFolder}/${this.projectName}/Dependencies`;
+    getDependenciesUri(projectName: String): vscode.Uri {
+        let path = `codea://${getWorkspaceUri().authority}/${AirCode.rootFolder}/${projectName}/Dependencies`;
         return vscode.Uri.parse(path);
     }
 
-    onDependenciesCreated() {
-        this.fileCreated(this.getDependenciesUri());
+    onDependenciesCreated(projectName: String) {
+        this.fileCreated(this.getDependenciesUri(projectName));
     }
 
-    onDependenciesDeleted() {
-        this.fileDeleted(this.getDependenciesUri());
+    onDependenciesDeleted(projectName: String) {
+        this.fileDeleted(this.getDependenciesUri(projectName));
     }
 
     delete(uri: vscode.Uri, options: { readonly recursive: boolean; }): void | Thenable<void> {
@@ -602,7 +599,8 @@ export class AirCode implements vscode.FileSystemProvider {
                 return Result.error(response);
             } else {
                 if (response.wasLastDependency) {
-                    this.onDependenciesDeleted();
+                    const airCodePath = new AirCodePath(uri.path);
+                    this.onDependenciesDeleted(airCodePath.project);
                 }
                 return Result.success(undefined);
             }
