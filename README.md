@@ -23,7 +23,7 @@ This extension can connect remotely to the [Codea](https://codea.io/) iOS applic
 
 Once connected to Codea, Visual Studio Code will list all the projets availables with their files and dependencies, allowing modifications even if a project is running.
 
-<img width="851" alt="Screenshot of the editor" src="images/editor.png">
+<img width="851" alt="Screenshot of the editor" src="images/editor_2.png">
 
 ### Parameters
 
