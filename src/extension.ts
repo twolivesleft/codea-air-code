@@ -209,7 +209,7 @@ export function activate(context: vscode.ExtensionContext) {
 			if (choice !== undefined) {
 				let response = await airCode.addDependency(uri, choice.label);
 				if (response.isFirstDependency) {
-					airCode.onDependenciesCreated(airCodePath.project);
+					airCode.onDependenciesCreated(airCodePath.collection, airCodePath.project);
 				}
 
 				let path = `codea://${uri.authority}/${AirCode.rootFolder}/${airCodePath.project}/Dependencies/${choice}`;

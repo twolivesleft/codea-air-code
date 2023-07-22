@@ -8,6 +8,7 @@ enum ErrorType {
     unableToRenameFile = "unableToRenameFile",
     connectionLost = "connectionLost",
     fileAlreadyExists = "fileAlreadyExists",
+    unableToCreateFolder = "unableToCreateFolder",
 }
 
 export type StartHostResponse = {
@@ -51,6 +52,8 @@ export namespace Response {
                     return vscode.FileSystemError.Unavailable(errorString);
                 case 'fileAlreadyExists':
                     return vscode.FileSystemError.FileExists(errorString);
+                case 'unableToCreateFolder':
+                    return vscode.FileSystemError.NoPermissions(errorString);
                 }
         }
 

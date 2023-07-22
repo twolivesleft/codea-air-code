@@ -469,6 +469,10 @@ export class AirCode implements vscode.FileSystemProvider {
         return this.sendCommand(uri, Command.ListUnimportedProjects.from(uri.path));
     }
 
+    createFolder(uri: vscode.Uri): void | Thenable<void> {
+        return this.sendCommand(uri, Command.CreateFolder.from(uri.path));
+    }
+
     loadString(uri: vscode.Uri, content: string) {
         this.sendCommand(uri, Command.LoadString.from(content));
     }
@@ -551,7 +555,7 @@ export class AirCode implements vscode.FileSystemProvider {
     }
 
     createDirectory(uri: vscode.Uri): void | Thenable<void> {
-        throw vscode.FileSystemError.Unavailable("Creating directories and projects is not supported yet.");
+        return this.createFolder(uri);
     }
 
     readFile(uri: vscode.Uri): Uint8Array | Thenable<Uint8Array> {
@@ -580,17 +584,17 @@ export class AirCode implements vscode.FileSystemProvider {
         return this.sendCommand(uri, Command.WriteFile.from(path, dec.decode(content)));
     }
 
-    getDependenciesUri(projectName: String): vscode.Uri {
-        let path = `codea://${getWorkspaceUri().authority}/${AirCode.rootFolder}/${projectName}/Dependencies`;
+    getDependenciesUri(collectionName: String, projectName: String): vscode.Uri {
+        let path = `codea://${getWorkspaceUri().authority}/${AirCode.rootFolder}/${collectionName}/${projectName}/Dependencies`;
         return vscode.Uri.parse(path);
     }
 
-    onDependenciesCreated(projectName: String) {
-        this.fileCreated(this.getDependenciesUri(projectName));
+    onDependenciesCreated(collectionName: String, projectName: String) {
+        this.fileCreated(this.getDependenciesUri(collectionName, projectName));
     }
 
-    onDependenciesDeleted(projectName: String) {
-        this.fileDeleted(this.getDependenciesUri(projectName));
+    onDependenciesDeleted(collectionName: String, projectName: String) {
+        this.fileDeleted(this.getDependenciesUri(collectionName, projectName));
     }
 
     delete(uri: vscode.Uri, options: { readonly recursive: boolean; }): void | Thenable<void> {
@@ -600,7 +604,7 @@ export class AirCode implements vscode.FileSystemProvider {
             } else {
                 if (response.wasLastDependency) {
                     const airCodePath = new AirCodePath(uri.path);
-                    this.onDependenciesDeleted(airCodePath.project);
+                    this.onDependenciesDeleted(airCodePath.collection, airCodePath.project);
                 }
                 return Result.success(undefined);
             }

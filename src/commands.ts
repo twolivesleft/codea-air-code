@@ -21,6 +21,7 @@ export namespace Command {
         | "restart"
         | "listProjects"
         | "listUnimportedProjects"
+        | "createFolder"
         | "addDependency"
         | "getParameters"
         | "setParameter"
@@ -86,6 +87,11 @@ export namespace Command {
 
     export interface ListUnimportedProjects extends Command {
         command: 'listUnimportedProjects';
+        path: string;
+    }
+
+    export interface CreateFolder extends Command {
+        command: 'createFolder';
         path: string;
     }
 
@@ -186,6 +192,12 @@ export namespace Command {
     export namespace ListUnimportedProjects {
         export function from(path: string): ListUnimportedProjects {
             return { command: 'listUnimportedProjects', path };
+        }
+    }
+
+    export namespace CreateFolder {
+        export function from(path: string): CreateFolder {
+            return { command: 'createFolder', path };
         }
     }
 
