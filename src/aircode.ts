@@ -348,16 +348,6 @@ export class AirCode implements vscode.FileSystemProvider {
                                 vscode.debug.stopDebugging();
                                 break;
                             }
-                        case "projectClosed":
-                            {                                
-                                vscode.commands.executeCommand("workbench.files.action.refreshFilesExplorer");
-                                break;
-                            }
-                        case "projectOpened":
-                            {
-                                vscode.commands.executeCommand("workbench.files.action.refreshFilesExplorer");
-                                break;
-                            }
                         case "debugResponse":
                             {
                                 airCode.debugEvents.fire(data.message);
