@@ -1,3 +1,4 @@
+import * as path from 'path';
 import * as vscode from 'vscode';
 
 import { AirCode } from './aircode';
@@ -5,6 +6,17 @@ import { AirCodePath } from './aircodepath';
 import { ParametersViewProvider } from './parameters';
 import { CodeaDebugConfigurationProvider } from './debug-adapter/CodeaDebugConfigurationProvider';
 import { InlineDebugAdapterFactory } from './debug-adapter/InlineDebugAdapterFactory';
+import { LSPMessageReader, LSPMessageWriter } from './language_server';
+import {
+	LanguageClient,
+	LanguageClientOptions,
+	ServerOptions,
+	TransportKind
+} from 'vscode-languageclient/node';
+
+let languageClient: LanguageClient;
+let messageReader: LSPMessageReader;
+let messageWriter: LSPMessageWriter;
 
 export function getWorkspaceUri(): vscode.Uri {
 	if (vscode.workspace.workspaceFolders?.length === 1) {
@@ -20,7 +32,15 @@ export function activate(context: vscode.ExtensionContext) {
 
 	const parametersViewProvider = new ParametersViewProvider(context.extensionUri);
 	const outputChannel = vscode.window.createOutputChannel("Codea", "codea-output");
-	const airCode = new AirCode(outputChannel, parametersViewProvider, context.extension.packageJSON.version);
+
+	messageReader = new LSPMessageReader();
+	const airCode = new AirCode(
+		outputChannel,
+		parametersViewProvider,
+		context.extension.packageJSON.version,
+		messageReader);
+
+	createLanguageClientServer(context, airCode);
 
 	//Register configurations	
 	const codeaProvider = new CodeaDebugConfigurationProvider();
@@ -218,6 +238,34 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		});
 	}));
+}
+
+function createLanguageClientServer(context: vscode.ExtensionContext, airCode: AirCode) {
+	messageWriter = new LSPMessageWriter(airCode);
+
+	// Options to control the language client
+	let clientOptions: LanguageClientOptions = {
+		// Register the server for lua documents
+		documentSelector: [{ scheme: 'file', language: 'lua' }],
+		synchronize: {
+			// Notify the server about file changes to '.clientrc files contained in the workspace
+			fileEvents: vscode.workspace.createFileSystemWatcher('**/*.lua')
+		}
+	};
+
+	// Create the language client and start the client.
+	languageClient = new LanguageClient(
+		'codea-air-code.languageClient',
+		'Codea Language Client',
+		() => Promise.resolve({
+			reader: messageReader,
+			writer: messageWriter,
+		}),
+		clientOptions
+	);
+
+	// Start the client. This will also launch the server
+	languageClient.start();
 }
 
 // This method is called when your extension is deactivated

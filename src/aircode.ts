@@ -8,6 +8,7 @@ import { Response, StartHostResponse, GetInformationResponse, AddDependencyRespo
 import { Command } from './commands';
 import * as Parameters from './parameters';
 import { getWorkspaceUri } from './extension';
+import { LSPMessageReader } from './language_server';
 
 const semver = require('semver');
 
@@ -39,10 +40,16 @@ export class AirCode implements vscode.FileSystemProvider {
     connectionStatusItem: vscode.StatusBarItem | undefined;
     playProjectItem: vscode.StatusBarItem | undefined;
 
-    constructor(outputChannel: vscode.OutputChannel, parametersView: Parameters.ParametersViewProvider, extensionVersion: string) {
+    lspMessageReader: LSPMessageReader;
+
+    constructor(outputChannel: vscode.OutputChannel,
+                parametersView: Parameters.ParametersViewProvider,
+                extensionVersion: string,
+                lspMessageReader: LSPMessageReader) {
         this.outputChannel = outputChannel;
         this.parametersView = parametersView;
-        this.extensionVersion = extensionVersion
+        this.extensionVersion = extensionVersion;
+        this.lspMessageReader = lspMessageReader;
     }
 
     // Internal Files
@@ -353,6 +360,12 @@ export class AirCode implements vscode.FileSystemProvider {
                                 airCode.debugEvents.fire(data.message);
                                 break;
                             }
+                        case "lspResponse":
+                            {
+                                const responseMessage = JSON.parse(data.message);
+                                airCode.lspMessageReader.onMessage(responseMessage);
+                                break;
+                            }
                     }
                 }
                 
@@ -501,6 +514,10 @@ export class AirCode implements vscode.FileSystemProvider {
     debugMessage(uri: vscode.Uri, object: any) {
         const json = JSON.stringify(object).replace(/\\"/g, '"');
         this.sendCommand(uri, Command.DebugMessage.from(json));
+    }
+
+    lspMessage(message: string) {
+        this.sendCommand(getWorkspaceUri(), Command.LSPMessage.from(message));
     }
 
     // VS Code FileSystemProvider Implementation
