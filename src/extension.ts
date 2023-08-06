@@ -246,7 +246,7 @@ function createLanguageClientServer(context: vscode.ExtensionContext, airCode: A
 	// Options to control the language client
 	let clientOptions: LanguageClientOptions = {
 		// Register the server for lua documents
-		documentSelector: [{ scheme: 'file', language: 'lua' }],
+		documentSelector: [{ scheme: 'codea', language: 'lua' }],
 		synchronize: {
 			// Notify the server about file changes to '.clientrc files contained in the workspace
 			fileEvents: vscode.workspace.createFileSystemWatcher('**/*.lua')
