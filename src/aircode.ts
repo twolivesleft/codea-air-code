@@ -362,6 +362,7 @@ export class AirCode implements vscode.FileSystemProvider {
                             }
                         case "lspResponse":
                             {
+                                console.warn(`lspResponse ${data.message}`)
                                 const responseMessage = JSON.parse(data.message);
                                 airCode.lspMessageReader.onMessage(responseMessage);
                                 break;
