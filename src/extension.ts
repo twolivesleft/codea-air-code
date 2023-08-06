@@ -269,4 +269,10 @@ function createLanguageClientServer(context: vscode.ExtensionContext, airCode: A
 }
 
 // This method is called when your extension is deactivated
-export function deactivate() { }
+export function deactivate(): Thenable<void> | undefined {
+	if (!languageClient) {
+	  return undefined;
+	}
+	return languageClient.stop();
+  }
+  
