@@ -8,7 +8,11 @@ import { Response, StartHostResponse, GetInformationResponse, AddDependencyRespo
 import { Command } from './commands';
 import * as Parameters from './parameters';
 import { getWorkspaceUri } from './extension';
-import { LSPMessageReader } from './language_server';
+import {
+	LanguageClient,
+	LanguageClientOptions
+} from 'vscode-languageclient/node';
+import { LSPMessageReader, LSPMessageWriter } from './language_server';
 
 const semver = require('semver');
 
@@ -37,19 +41,22 @@ export class AirCode implements vscode.FileSystemProvider {
     debugEvents = new vscode.EventEmitter<string>();
     extensionVersion: string; 
 
+    // Language Server Protocol
+    messageReader: LSPMessageReader;
+    messageWriter: LSPMessageWriter;
+    languageClient: LanguageClient | undefined;
+
     connectionStatusItem: vscode.StatusBarItem | undefined;
     playProjectItem: vscode.StatusBarItem | undefined;
 
-    lspMessageReader: LSPMessageReader;
-
     constructor(outputChannel: vscode.OutputChannel,
                 parametersView: Parameters.ParametersViewProvider,
-                extensionVersion: string,
-                lspMessageReader: LSPMessageReader) {
+                extensionVersion: string) {
         this.outputChannel = outputChannel;
         this.parametersView = parametersView;
         this.extensionVersion = extensionVersion;
-        this.lspMessageReader = lspMessageReader;
+        this.messageReader = new LSPMessageReader();
+        this.messageWriter = new LSPMessageWriter(this);
     }
 
     // Internal Files
@@ -254,6 +261,29 @@ export class AirCode implements vscode.FileSystemProvider {
                 parent.connectionStatusItem.show();
             }
 
+            // Options to control the language client
+            let clientOptions: LanguageClientOptions = {
+                // Register the server for lua documents
+                documentSelector: [{ scheme: 'codea', language: 'lua' }],
+                synchronize: {
+                    // Notify the server about file changes to '.clientrc files contained in the workspace
+                    fileEvents: vscode.workspace.createFileSystemWatcher('**/*.lua')
+                }
+            };
+
+            // Create the language client and start the client.
+            airCode.languageClient = new LanguageClient(
+                'codea-air-code.languageClient',
+                'Codea Language Client',
+                () => Promise.resolve({
+                    reader: airCode.messageReader,
+                    writer: airCode.messageWriter,
+                }),
+                clientOptions
+            );
+
+            airCode.languageClient.start();
+
             let parameters = await airCode.getParameters(uri);
 
             airCode.parametersView.setParameters(parameters);
@@ -364,7 +394,7 @@ export class AirCode implements vscode.FileSystemProvider {
                             {
                                 console.warn(`lspResponse ${data.message}`)
                                 const responseMessage = JSON.parse(data.message);
-                                airCode.lspMessageReader.onMessage(responseMessage);
+                                airCode.messageReader.onMessage(responseMessage);
                                 break;
                             }
                     }
@@ -375,6 +405,12 @@ export class AirCode implements vscode.FileSystemProvider {
 
         ws.onclose = async function (event: CloseEvent) {
             airCode.closingSocket = true;
+
+            console.warn("Stopping languageClient...");
+
+            airCode.languageClient?.stop();
+            airCode.languageClient?.outputChannel.dispose();
+            airCode.languageClient = undefined;
 
             for (let [id, promise] of parent.promises) {
                 promise({
