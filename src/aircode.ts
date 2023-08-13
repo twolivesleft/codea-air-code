@@ -42,6 +42,7 @@ export class AirCode implements vscode.FileSystemProvider {
     extensionVersion: string; 
 
     // Language Server Protocol
+    debugLSP = false;
     messageReader: LSPMessageReader;
     messageWriter: LSPMessageWriter;
     languageClient: LanguageClient | undefined;
@@ -55,7 +56,7 @@ export class AirCode implements vscode.FileSystemProvider {
         this.outputChannel = outputChannel;
         this.parametersView = parametersView;
         this.extensionVersion = extensionVersion;
-        this.messageReader = new LSPMessageReader();
+        this.messageReader = new LSPMessageReader(this);
         this.messageWriter = new LSPMessageWriter(this);
     }
 
@@ -125,6 +126,12 @@ export class AirCode implements vscode.FileSystemProvider {
         }
 
         return directoryEntries;
+    }
+
+    logLsp(message: String) {
+        if (this.debugLSP) {
+            console.warn(message);
+        }
     }
 
     startDebugging() {
@@ -392,7 +399,7 @@ export class AirCode implements vscode.FileSystemProvider {
                             }
                         case "lspResponse":
                             {
-                                console.warn(`lspResponse ${data.message}`)
+                                airCode.logLsp(`lspResponse ${data.message}`)
                                 const responseMessage = JSON.parse(data.message);
                                 airCode.messageReader.onMessage(responseMessage);
                                 break;
@@ -406,7 +413,7 @@ export class AirCode implements vscode.FileSystemProvider {
         ws.onclose = async function (event: CloseEvent) {
             airCode.closingSocket = true;
 
-            console.warn("Stopping languageClient...");
+            airCode.logLsp("Stopping languageClient...");
 
             airCode.languageClient?.stop();
             airCode.languageClient?.outputChannel.dispose();

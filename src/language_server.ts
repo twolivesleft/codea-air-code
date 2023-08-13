@@ -14,6 +14,8 @@ import {
 } from 'vscode-jsonrpc/node';
 
 export class LSPMessageReader implements MessageReader {
+    airCode: AirCode;
+
     protected callback: DataCallback | undefined;
 
     errorEmitter = new vscode.EventEmitter<Error>();
@@ -25,10 +27,14 @@ export class LSPMessageReader implements MessageReader {
     partialMessageEmitter = new vscode.EventEmitter<PartialMessageInfo>();
     onPartialMessage: Event<PartialMessageInfo> = this.partialMessageEmitter.event;
 
+    constructor(airCode: AirCode) {
+        this.airCode = airCode;
+    }
+
     listen(callback: DataCallback): Disposable {
         this.callback = callback;
 
-        console.warn("LSPMessageReader listening");
+        this.airCode.logLsp("LSPMessageReader listening");
 
         return {
             dispose: () => {
@@ -36,7 +42,7 @@ export class LSPMessageReader implements MessageReader {
                     this.callback = undefined;
                 }
 
-                console.warn("LSPMessageReader disposed.")
+                this.airCode.logLsp("LSPMessageReader disposed.")
             }
         }
     }
@@ -48,7 +54,7 @@ export class LSPMessageReader implements MessageReader {
 
     dispose(): void {
         this.callback = undefined;
-        console.warn("LSPMessageReader disposed.")
+        this.airCode.logLsp("LSPMessageReader disposed.")
     }
 }
 
@@ -68,16 +74,16 @@ export class LSPMessageWriter implements MessageWriter {
     async write(msg: Message): Promise<void> {
         let jsonMessage = JSON.stringify(msg);
 
-        console.warn(`LSPMessageWriter write ${jsonMessage}.`);
+        this.airCode.logLsp(`LSPMessageWriter write ${jsonMessage}.`);
 
         this.airCode.lspMessage(jsonMessage);
     }
 
     end(): void {
-        console.warn("LSPMessageWriter end.");
+        this.airCode.logLsp("LSPMessageWriter end.");
     }
     
     dispose(): void {
-        console.warn("LSPMessageWriter disposed.");
+        this.airCode.logLsp("LSPMessageWriter disposed.");
     }
 }

@@ -27,6 +27,11 @@ export function activate(context: vscode.ExtensionContext) {
 		parametersViewProvider,
 		context.extension.packageJSON.version);
 
+	if (process.env.DEBUG_LSP == "1") {
+		console.log("LDP debugging enabled");
+		airCode.debugLSP = true;
+	}
+
 	//Register configurations	
 	const codeaProvider = new CodeaDebugConfigurationProvider();
 
