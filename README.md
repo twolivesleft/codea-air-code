@@ -1,6 +1,6 @@
 # Codea Air Code
 
-This extension can connect remotely to the [Codea](https://codea.io/) iOS application, allowing to modify, tweak and debug Codea projects directly from Visual Studio Code.
+This extension can connect remotely to the [Codea](https://codea.io/) iOS application, allowing to modify, tweak and debug Codea projects directly from Visual Studio Code. Auto-completion features similar to Codea are active while modifying the code.
 
 ## Table of Contents 
 
@@ -24,6 +24,40 @@ This extension can connect remotely to the [Codea](https://codea.io/) iOS applic
 Once connected to Codea, Visual Studio Code will list all the projets availables with their files and dependencies, allowing modifications even if a project is running.
 
 <img width="851" alt="Screenshot of the editor" src="images/editor_2.png">
+
+#### Auto-Completion
+
+Auto-completion is available for the Codea API as well as symbols defined in the project and its dependencies.
+
+#### Symbols
+
+<img width="1054" alt="Objc auto-completion" src="images/autocomplete_5.png">
+
+#### Colors
+
+Methods such as `background`, `fill`, `tint`, `stroke` and `color` will show a color indicator which can be used to visualize and easily change the assigned color using VSCode's color picker.
+
+<img width="882" alt="Color auto-completion" src="images/autocomplete_1.png">
+
+#### Font and Sprites
+
+The `font` and `sprite` functions will automatically list the fonts and sprites available for the current project.
+
+<img width="896" alt="font auto-completion" src="images/autocomplete_2.png">
+
+<img width="884" alt="sprite auto-completion" src="images/autocomplete_3.png">
+
+#### Snippets
+
+Snippets make it easier to format the different Lua control structures such as `if`, `for`, `while` and `repeat`.
+
+<img width="276" alt="sprite auto-completion" src="images/autocomplete_4.png">
+
+#### Documentation
+
+Types can easily be documented using a triple-slash (`---`) comment.
+
+<img width="972" alt="sprite auto-completion" src="images/document_1.png">
 
 ### Parameters
 
