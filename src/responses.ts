@@ -29,6 +29,7 @@ export type DeleteFileResponse = {
 
 export type GetFunctionsResponse = {
     groups: string[];
+    localGroups: { [key: string]: string };
     functions: any[];
 }
 

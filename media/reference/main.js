@@ -28,7 +28,14 @@
                 }
             case 'setFunctions':
                 {
-                    setFunctions(message.data.chapter, message.data.chapterTitle, message.data.chapterImage, message.data.groups, message.data.functions, message.data.categoryImages);
+                    setFunctions(
+                        message.data.chapter, 
+                        message.data.chapterTitle, 
+                        message.data.chapterImage,
+                        message.data.groups,
+                        message.data.localGroups,
+                        message.data.functions,
+                        message.data.categoryImages);
 
                     break;
                 }
@@ -118,7 +125,7 @@
         }
     }
 
-    function setFunctions(chapter, chapterTitle, chapterImage, groups, functions, categoryImages) {
+    function setFunctions(chapter, chapterTitle, chapterImage, groups, localGroups, functions, categoryImages) {
         const content = document.querySelector('.reference-content');
         var missingCategories = []
 
@@ -156,7 +163,7 @@
 
             for (const group of groups) {
                 const groupDiv = document.createElement('div');
-                groupDiv.textContent = group;
+                groupDiv.textContent = localGroups[group];
                 groupDiv.className = "category-header";
                 content.appendChild(groupDiv);
 

@@ -159,6 +159,7 @@ export class ReferenceViewProvider implements vscode.WebviewViewProvider {
 
 			if (response) {
 				this.chapters[chapter]["groups"] = response.groups;
+				this.chapters[chapter]["localGroups"] = response.localGroups;
 				this.chapters[chapter]["functions"] = response.functions;
 			}
 		}
@@ -169,6 +170,7 @@ export class ReferenceViewProvider implements vscode.WebviewViewProvider {
 				chapterTitle: this.chapters[chapter]["title"],
 				chapterImage: this.chapters[chapter]["image"],
 				groups: this.chapters[chapter]["groups"],
+				localGroups: this.chapters[chapter]["localGroups"],
 				functions: this.chapters[chapter]["functions"],
 				images: this.categoryImages
 			} });
