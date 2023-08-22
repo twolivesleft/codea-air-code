@@ -4,9 +4,17 @@ import { AirCodePath } from './aircodepath';
 import { TextDecoder, TextEncoder } from 'util';
 import { WebSocket, Event, OPEN, MessageEvent, CloseEvent, CONNECTING } from 'ws';
 import { Result } from './result';
-import { Response, StartHostResponse, GetInformationResponse, AddDependencyResponse, DeleteFileResponse } from './responses';
+import { 
+    Response, 
+    StartHostResponse, 
+    GetInformationResponse, 
+    AddDependencyResponse, 
+    DeleteFileResponse, 
+    GetFunctionsResponse,
+    FindReferenceResponse } from './responses';
 import { Command } from './commands';
 import * as Parameters from './parameters';
+import * as Reference from './reference';
 import { getWorkspaceUri } from './extension';
 import {
 	LanguageClient,
@@ -38,6 +46,7 @@ export class AirCode implements vscode.FileSystemProvider {
     promises = new Map<number, (data: any) => void>();
     outputChannel: vscode.OutputChannel;
     parametersView: Parameters.ParametersViewProvider;
+    referenceView: Reference.ReferenceViewProvider;
     debugEvents = new vscode.EventEmitter<string>();
     extensionVersion: string; 
 
@@ -52,9 +61,11 @@ export class AirCode implements vscode.FileSystemProvider {
 
     constructor(outputChannel: vscode.OutputChannel,
                 parametersView: Parameters.ParametersViewProvider,
+                referenceView: Reference.ReferenceViewProvider,
                 extensionVersion: string) {
         this.outputChannel = outputChannel;
         this.parametersView = parametersView;
+        this.referenceView = referenceView;
         this.extensionVersion = extensionVersion;
         this.messageReader = new LSPMessageReader(this);
         this.messageWriter = new LSPMessageWriter(this);
@@ -534,7 +545,7 @@ export class AirCode implements vscode.FileSystemProvider {
 
     async getInformation(uri: vscode.Uri) : Promise<GetInformationResponse> {
         return this.sendCommand<GetInformationResponse>(uri, Command.GetInformation.from());
-    }    
+    }
 
     async addDependency(uri: vscode.Uri, dependency: string) : Promise<AddDependencyResponse> {
         return this.sendCommand<AddDependencyResponse>(uri, Command.AddDependency.from(uri.path, dependency));
@@ -563,6 +574,54 @@ export class AirCode implements vscode.FileSystemProvider {
     lspMessage(message: string) {
         this.sendCommand(getWorkspaceUri(), Command.LSPMessage.from(message));
     }
+
+    getChapters(uri: vscode.Uri): any[] | Thenable<any[]> {
+        return this.sendCommandMapResponse<String, any[]>(uri, Command.GetChapters.from(), response => {
+            if (response instanceof Error) {
+                return Result.error(response);
+            } else {
+                return Result.success(response as any);
+            }
+        });
+    }    
+
+    getChapterImage(uri: vscode.Uri, chapter: string): string | Thenable<string> {
+        return this.sendCommandMapResponse<String, string>(uri, Command.GetChapterImage.from(chapter), response => {
+            if (response instanceof Error) {
+                return Result.error(response);
+            } else {
+                return Result.success(response as string);
+            }
+        });
+    }    
+
+    async getFunctions(uri: vscode.Uri, chapter: string) : Promise<GetFunctionsResponse> {
+        return this.sendCommand<GetFunctionsResponse>(uri, Command.GetFunctions.from(chapter));
+    }    
+
+    getCategoryImage(uri: vscode.Uri, category: string): string | Thenable<string> {
+        return this.sendCommandMapResponse<String, string>(uri, Command.GetCategoryImage.from(category), response => {
+            if (response instanceof Error) {
+                return Result.error(response);
+            } else {
+                return Result.success(response as string);
+            }
+        });
+    }
+
+    getFunctionDetails(uri: vscode.Uri, chapter: string, functionId: string): any[] | Thenable<any[]> {
+        return this.sendCommandMapResponse<String, any[]>(uri, Command.GetFunctionDetails.from(chapter, functionId), response => {
+            if (response instanceof Error) {
+                return Result.error(response);
+            } else {
+                return Result.success(response as any);
+            }
+        });
+    }
+
+    async findReference(uri: vscode.Uri, text: string) : Promise<FindReferenceResponse> {
+        return this.sendCommand<FindReferenceResponse>(uri, Command.FindReference.from(text));
+    }    
 
     // VS Code FileSystemProvider Implementation
 

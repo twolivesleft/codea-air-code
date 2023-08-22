@@ -48,6 +48,12 @@
       "codea-sidebar": [
         {
           "type": "webview",
+          "id": "codea-reference",
+          "name": "Reference",
+          "when": "codea-air-code.hasWorkspaceUri == true"
+        },
+        {
+          "type": "webview",
           "id": "codea-parameters",
           "name": "Parameters",
           "when": "codea-air-code.hasWorkspaceUri == true"
@@ -78,6 +84,14 @@
       {
         "command": "codea-air-code.addDependency",
         "title": "Codea: Add dependency..."
+      },
+      {
+        "command": "codea-air-code.selectionReference",
+        "title": "Codea: Find reference..."
+      },
+      {
+        "command": "codea-air-code.textReference",
+        "title": "Codea: Find reference..."
       }
     ],
     "languages": [
@@ -162,7 +176,12 @@
           "when": "resourceLangId == lua && !editorHasSelection",
           "command": "codea-air-code.executeLine",
           "group": "a_codea"
-        }
+        },
+        {
+          "when": "resourceLangId == lua && editorHasSelection",
+          "command": "codea-air-code.selectionReference",
+          "group": "a_codea"
+        }        
       ],
       "commandPalette": [
         {
@@ -184,6 +203,14 @@
         {
           "command": "codea-air-code.addDependency",
           "when": "workspaceFolderCount > 0 && resourceLangId == lua"
+        },
+        {
+          "command": "codea-air-code.textReference",
+          "when": "workspaceFolderCount > 0 && resourceLangId == lua"
+        },
+        {
+          "command": "codea-air-code.selectionReference",
+          "when": "false"
         }
       ]      
     }

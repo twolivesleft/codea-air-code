@@ -4,6 +4,7 @@ import * as vscode from 'vscode';
 import { AirCode } from './aircode';
 import { AirCodePath } from './aircodepath';
 import { ParametersViewProvider } from './parameters';
+import { ReferenceViewProvider } from './reference';
 import { CodeaDebugConfigurationProvider } from './debug-adapter/CodeaDebugConfigurationProvider';
 import { InlineDebugAdapterFactory } from './debug-adapter/InlineDebugAdapterFactory';
 
@@ -20,11 +21,13 @@ export function activate(context: vscode.ExtensionContext) {
 	vscode.commands.executeCommand('setContext', 'codea-air-code.hasWorkspaceUri', workspaceUri.scheme == "codea");
 
 	const parametersViewProvider = new ParametersViewProvider(context.extensionUri);
+	const referenceViewProvider = new ReferenceViewProvider(context.extensionUri);
 	const outputChannel = vscode.window.createOutputChannel("Codea", "codea-output");
 
 	const airCode = new AirCode(
 		outputChannel,
 		parametersViewProvider,
+		referenceViewProvider,
 		context.extension.packageJSON.version);
 
 	if (process.env.DEBUG_LSP == "1") {
@@ -45,6 +48,10 @@ export function activate(context: vscode.ExtensionContext) {
 	
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(ParametersViewProvider.viewType, parametersViewProvider)
+	);	
+
+	context.subscriptions.push(
+		vscode.window.registerWebviewViewProvider(ReferenceViewProvider.viewType, referenceViewProvider)
 	);	
 
 	// Overwrite the debug actions if we are under a codea workspace
@@ -76,6 +83,7 @@ export function activate(context: vscode.ExtensionContext) {
 	console.log(`"codea-air-code" is now active`);
 	
 	parametersViewProvider.airCode = airCode;
+	referenceViewProvider.airCode = airCode;
 
 	airCode.connectionStatusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
 	airCode.connectionStatusItem.text = "Not connected";
@@ -173,6 +181,43 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 
 		airCode.loadString(activeEditor?.document.uri, text);
+	}));
+
+	async function findReference(uri: vscode.Uri, text: string) {
+		let response = await airCode.findReference(uri, text);
+
+		if (response) {
+			if (airCode.referenceView.isReadyAndVisible()) {
+				airCode.referenceView.getFunctionDetails(response.chapter, response.function);
+			}
+			else {
+				await vscode.commands.executeCommand("codea-reference.focus");
+				airCode.referenceView.referenceToLoad = response;
+			}
+		}
+	}
+
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.selectionReference', async () => {
+		let activeEditor = vscode.window.activeTextEditor;
+		let text = activeEditor?.document.getText(activeEditor.selection);
+
+		if (activeEditor?.document.uri === undefined || text === undefined) {
+			return;
+		}
+
+		findReference(activeEditor?.document.uri, text);
+	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.textReference', async () => {
+		let text = await vscode.window.showInputBox({
+			prompt: "Enter the text to lookup."
+		});
+
+		if (text === undefined) {
+			return;
+		}
+
+		findReference(getWorkspaceUri(), text);
 	}));
 
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.executeCommand', async () => {

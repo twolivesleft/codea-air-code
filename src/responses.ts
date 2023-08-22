@@ -27,6 +27,16 @@ export type DeleteFileResponse = {
     wasLastDependency: boolean;
 };
 
+export type GetFunctionsResponse = {
+    groups: string[];
+    functions: any[];
+}
+
+export type FindReferenceResponse = {
+    chapter: string;
+    function: string;
+}
+
 export type Response<T> = {
     id: number;
     project?: String;
