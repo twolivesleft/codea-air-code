@@ -71,7 +71,7 @@ The Codea Reference section of the Sidebar contains the full documentation for C
 
 It is also possible to select and right click a word in a project's code to find the corresponding reference in the documentation (or using the `Find reference...` command), automatically focusing on the sidebar and opening the corresponding page.
 
-<img width="357" alt="Screenshot of the sidebar" src="images/sidebar_2.png">
+<img width="342" alt="Screenshot of the sidebar" src="images/sidebar_4.png">
 
 <img width="385" alt="Screenshot of the sidebar" src="images/sidebar_3.png">
 
