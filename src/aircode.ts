@@ -40,7 +40,9 @@ enum VersionComparison {
 export class AirCode implements vscode.FileSystemProvider {
     public static readonly rootFolder = 'Codea';
 
-    webSockets = new Map<string, WebSocket>();
+    webSocketAlive = false;
+    webSocket?: WebSocket;
+    webSocketPingInterval?: NodeJS.Timer;
     closingSocket = false;
     commandId: number = 0;
     promises = new Map<number, (data: any) => void>();
@@ -157,8 +159,9 @@ export class AirCode implements vscode.FileSystemProvider {
 
     async waitForSocket(ws: WebSocket, showError: boolean = true) : Promise<boolean> {
         return new Promise((resolve, reject) => {
-            const maxNumberOfAttempts = 10;
-            const intervalTime = 200;
+            // Wait for up to 30 seconds before giving up
+            const maxNumberOfAttempts = 30;
+            const intervalTime = 1000;
 
             let currentAttempt = 0;
             const interval = setInterval(() => {
@@ -179,12 +182,14 @@ export class AirCode implements vscode.FileSystemProvider {
 
     async waitForClosingSocket() : Promise<boolean> {
         return new Promise((resolve, reject) => {
-            const maxNumberOfAttempts = 10;
-            const intervalTime = 200;
+            // Wait for up to 30 seconds before giving up
+            const maxNumberOfAttempts = 30;
+            const intervalTime = 1000;
 
             let currentAttempt = 0;
             const interval = setInterval(() => {
                 if (!this.closingSocket) {
+                    clearInterval(interval);
                     resolve(true);
                     return;
                 }
@@ -221,16 +226,16 @@ export class AirCode implements vscode.FileSystemProvider {
             await this.waitForClosingSocket();
         }
 
-        if (this.webSockets.has(host)) {
-            let ws = this.webSockets.get(host);
-
-            if (ws?.readyState === CONNECTING) {
-                await this.waitForSocket(ws, showError);
+        if (this.webSocket) {
+            if (this.webSocket?.readyState === CONNECTING) {
+                await this.waitForSocket(this.webSocket, showError);
             }
 
-            if (ws?.readyState === OPEN) {
-                return ws;
+            if (this.webSocket?.readyState !== OPEN) {
+                this.webSocket = undefined;
             }
+
+            return this.webSocket;
         }
 
         if (this.connectionStatusItem) {
@@ -241,7 +246,7 @@ export class AirCode implements vscode.FileSystemProvider {
         let ws = new WebSocket(`ws://${host}/`);
 
         // Keep the pending request so new calls can wait for it.
-        this.webSockets.set(host, ws);
+        this.webSocket = ws;
 
         let airCode = this;
 
@@ -268,7 +273,7 @@ export class AirCode implements vscode.FileSystemProvider {
                             }
                         });    
                 }
-                airCode.webSockets.delete(host);
+                airCode.webSocket = undefined;
                 ws.close(CloseEventCode.IncompatibleVersion);
                 return;
             }
@@ -309,9 +314,15 @@ export class AirCode implements vscode.FileSystemProvider {
             if (information.hasHost) {
                 airCode.startDebugging();
             }
+
+            airCode.webSocketAlive = true;
         };
 
         let parent = this;
+
+        ws.on("pong", function() {
+            airCode.webSocketAlive = true;
+        });
 
         ws.onmessage = function (evt: MessageEvent) {
             let result = JSON.parse(evt.data as string);
@@ -432,7 +443,7 @@ export class AirCode implements vscode.FileSystemProvider {
 
             for (let [id, promise] of parent.promises) {
                 promise({
-                    error: "connectionLost"
+                    error: vscode.FileSystemError.Unavailable("Socket closed.")
                 });
             }
             parent.promises.clear();
@@ -447,22 +458,37 @@ export class AirCode implements vscode.FileSystemProvider {
             vscode.commands.executeCommand("workbench.files.action.refreshFilesExplorer");
 
             airCode.closingSocket = false;
+
+            clearInterval(airCode.webSocketPingInterval);
         };
 
         let success = await this.waitForSocket(ws, showError);
 
-        if (!success) {
+        if (success) {
+            clearInterval(airCode.webSocketPingInterval);
+            
+            airCode.webSocketPingInterval = setInterval(function() {
+                if (airCode.webSocketAlive === false) {
+                    clearInterval(airCode.webSocketPingInterval);
+                    ws.terminate();
+                }
+                else {
+                    airCode.webSocketAlive = false;
+                    ws.ping();
+                }
+            }, 5000);
+        }
+        else {
             if (parent.connectionStatusItem) {
                 parent.connectionStatusItem.text = "Connection failed";
                 parent.connectionStatusItem.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
             }
 
-            this.webSockets.clear();
+            this.webSocket = undefined;
             ws.close();
-            return undefined;
         }
 
-        return ws;
+        return this.webSocket;
     }
 
     // Sending Commands
