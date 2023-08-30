@@ -18,7 +18,8 @@ import * as Reference from './reference';
 import { getWorkspaceUri } from './extension';
 import {
 	LanguageClient,
-	LanguageClientOptions
+	LanguageClientOptions,
+    RevealOutputChannelOn
 } from 'vscode-languageclient/node';
 import { LSPMessageReader, LSPMessageWriter } from './language_server';
 
@@ -286,7 +287,8 @@ export class AirCode implements vscode.FileSystemProvider {
                 synchronize: {
                     // Notify the server about file changes to '.clientrc files contained in the workspace
                     fileEvents: vscode.workspace.createFileSystemWatcher('**/*.lua')
-                }
+                },
+                revealOutputChannelOn: RevealOutputChannelOn.Never
             };
 
             // Create the language client and start the client.
