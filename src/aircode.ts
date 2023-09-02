@@ -212,6 +212,14 @@ export class AirCode implements vscode.FileSystemProvider {
         return VersionComparison.UpdateExtension;
     }
 
+    setStatusConnected() {
+        if (this.connectionStatusItem) {
+            this.connectionStatusItem.text = "Connected";
+            this.connectionStatusItem.backgroundColor = new vscode.ThemeColor("statusBarItem.remoteBackground");
+            this.connectionStatusItem.show();
+        }
+    }
+
     async getSocketForUri(uri: vscode.Uri, showError: boolean = true): Promise<WebSocket | undefined> {
         const host = uri.authority;
         if (host === undefined) {
@@ -230,6 +238,8 @@ export class AirCode implements vscode.FileSystemProvider {
             }
 
             if (ws?.readyState === OPEN) {
+                this.setStatusConnected();
+
                 return ws;
             }
         }
@@ -274,11 +284,7 @@ export class AirCode implements vscode.FileSystemProvider {
                 return;
             }
 
-            if (parent.connectionStatusItem) {
-                parent.connectionStatusItem.text = "Connected";
-                parent.connectionStatusItem.backgroundColor = new vscode.ThemeColor("statusBarItem.remoteBackground");
-                parent.connectionStatusItem.show();
-            }
+            parent.setStatusConnected();
 
             // Options to control the language client
             let clientOptions: LanguageClientOptions = {
