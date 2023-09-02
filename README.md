@@ -75,6 +75,14 @@ It is also possible to select and right click a word in a project's code to find
 
 <img width="385" alt="Screenshot of the sidebar" src="images/sidebar_3.png">
 
+#### Search
+
+This extension uses a virtual File System Provider to read the files from Codea. However, VSCode does not yet support searching in files provided this way (see [this issue](https://github.com/microsoft/vscode/issues/59921ùcdc2w3wwqqqq)).
+
+Until the feature is implemented, the extension provides its own limited version which will search in all files of the currently active project.
+
+<img width="383" alt="Screenshot of the sidebar" src="images/search.png">
+
 #### Parameters
 
 The second section of the Codea Sidebar will show the current parameters for the running project, if any.
