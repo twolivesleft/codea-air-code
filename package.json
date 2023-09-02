@@ -54,6 +54,12 @@
         },
         {
           "type": "webview",
+          "id": "codea-search",
+          "name": "Search",
+          "when": "codea-air-code.hasWorkspaceUri == true"
+        },
+        {
+          "type": "webview",
           "id": "codea-parameters",
           "name": "Parameters",
           "when": "codea-air-code.hasWorkspaceUri == true"
@@ -238,6 +244,7 @@
     "@types/ws": "8.5.4",
     "@typescript-eslint/eslint-plugin": "^5.53.0",
     "@typescript-eslint/parser": "^5.53.0",
+    "@vscode/codicons": "0.0.33",
     "@vscode/debugadapter": "^1.59.0",
     "@vscode/debugprotocol": "^1.59.0",
     "@vscode/test-electron": "^2.2.3",

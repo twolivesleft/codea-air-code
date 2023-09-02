@@ -200,7 +200,6 @@ export class ReferenceViewProvider implements vscode.WebviewViewProvider {
 	private _getHtmlForWebview(webview: vscode.Webview) {
 		// Get the local path to main script run in the webview, then convert it to a uri we can use in the webview.
 		const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'reference', 'main.js'));
-		const markedUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'reference', 'marked.min.js'));
 
 		// Do the same for the stylesheet.
 		const styleMainUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'reference', 'main.css'));
@@ -215,8 +214,7 @@ export class ReferenceViewProvider implements vscode.WebviewViewProvider {
 			.replaceAll('${styleMainUri}', styleMainUri)
 			.replaceAll('${nonce}', nonce)
 			.replaceAll('${webview.cspSource}', webview.cspSource)
-			.replaceAll('${scriptUri}', scriptUri)
-			.replaceAll('${markedUri}', markedUri);
+			.replaceAll('${scriptUri}', scriptUri);
 
 		return html;
 	}
