@@ -5,11 +5,12 @@ import { AirCode } from './aircode';
 import { AirCodePath } from './aircodepath';
 import { ParametersViewProvider } from './parameters';
 import { ReferenceViewProvider } from './reference';
+import { SearchViewProvider } from './search';
 import { CodeaDebugConfigurationProvider } from './debug-adapter/CodeaDebugConfigurationProvider';
 import { InlineDebugAdapterFactory } from './debug-adapter/InlineDebugAdapterFactory';
 
 export function getWorkspaceUri(): vscode.Uri {
-	if (vscode.workspace.workspaceFolders?.length === 1) {
+	if (vscode.workspace.workspaceFolders?.length === 1) {
 		return vscode.workspace.workspaceFolders[0].uri;
 	}
 
@@ -22,16 +23,18 @@ export function activate(context: vscode.ExtensionContext) {
 
 	const parametersViewProvider = new ParametersViewProvider(context.extensionUri);
 	const referenceViewProvider = new ReferenceViewProvider(context.extensionUri);
+	const searchViewProvider = new SearchViewProvider(context.extensionUri);
 	const outputChannel = vscode.window.createOutputChannel("Codea", "codea-output");
 
 	const airCode = new AirCode(
 		outputChannel,
 		parametersViewProvider,
 		referenceViewProvider,
+		searchViewProvider,
 		context.extension.packageJSON.version);
 
 	if (process.env.DEBUG_LSP == "1") {
-		console.log("LDP debugging enabled");
+		console.log("LSP debugging enabled");
 		airCode.debugLSP = true;
 	}
 
@@ -52,6 +55,10 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(ReferenceViewProvider.viewType, referenceViewProvider)
+	);	
+
+	context.subscriptions.push(
+		vscode.window.registerWebviewViewProvider(SearchViewProvider.viewType, searchViewProvider)
 	);	
 
 	// Overwrite the debug actions if we are under a codea workspace
@@ -77,13 +84,14 @@ export function activate(context: vscode.ExtensionContext) {
 			airCode.stopHost(workspaceUri);
 		}));
 
-		outputChannel.show();
+		outputChannel.show(true);
 	}
 	
 	console.log(`"codea-air-code" is now active`);
 	
 	parametersViewProvider.airCode = airCode;
 	referenceViewProvider.airCode = airCode;
+	searchViewProvider.airCode = airCode;
 
 	airCode.connectionStatusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
 	airCode.connectionStatusItem.text = "Not connected";

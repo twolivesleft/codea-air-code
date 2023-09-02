@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src 'self'; font-src ${webview.cspSource}; img-src 'self' data: https:; style-src ${webview.cspSource} https://cdn.jsdelivr.net; script-src 'nonce-${nonce}' https://cdn.jsdelivr.net;">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link href="${codiconsUri}" rel="stylesheet"/>
+    <link href="${styleMainUri}" rel="stylesheet"/>
+
+    <title>Codea Search</title>
+</head>
+<body>
+    <div class="icon top-buttons">
+        <i class="codicon codicon-refresh tooltip top-button" id="button-refresh">
+            <span class="tooltiptext">Refresh</span>
+        </i>
+        <i class="codicon codicon-clear-all tooltip top-button" id="button-clear">
+            <span class="tooltiptext">Clear Search Results</span>
+        </i>
+        <i class="codicon codicon-collapse-all tooltip top-button" id="button-collapse">
+            <span class="tooltiptext" id="tooltip-collapse">Collapse All</span>
+        </i>
+    </div>
+    <br>
+    <br>
+    <div class="input-parent">
+        <div class="input-box">
+            <input type="text" class="input-area" id="input-search">
+        </div>
+        <div class="input-controls">
+            <i class="codicon codicon-case-sensitive tooltip search-button" id="button-case-sensitive">
+                <span class="tooltiptext">Match Case</span>
+            </i>
+            <i class="codicon codicon-whole-word tooltip search-button" id="button-whole-word">
+                <span class="tooltiptext">Match Whole Word</span>
+            </i>
+            <i class="codicon codicon-regex tooltip search-button" id="button-regex">
+                <span class="tooltiptext">Use Regular Expression</span>
+            </i>    
+        </div>
+    </div>
+    <div id="search-results"></div>
+    <script nonce="${nonce}" src="${scriptUri}"></script>
+</body>
+</html>
