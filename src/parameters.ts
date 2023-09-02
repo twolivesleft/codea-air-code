@@ -58,11 +58,6 @@ export class ParametersViewProvider implements vscode.WebviewViewProvider {
 							this.airCode?.setParameter(getWorkspaceUri(), data.parameter);
 							break;
 						}
-					case 'webViewKeepAlive':
-						{
-							// This will restore the connection if it was lost and became available.
-							this.airCode?.getSocketForUri(getWorkspaceUri(), false);
-						}
 				}
 			})();
 		});

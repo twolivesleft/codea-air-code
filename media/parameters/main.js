@@ -19,17 +19,10 @@
 
                     break;
                 }
-
         }
     });
 
-    setInterval(keepAlive, 1000);
-
     vscode.postMessage({ type: 'webViewReady' });
-
-    function keepAlive() {
-        vscode.postMessage({ type: 'webViewKeepAlive' });
-    }
 
     function setParameter(parameter) {
         const li = document.getElementById(getParameterId(parameter));

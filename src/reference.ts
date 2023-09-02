@@ -62,13 +62,6 @@ export class ReferenceViewProvider implements vscode.WebviewViewProvider {
 							console.log(`reference webView debugMessage: ${data.value}`);
 							break;
 						}
-					case 'webViewKeepAlive':
-						{
-							// This will restore the connection if it was lost and became available.
-							this.airCode?.getSocketForUri(getWorkspaceUri(), false);
-
-							break;
-						}
 					case 'getChapters':
 						{
 							this.getChapters(false);

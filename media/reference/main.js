@@ -54,13 +54,7 @@
         }
     });
 
-    setInterval(keepAlive, 1000);
-
     vscode.postMessage({ type: 'webViewReady' });
-
-    function keepAlive() {
-        vscode.postMessage({ type: 'webViewKeepAlive' });
-    }
 
     function setChapters(chapters) {
         const content = document.querySelector('.reference-content');
