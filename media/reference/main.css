@@ -35,7 +35,7 @@ body {
 
 .chapter-title {
     font-size: 18px;
-    color: white;
+    color: var(--vscode-input-foreground);
     margin-bottom: 5px;
 }
 
@@ -140,7 +140,7 @@ body {
 }
 
 .details-description {
-	color: white;
+	color: var(--vscode-input-foreground);
 	padding: 10px;
 }
 
@@ -185,7 +185,7 @@ body {
 
 .details-related-title {
 	font-size: 14px;
-	color: white;
+	color: var(--vscode-input-foreground);
 	margin: 20px 10px;
     font-weight: bold;
 }
