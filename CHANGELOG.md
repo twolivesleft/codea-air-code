@@ -1,5 +1,9 @@
 # Change Log
 
+## 1.2.3 (pre-release, 2023/08/23)
+- Added Codea reference to the Codea Sidebar.
+  - New 'Find reference...' command to go directly to the corresponding reference page.
+
 ## 1.2.2 (pre-release, 2023/08/14)
 - Auto-completion using a new Air Code Language Server Protocol.
   - Access to the same auto-completion as available in Codea.

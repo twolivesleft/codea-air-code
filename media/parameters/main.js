@@ -1,13 +1,7 @@
 //@ts-check
 
-class VsCodeState {
-    colors = [];
-}
-
 (function () {
     const vscode = acquireVsCodeApi();
-
-    const oldState = vscode.getState() || { parameters: [] };
 
     // Handle messages sent from the extension to the webview
     window.addEventListener('message', event => {

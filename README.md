@@ -1,12 +1,12 @@
 # Codea Air Code
 
-This extension can connect remotely to the [Codea](https://codea.io/) iOS application, allowing to modify, tweak and debug Codea projects directly from Visual Studio Code. Auto-completion features similar to Codea are active while modifying the code.
+This extension can connect remotely to the [Codea](https://codea.io/) iOS application, allowing to modify, tweak and debug Codea projects directly from Visual Studio Code. Auto-completion and documentation features similar to Codea are available while working on the projects.
 
 ## Table of Contents 
 
 - [Features](#features)
   - [Editor](#editor)
-  - [Parameters](#parameters)
+  - [Sidebar](#sidebar)
   - [Debugger](#debugger)
 - [Installation](#installation)
 - [Usage](#usage)
@@ -31,41 +31,57 @@ Auto-completion is available for the Codea API as well as symbols defined in the
 
 #### Symbols
 
-<img width="1054" alt="Objc auto-completion" src="images/autocomplete_5.png">
+<img width="527" alt="Objc auto-completion" src="images/autocomplete_5.png">
 
 #### Colors
 
 Methods such as `background`, `fill`, `tint`, `stroke` and `color` will show a color indicator which can be used to visualize and easily change the assigned color using VSCode's color picker.
 
-<img width="882" alt="Color auto-completion" src="images/autocomplete_1.png">
+<img width="441" alt="Color auto-completion" src="images/autocomplete_1.png">
 
 #### Font and Sprites
 
 The `font` and `sprite` functions will automatically list the fonts and sprites available for the current project.
 
-<img width="896" alt="font auto-completion" src="images/autocomplete_2.png">
+<img width="448" alt="font auto-completion" src="images/autocomplete_2.png">
 
-<img width="884" alt="sprite auto-completion" src="images/autocomplete_3.png">
+<img width="442" alt="sprite auto-completion" src="images/autocomplete_3.png">
 
 #### Snippets
 
 Snippets make it easier to format the different Lua control structures such as `if`, `for`, `while` and `repeat`.
 
-<img width="276" alt="sprite auto-completion" src="images/autocomplete_4.png">
+<img width="136" alt="sprite auto-completion" src="images/autocomplete_4.png">
 
 #### Documentation
 
 Types can easily be documented using a triple-slash (`---`) comment.
 
-<img width="972" alt="sprite auto-completion" src="images/document_1.png">
+<img width="486" alt="sprite auto-completion" src="images/document_1.png">
 
-### Parameters
+### Sidebar
 
-The Codea button on the Visual Studio Code Sidebar will show the current parameters for the running project in Codea, if any.
+The Codea Sidebar gives access to Reference and Parameters sections as shown below.
+
+<img width="220" alt="Screenshot of the sidebar" src="images/sidebar.png">
+
+#### Reference
+
+The Codea Reference section of the Sidebar contains the full documentation for Codea which can be navigated by clicking on the different chapters and functions.
+
+It is also possible to select and right click a word in a project's code to find the corresponding reference in the documentation (or using the `Find reference...` command), automatically focusing on the sidebar and opening the corresponding page.
+
+<img width="342" alt="Screenshot of the sidebar" src="images/sidebar_4.png">
+
+<img width="385" alt="Screenshot of the sidebar" src="images/sidebar_3.png">
+
+#### Parameters
+
+The second section of the Codea Sidebar will show the current parameters for the running project, if any.
 
 All parameters can be controlled directly from Visual Studio Code even if the parameters are hidden in Codea, making it easier to tweak the projects.
 
-<img width="255" alt="Screenshot of parameters" src="images/parameters.png">
+<img width="302" alt="Screenshot of parameters" src="images/parameters_2.png">
 
 ### Debugger
 
@@ -135,6 +151,7 @@ All commands included with this extension are prefixed with `Codea:`.
 | `Execute command...`   | Enter a Lua command to execute in Codea.                         |
 | `Restart project`      | Restart the running project in Codea.                            |
 | `Add dependency...`    | Select a dependency to add to the active Codea project.          |
+| `Find reference...`    | Look-up the reference for the selected word.                     |
 
 ## Requirements
 

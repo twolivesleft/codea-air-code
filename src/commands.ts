@@ -26,7 +26,13 @@ export namespace Command {
         | "getParameters"
         | "setParameter"
         | "debugMessage"
-        | "lspMessage";
+        | "lspMessage"
+        | "probeGetChapters"
+        | "probeGetChapterImage"
+        | "probeGetFunctions"
+        | "probeGetCategoryImage"
+        | "probeGetFunctionDetails"
+        | "probeFindReference";
 
     export interface GetInformation extends Command {
         command: 'getInformation';
@@ -120,6 +126,36 @@ export namespace Command {
         command: 'lspMessage';
         content: string;
     }
+
+    export interface GetChapters extends Command {
+        command: 'probeGetChapters';
+    }
+
+    export interface GetChapterImage extends Command {
+        command: 'probeGetChapterImage';
+        chapter: string;
+    }
+
+    export interface GetFunctions extends Command {
+        command: 'probeGetFunctions';
+        chapter: string;
+    }
+
+    export interface GetCategoryImage extends Command {
+        command: 'probeGetCategoryImage';
+        category: string;
+    }
+
+    export interface GetFunctionDetails extends Command {
+        command: 'probeGetFunctionDetails';
+        chapter: string;
+        function: string;
+    }
+
+    export interface FindReference extends Command {
+        command: 'probeFindReference';
+        text: string;
+    }    
 
     // Convenience Initializers
 
@@ -234,6 +270,42 @@ export namespace Command {
     export namespace LSPMessage {
         export function from(content: string): LSPMessage {
             return { command: 'lspMessage', content };
+        }
+    }
+
+    export namespace GetChapters {
+        export function from(): GetChapters {
+            return { command: 'probeGetChapters' };
+        }
+    }
+
+    export namespace GetChapterImage {
+        export function from(chapter: string): GetChapterImage {
+            return { command: 'probeGetChapterImage', chapter };
+        }
+    }
+
+    export namespace GetFunctions {
+        export function from(chapter: string): GetFunctions {
+            return { command: 'probeGetFunctions', chapter };
+        }
+    }
+
+    export namespace GetCategoryImage {
+        export function from(category: string): GetCategoryImage {
+            return { command: 'probeGetCategoryImage', category };
+        }
+    }
+
+    export namespace GetFunctionDetails {
+        export function from(chapter: string, functionId: string): GetFunctionDetails {
+            return { command: 'probeGetFunctionDetails', chapter, function: functionId };
+        }
+    }
+
+    export namespace FindReference {
+        export function from(text: string): FindReference {
+            return { command: 'probeFindReference', text };
         }
     }
 }
