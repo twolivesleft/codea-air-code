@@ -1,7 +1,10 @@
 # Change Log
 
-## 1.2.4 (not released)
+## 1.2.5 (not released)
 - Added basic project search feature through a new sidebar view.
+
+## 1.2.4 (pre-release, 2023/09/03)
+- Added ability to rename symbols.
 
 ## 1.2.3 (pre-release, 2023/08/23)
 - Added Codea reference to the Codea Sidebar.
