@@ -25,7 +25,8 @@ export namespace Command {
         | "addDependency"
         | "getParameters"
         | "setParameter"
-        | "debugMessage";
+        | "debugMessage"
+        | "lspMessage";
 
     export interface GetInformation extends Command {
         command: 'getInformation';
@@ -112,6 +113,11 @@ export namespace Command {
 
     export interface DebugMessage extends Command {
         command: 'debugMessage';
+        content: string;
+    }
+
+    export interface LSPMessage extends Command {
+        command: 'lspMessage';
         content: string;
     }
 
@@ -222,6 +228,12 @@ export namespace Command {
     export namespace DebugMessage {
         export function from(content: string): DebugMessage {
             return { command: 'debugMessage', content };
+        }
+    }
+
+    export namespace LSPMessage {
+        export function from(content: string): LSPMessage {
+            return { command: 'lspMessage', content };
         }
     }
 }

@@ -1,3 +1,4 @@
+import * as path from 'path';
 import * as vscode from 'vscode';
 
 import { AirCode } from './aircode';
@@ -20,7 +21,16 @@ export function activate(context: vscode.ExtensionContext) {
 
 	const parametersViewProvider = new ParametersViewProvider(context.extensionUri);
 	const outputChannel = vscode.window.createOutputChannel("Codea", "codea-output");
-	const airCode = new AirCode(outputChannel, parametersViewProvider, context.extension.packageJSON.version);
+
+	const airCode = new AirCode(
+		outputChannel,
+		parametersViewProvider,
+		context.extension.packageJSON.version);
+
+	if (process.env.DEBUG_LSP == "1") {
+		console.log("LDP debugging enabled");
+		airCode.debugLSP = true;
+	}
 
 	//Register configurations	
 	const codeaProvider = new CodeaDebugConfigurationProvider();
@@ -219,6 +229,3 @@ export function activate(context: vscode.ExtensionContext) {
 		});
 	}));
 }
-
-// This method is called when your extension is deactivated
-export function deactivate() { }

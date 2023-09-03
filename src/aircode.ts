@@ -8,6 +8,11 @@ import { Response, StartHostResponse, GetInformationResponse, AddDependencyRespo
 import { Command } from './commands';
 import * as Parameters from './parameters';
 import { getWorkspaceUri } from './extension';
+import {
+	LanguageClient,
+	LanguageClientOptions
+} from 'vscode-languageclient/node';
+import { LSPMessageReader, LSPMessageWriter } from './language_server';
 
 const semver = require('semver');
 
@@ -36,13 +41,23 @@ export class AirCode implements vscode.FileSystemProvider {
     debugEvents = new vscode.EventEmitter<string>();
     extensionVersion: string; 
 
+    // Language Server Protocol
+    debugLSP = false;
+    messageReader: LSPMessageReader;
+    messageWriter: LSPMessageWriter;
+    languageClient: LanguageClient | undefined;
+
     connectionStatusItem: vscode.StatusBarItem | undefined;
     playProjectItem: vscode.StatusBarItem | undefined;
 
-    constructor(outputChannel: vscode.OutputChannel, parametersView: Parameters.ParametersViewProvider, extensionVersion: string) {
+    constructor(outputChannel: vscode.OutputChannel,
+                parametersView: Parameters.ParametersViewProvider,
+                extensionVersion: string) {
         this.outputChannel = outputChannel;
         this.parametersView = parametersView;
-        this.extensionVersion = extensionVersion
+        this.extensionVersion = extensionVersion;
+        this.messageReader = new LSPMessageReader(this);
+        this.messageWriter = new LSPMessageWriter(this);
     }
 
     // Internal Files
@@ -111,6 +126,12 @@ export class AirCode implements vscode.FileSystemProvider {
         }
 
         return directoryEntries;
+    }
+
+    logLsp(message: String) {
+        if (this.debugLSP) {
+            console.warn(message);
+        }
     }
 
     startDebugging() {
@@ -247,6 +268,29 @@ export class AirCode implements vscode.FileSystemProvider {
                 parent.connectionStatusItem.show();
             }
 
+            // Options to control the language client
+            let clientOptions: LanguageClientOptions = {
+                // Register the server for lua documents
+                documentSelector: [{ scheme: 'codea', language: 'lua' }],
+                synchronize: {
+                    // Notify the server about file changes to '.clientrc files contained in the workspace
+                    fileEvents: vscode.workspace.createFileSystemWatcher('**/*.lua')
+                }
+            };
+
+            // Create the language client and start the client.
+            airCode.languageClient = new LanguageClient(
+                'codea-air-code.languageClient',
+                'Codea Language Client',
+                () => Promise.resolve({
+                    reader: airCode.messageReader,
+                    writer: airCode.messageWriter,
+                }),
+                clientOptions
+            );
+
+            airCode.languageClient.start();
+
             let parameters = await airCode.getParameters(uri);
 
             airCode.parametersView.setParameters(parameters);
@@ -353,6 +397,13 @@ export class AirCode implements vscode.FileSystemProvider {
                                 airCode.debugEvents.fire(data.message);
                                 break;
                             }
+                        case "lspResponse":
+                            {
+                                airCode.logLsp(`lspResponse ${data.message}`)
+                                const responseMessage = JSON.parse(data.message);
+                                airCode.messageReader.onMessage(responseMessage);
+                                break;
+                            }
                     }
                 }
                 
@@ -361,6 +412,12 @@ export class AirCode implements vscode.FileSystemProvider {
 
         ws.onclose = async function (event: CloseEvent) {
             airCode.closingSocket = true;
+
+            airCode.logLsp("Stopping languageClient...");
+
+            airCode.languageClient?.stop();
+            airCode.languageClient?.outputChannel.dispose();
+            airCode.languageClient = undefined;
 
             for (let [id, promise] of parent.promises) {
                 promise({
@@ -501,6 +558,10 @@ export class AirCode implements vscode.FileSystemProvider {
     debugMessage(uri: vscode.Uri, object: any) {
         const json = JSON.stringify(object).replace(/\\"/g, '"');
         this.sendCommand(uri, Command.DebugMessage.from(json));
+    }
+
+    lspMessage(message: string) {
+        this.sendCommand(getWorkspaceUri(), Command.LSPMessage.from(message));
     }
 
     // VS Code FileSystemProvider Implementation

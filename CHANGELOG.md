@@ -1,5 +1,11 @@
 # Change Log
 
+## 1.2.2 (pre-release, 2023/08/14)
+- Auto-completion using a new Air Code Language Server Protocol.
+  - Access to the same auto-completion as available in Codea.
+  - Custom completion for 'if', 'for', 'while' and 'repeat'.
+  - Signature help for functions of the Codea API.
+
 ## 1.2.1 (pre-release, 2023/07/24)
 - Fixed parameter view issues on Windows.
 
