@@ -1,5 +1,15 @@
 # Change Log
 
+## 1.2.1 (pre-release, 2023/07/24)
+- Fixed parameter view issues on Windows.
+
+## 1.2.0 (pre-release, 2023/07/24)
+
+- Prevent creating a file if it already exists with a different casing.
+- Show the Codea output channel when opening a Codea workspace.
+- All Codea projects are now available form the Explorer view.
+- Add a "Play ProjetName in Codea" status bar button.
+
 ## 1.1.5 (2023/05/29)
 
 - Better connection status indication.
@@ -33,7 +43,3 @@
 ## 1.0.0 (2023/05/08)
 
 - Initial release
-
-## [Unreleased]
-
-- Nothing yet!

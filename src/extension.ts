@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { AirCode } from './aircode';
+import { AirCodePath } from './aircodepath';
 import { ParametersViewProvider } from './parameters';
 import { CodeaDebugConfigurationProvider } from './debug-adapter/CodeaDebugConfigurationProvider';
 import { InlineDebugAdapterFactory } from './debug-adapter/InlineDebugAdapterFactory';
@@ -14,7 +15,6 @@ export function getWorkspaceUri(): vscode.Uri {
 }
 
 export function activate(context: vscode.ExtensionContext) {
-
 	let workspaceUri = getWorkspaceUri();
 	vscode.commands.executeCommand('setContext', 'codea-air-code.hasWorkspaceUri', workspaceUri.scheme == "codea");
 
@@ -39,39 +39,69 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Overwrite the debug actions if we are under a codea workspace
 	if (workspaceUri.scheme == "codea") {
-		vscode.commands.registerCommand('workbench.action.debug.start', async () => {
-			// The user has clicked the "Start" button or used the keyboard shortcut
-			let response = await airCode.startHost(workspaceUri);
-			if (response.alreadyStarted) {
-				airCode.startDebugging();
+		context.subscriptions.push(vscode.commands.registerCommand('workbench.action.debug.start', async () => {
+			const uri = vscode.window.activeTextEditor?.document.uri;
+			if (uri === undefined || uri.scheme != "codea") {
+				return;
 			}
-		});
 
-		vscode.commands.registerCommand('workbench.action.debug.restart', async () => {
+			// The user has clicked the "Start" button or used the keyboard shortcut
+			await airCode.startHost(uri);
+		}));
+
+		context.subscriptions.push(vscode.commands.registerCommand('workbench.action.debug.restart', async () => {
 			// The user has clicked the "Restart" button or used the keyboard shortcut
 			airCode.restart(workspaceUri);
-		});
+		}));
 	
-		vscode.commands.registerCommand('workbench.action.debug.disconnect', () => {
+		context.subscriptions.push(vscode.commands.registerCommand('workbench.action.debug.disconnect', () => {
 			// The user has clicked the "Disconnect" button or used the keyboard shortcut
 			vscode.debug.stopDebugging();
 			airCode.stopHost(workspaceUri);
-		});	
+		}));
+
+		outputChannel.show();
 	}
 	
 	console.log(`"codea-air-code" is now active`);
 	
 	parametersViewProvider.airCode = airCode;
 
-	airCode.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
-	airCode.statusBarItem.text = "Not connected";
-	airCode.statusBarItem.command = "codea-air-code.refreshConnection";
-	airCode.statusBarItem.tooltip = "Click to refresh connection...";
-	airCode.statusBarItem.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
-	airCode.statusBarItem.show();
-	context.subscriptions.push(airCode.statusBarItem);
+	airCode.connectionStatusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+	airCode.connectionStatusItem.text = "Not connected";
+	airCode.connectionStatusItem.command = "codea-air-code.refreshConnection";
+	airCode.connectionStatusItem.tooltip = "Click to refresh connection...";
+	airCode.connectionStatusItem.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
+	airCode.connectionStatusItem.show();
+	context.subscriptions.push(airCode.connectionStatusItem);
+
+	airCode.playProjectItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 99);
+	airCode.playProjectItem.text = "";
+	airCode.playProjectItem.command = "workbench.action.debug.start";
+	airCode.playProjectItem.tooltip = "Click to Play this project in Codea...";
+	airCode.playProjectItem.color = "white";
+	airCode.playProjectItem.backgroundColor = new vscode.ThemeColor("statusBarItem.prominentBackground");
+	context.subscriptions.push(airCode.playProjectItem);
 
 	context.subscriptions.push(vscode.workspace.registerFileSystemProvider('codea', airCode, { isCaseSensitive: true }));
+
+	context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(async (textEditor) => {
+		if (textEditor?.document.uri.scheme != "codea") {
+			airCode.playProjectItem?.hide();
+			return;
+		}
+
+		const airCodePath = new AirCodePath(textEditor?.document.uri.path);
+		if (airCodePath.collection == ".vscode") {
+			airCode.playProjectItem?.hide();
+			return;
+		}
+
+		if (airCode.playProjectItem) {
+			airCode.playProjectItem.text = `▶️ Play ${airCodePath.project} in Codea`;
+			airCode.playProjectItem.show();
+		}
+	}));
 
 	context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(async (textDocument) => {
 		if (textDocument.uri.scheme == "codea" && textDocument.eol == vscode.EndOfLine.CRLF) {
@@ -162,21 +192,27 @@ export function activate(context: vscode.ExtensionContext) {
 	}));
 
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.addDependency', async () => {
-		const uri = getWorkspaceUri();
+		let activeEditor = vscode.window.activeTextEditor;
+
+		const uri = activeEditor?.document.uri;
 		if (uri === undefined) {
 			return;
 		}
 
-		const projects = airCode.listUnimportedProjects(uri);
+		const airCodePath = new AirCodePath(uri.path);
 
-		vscode.window.showQuickPick(projects).then(async choice => {
+		const projects = await airCode.listUnimportedProjects(uri);
+
+		vscode.window.showQuickPick(projects.map(label => ({ label })), { 
+			title: `Add a dependency to ${airCodePath.project}`,
+			canPickMany: false }).then(async choice => {
 			if (choice !== undefined) {
-				let response = await airCode.addDependency(uri, choice);
+				let response = await airCode.addDependency(uri, choice.label);
 				if (response.isFirstDependency) {
-					airCode.onDependenciesCreated();
+					airCode.onDependenciesCreated(airCodePath.collection, airCodePath.project);
 				}
 
-				let path = `codea://${uri.authority}/${AirCode.rootFolder}/${airCode.projectName}/Dependencies/${choice}`;
+				let path = `codea://${uri.authority}/${AirCode.rootFolder}/${airCodePath.project}/Dependencies/${choice}`;
 				let newUri = vscode.Uri.parse(path);
 				airCode.fileCreated(newUri);	
 			}

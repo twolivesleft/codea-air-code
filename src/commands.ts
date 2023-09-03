@@ -21,6 +21,7 @@ export namespace Command {
         | "restart"
         | "listProjects"
         | "listUnimportedProjects"
+        | "createFolder"
         | "addDependency"
         | "getParameters"
         | "setParameter"
@@ -69,6 +70,7 @@ export namespace Command {
 
     export interface StartHost extends Command {
         command: 'startHost'
+        path: string;
     }
 
     export interface StopHost extends Command {
@@ -85,11 +87,18 @@ export namespace Command {
 
     export interface ListUnimportedProjects extends Command {
         command: 'listUnimportedProjects';
+        path: string;
+    }
+
+    export interface CreateFolder extends Command {
+        command: 'createFolder';
+        path: string;
     }
 
     export interface AddDependency extends Command {
         command: 'addDependency';
         path: string;
+        dependency: string;
     }
 
     export interface GetParameters extends Command {
@@ -157,8 +166,8 @@ export namespace Command {
     }
 
     export namespace StartHost {
-        export function from(): StartHost {
-            return { command: 'startHost' };
+        export function from(path: string): StartHost {
+            return { command: 'startHost', path };
         }
     }
 
@@ -181,14 +190,20 @@ export namespace Command {
     }
 
     export namespace ListUnimportedProjects {
-        export function from(): ListUnimportedProjects {
-            return { command: 'listUnimportedProjects' };
+        export function from(path: string): ListUnimportedProjects {
+            return { command: 'listUnimportedProjects', path };
+        }
+    }
+
+    export namespace CreateFolder {
+        export function from(path: string): CreateFolder {
+            return { command: 'createFolder', path };
         }
     }
 
     export namespace AddDependency {
-        export function from(path: string): AddDependency {
-            return { command: 'addDependency', path };
+        export function from(path: string, dependency: string): AddDependency {
+            return { command: 'addDependency', path, dependency };
         }
     }
 

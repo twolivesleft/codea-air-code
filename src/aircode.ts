@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 
+import { AirCodePath } from './aircodepath';
 import { TextDecoder, TextEncoder } from 'util';
 import { WebSocket, Event, OPEN, MessageEvent, CloseEvent, CONNECTING } from 'ws';
 import { Result } from './result';
@@ -10,7 +11,7 @@ import { getWorkspaceUri } from './extension';
 
 const semver = require('semver');
 
-const codeaVersion = "3.8";
+const codeaVersion = "3.9";
 
 enum CloseEventCode {
     None = 1000,
@@ -34,9 +35,9 @@ export class AirCode implements vscode.FileSystemProvider {
     parametersView: Parameters.ParametersViewProvider;
     debugEvents = new vscode.EventEmitter<string>();
     extensionVersion: string; 
-    projectName? : string;
 
-    statusBarItem: vscode.StatusBarItem | undefined;
+    connectionStatusItem: vscode.StatusBarItem | undefined;
+    playProjectItem: vscode.StatusBarItem | undefined;
 
     constructor(outputChannel: vscode.OutputChannel, parametersView: Parameters.ParametersViewProvider, extensionVersion: string) {
         this.outputChannel = outputChannel;
@@ -50,7 +51,7 @@ export class AirCode implements vscode.FileSystemProvider {
         "version": "0.2.0",
         "configurations": [
             {
-                "name": "Attach to Codea",
+                "name": "Play in Codea",
                 "type": "luaInline",
                 "request": "attach",
                 "sourceBasePath": "codea://AUTHORITY/",
@@ -59,6 +60,10 @@ export class AirCode implements vscode.FileSystemProvider {
                 "encoding": "UTF-8"
             }
         ]
+    }`;
+
+    settingsContent = `{
+        "debug.showInStatusBar": "never"
     }`;
 
     internalFiles: Map<string, [string, vscode.FileStat]> = new Map([
@@ -82,7 +87,14 @@ export class AirCode implements vscode.FileSystemProvider {
             mtime: Date.now(),
             size: 1,
             permissions: vscode.FilePermission.Readonly
-        }]]
+        }]],
+        [`/${AirCode.rootFolder}/.vscode/settings.json`, [this.settingsContent, {
+            type: vscode.FileType.File,
+            ctime: Date.now(),
+            mtime: Date.now(),
+            size: 1,
+            permissions: vscode.FilePermission.Readonly
+        }]],
     ]);
 
     internalDirectoryContents(path: string): [string, vscode.FileType][] {
@@ -105,7 +117,7 @@ export class AirCode implements vscode.FileSystemProvider {
         const folder = vscode.workspace.workspaceFolders?.[0];
         
         if (folder !== undefined && vscode.debug.activeDebugSession === undefined) {
-            vscode.debug.startDebugging(folder, "Attach to Codea");
+            vscode.debug.startDebugging(folder, "Play in Codea");
         }
     }
 
@@ -189,9 +201,9 @@ export class AirCode implements vscode.FileSystemProvider {
             }
         }
 
-        if (this.statusBarItem) {
-            this.statusBarItem.text = "Connecting...";
-            this.statusBarItem.backgroundColor = new vscode.ThemeColor("statusBarItem.warningBackground");
+        if (this.connectionStatusItem) {
+            this.connectionStatusItem.text = "Connecting...";
+            this.connectionStatusItem.backgroundColor = new vscode.ThemeColor("statusBarItem.warningBackground");
         }
 
         let ws = new WebSocket(`ws://${host}/`);
@@ -229,10 +241,10 @@ export class AirCode implements vscode.FileSystemProvider {
                 return;
             }
 
-            if (parent.statusBarItem) {
-                parent.statusBarItem.text = "Connected";
-                parent.statusBarItem.backgroundColor = new vscode.ThemeColor("statusBarItem.remoteBackground");
-                parent.statusBarItem.show();
+            if (parent.connectionStatusItem) {
+                parent.connectionStatusItem.text = "Connected";
+                parent.connectionStatusItem.backgroundColor = new vscode.ThemeColor("statusBarItem.remoteBackground");
+                parent.connectionStatusItem.show();
             }
 
             let parameters = await airCode.getParameters(uri);
@@ -248,9 +260,6 @@ export class AirCode implements vscode.FileSystemProvider {
 
         ws.onmessage = function (evt: MessageEvent) {
             let result = JSON.parse(evt.data as string);
-
-            // Keep track of the last known project name based on the response
-            parent.projectName = result.project;
 
             if (result.id !== undefined) {
                 let id = result.id as number;
@@ -339,16 +348,6 @@ export class AirCode implements vscode.FileSystemProvider {
                                 vscode.debug.stopDebugging();
                                 break;
                             }
-                        case "projectClosed":
-                            {                                
-                                vscode.commands.executeCommand("workbench.files.action.refreshFilesExplorer");
-                                break;
-                            }
-                        case "projectOpened":
-                            {
-                                vscode.commands.executeCommand("workbench.files.action.refreshFilesExplorer");
-                                break;
-                            }
                         case "debugResponse":
                             {
                                 airCode.debugEvents.fire(data.message);
@@ -369,11 +368,10 @@ export class AirCode implements vscode.FileSystemProvider {
                 });
             }
             parent.promises.clear();
-            parent.projectName = undefined;
 
-            if (parent.statusBarItem) {
-                parent.statusBarItem.text = "Connection lost";
-                parent.statusBarItem.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
+            if (parent.connectionStatusItem) {
+                parent.connectionStatusItem.text = "Connection lost";
+                parent.connectionStatusItem.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
             }
 
             await vscode.debug.stopDebugging();
@@ -386,9 +384,9 @@ export class AirCode implements vscode.FileSystemProvider {
         let success = await this.waitForSocket(ws, showError);
 
         if (!success) {
-            if (parent.statusBarItem) {
-                parent.statusBarItem.text = "Connection failed";
-                parent.statusBarItem.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
+            if (parent.connectionStatusItem) {
+                parent.connectionStatusItem.text = "Connection failed";
+                parent.connectionStatusItem.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
             }
 
             this.webSockets.clear();
@@ -458,7 +456,11 @@ export class AirCode implements vscode.FileSystemProvider {
     }
 
     listUnimportedProjects(uri: vscode.Uri): string[] | Thenable<string[]> {
-        return this.sendCommand(uri, Command.ListUnimportedProjects.from());
+        return this.sendCommand(uri, Command.ListUnimportedProjects.from(uri.path));
+    }
+
+    createFolder(uri: vscode.Uri): void | Thenable<void> {
+        return this.sendCommand(uri, Command.CreateFolder.from(uri.path));
     }
 
     loadString(uri: vscode.Uri, content: string) {
@@ -466,7 +468,7 @@ export class AirCode implements vscode.FileSystemProvider {
     }
 
     async startHost(uri: vscode.Uri) : Promise<StartHostResponse> {
-        return this.sendCommand<StartHostResponse>(uri, Command.StartHost.from());
+        return this.sendCommand<StartHostResponse>(uri, Command.StartHost.from(uri.path));
     }
 
     stopHost(uri: vscode.Uri) {
@@ -477,8 +479,8 @@ export class AirCode implements vscode.FileSystemProvider {
         return this.sendCommand<GetInformationResponse>(uri, Command.GetInformation.from());
     }    
 
-    async addDependency(uri: vscode.Uri, path: string) : Promise<AddDependencyResponse> {
-        return this.sendCommand<AddDependencyResponse>(uri, Command.AddDependency.from(path));
+    async addDependency(uri: vscode.Uri, dependency: string) : Promise<AddDependencyResponse> {
+        return this.sendCommand<AddDependencyResponse>(uri, Command.AddDependency.from(uri.path, dependency));
     }
 
     getParameters(uri: vscode.Uri): any[] | Thenable<any[]> {
@@ -543,6 +545,7 @@ export class AirCode implements vscode.FileSystemProvider {
     }
 
     createDirectory(uri: vscode.Uri): void | Thenable<void> {
+        return this.createFolder(uri);
     }
 
     readFile(uri: vscode.Uri): Uint8Array | Thenable<Uint8Array> {
@@ -571,17 +574,17 @@ export class AirCode implements vscode.FileSystemProvider {
         return this.sendCommand(uri, Command.WriteFile.from(path, dec.decode(content)));
     }
 
-    getDependenciesUri(): vscode.Uri {
-        let path = `codea://${getWorkspaceUri().authority}/${AirCode.rootFolder}/${this.projectName}/Dependencies`;
+    getDependenciesUri(collectionName: String, projectName: String): vscode.Uri {
+        let path = `codea://${getWorkspaceUri().authority}/${AirCode.rootFolder}/${collectionName}/${projectName}/Dependencies`;
         return vscode.Uri.parse(path);
     }
 
-    onDependenciesCreated() {
-        this.fileCreated(this.getDependenciesUri());
+    onDependenciesCreated(collectionName: String, projectName: String) {
+        this.fileCreated(this.getDependenciesUri(collectionName, projectName));
     }
 
-    onDependenciesDeleted() {
-        this.fileDeleted(this.getDependenciesUri());
+    onDependenciesDeleted(collectionName: String, projectName: String) {
+        this.fileDeleted(this.getDependenciesUri(collectionName, projectName));
     }
 
     delete(uri: vscode.Uri, options: { readonly recursive: boolean; }): void | Thenable<void> {
@@ -590,7 +593,8 @@ export class AirCode implements vscode.FileSystemProvider {
                 return Result.error(response);
             } else {
                 if (response.wasLastDependency) {
-                    this.onDependenciesDeleted();
+                    const airCodePath = new AirCodePath(uri.path);
+                    this.onDependenciesDeleted(airCodePath.collection, airCodePath.project);
                 }
                 return Result.success(undefined);
             }

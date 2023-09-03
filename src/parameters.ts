@@ -115,7 +115,7 @@ export class ParametersViewProvider implements vscode.WebviewViewProvider {
 		const htmlUri = vscode.Uri.joinPath(this._extensionUri, 'media', 'main.html');
 
 		let fs = require("fs");
-		let html = fs.readFileSync(htmlUri.path, { encoding:'utf8', flag:'r' })
+		let html = fs.readFileSync(htmlUri.fsPath, { encoding:'utf8', flag:'r' })
 			.replaceAll('${styleResetUri}', styleResetUri)
 			.replaceAll('${styleVSCodeUri}', styleVSCodeUri)
 			.replaceAll('${styleMainUri}', styleMainUri)

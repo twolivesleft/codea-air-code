@@ -6,11 +6,12 @@ enum ErrorType {
     unableToReadFile = "unableToReadFile",
     unableToDeleteFile = "unableToDeleteFile",
     unableToRenameFile = "unableToRenameFile",
-    connectionLost = "connectionLost"
+    connectionLost = "connectionLost",
+    fileAlreadyExists = "fileAlreadyExists",
+    unableToCreateFolder = "unableToCreateFolder",
 }
 
 export type StartHostResponse = {
-    alreadyStarted: boolean;
 }
 
 export type GetInformationResponse = {
@@ -49,6 +50,10 @@ export namespace Response {
                     return vscode.FileSystemError.NoPermissions(errorString);
                 case 'connectionLost':
                     return vscode.FileSystemError.Unavailable(errorString);
+                case 'fileAlreadyExists':
+                    return vscode.FileSystemError.FileExists(errorString);
+                case 'unableToCreateFolder':
+                    return vscode.FileSystemError.NoPermissions(errorString);
                 }
         }
 

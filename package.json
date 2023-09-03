@@ -2,7 +2,7 @@
   "name": "codea-air-code",
   "displayName": "Codea Air Code",
   "description": "A remote editor and debugger for Codea projects.",
-  "version": "1.1.5",
+  "version": "1.2.1",
   "publisher": "twolivesleft",
   "license": "MIT",
   "homepage": "https://twolivesleft.github.io/codea-air-code/",
@@ -107,7 +107,7 @@
         "initialConfigurations": [
           {
             "name": "wait",
-            "displayName": "Attach to Codea",
+            "displayName": "Play in Codea",
             "type": "lua",
             "request": "attach",
             "sourceBasePath": "${workspaceRoot}",
@@ -183,7 +183,7 @@
         },
         {
           "command": "codea-air-code.addDependency",
-          "when": "workspaceFolderCount > 0"
+          "when": "workspaceFolderCount > 0 && resourceLangId == lua"
         }
       ]      
     }

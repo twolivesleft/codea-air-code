@@ -21,7 +21,7 @@ This extension can connect remotely to the [Codea](https://codea.io/) iOS applic
 
 ### Editor
 
-Once connected to Codea, Visual Studio Code will list the files for the currently opened project, allowing to modify them, even if the project is running.
+Once connected to Codea, Visual Studio Code will list all the projets availables with their files and dependencies, allowing modifications even if a project is running.
 
 <img width="851" alt="Screenshot of the editor" src="images/editor_2.png">
 
@@ -77,11 +77,15 @@ To find the device's IP to connect to, use the Air Code icon on the project sele
 >
 > Air Code's default port 18513 is actually based on the letters R (18) E (5) M (13), for REMote console.
 
+#### Multi-window
+
+Air Code does not currently support multiple Codea windows or running projects. For this reason, when running a project from Air Code, all windows will be closed except one before running the project.
+
 ### Files and Dependencies
 
 Files can be added, removed or renamed in Codea using the corresponding operations in Visual Studio Code.
 
-Dependencies can be added to the active project using the `Add dependency...` command.
+Dependencies can be added to the active project (based on the current file being edited) using the `Add dependency...` command.
 
 To remove a dependency, simply delete its corresponding folder in the Explorer.
 
@@ -100,7 +104,7 @@ All commands included with this extension are prefixed with `Codea:`.
 
 ## Requirements
 
-Codea 3.8
+Codea 3.9
 
 <a href="http://itunes.apple.com/app/id439571171?mt=8"><img height="40" alt="Screenshot of the editor" src="images/App-Store-Badge.png"></a>
 
