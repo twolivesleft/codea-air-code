@@ -32,7 +32,8 @@ export namespace Command {
         | "probeGetFunctions"
         | "probeGetCategoryImage"
         | "probeGetFunctionDetails"
-        | "probeFindReference";
+        | "probeFindReference"
+        | "findInFiles";
 
     export interface GetInformation extends Command {
         command: 'getInformation';
@@ -155,6 +156,15 @@ export namespace Command {
     export interface FindReference extends Command {
         command: 'probeFindReference';
         text: string;
+    }    
+
+    export interface FindInFiles extends Command {
+        command: 'findInFiles';
+        path: string;
+        text: string;
+        caseSensitive: boolean;
+        wholeWord: boolean;
+        isRegex: boolean;
     }    
 
     // Convenience Initializers
@@ -306,6 +316,12 @@ export namespace Command {
     export namespace FindReference {
         export function from(text: string): FindReference {
             return { command: 'probeFindReference', text };
+        }
+    }
+
+    export namespace FindInFiles {
+        export function from(path: string, text: string, caseSensitive: boolean, wholeWord: boolean, isRegex: boolean): FindInFiles {
+            return { command: 'findInFiles', path, text, caseSensitive, wholeWord, isRegex };
         }
     }
 }

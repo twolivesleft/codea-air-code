@@ -38,6 +38,21 @@ export type FindReferenceResponse = {
     function: string;
 }
 
+export type SearchResult = {
+    text: string;
+    line: number;
+    position: number;
+    length: number;
+}
+
+type FileResultsType = { 
+    [id: string]: [SearchResult]; 
+}
+
+export type FindInFilesResponse = {
+    fileResults: FileResultsType;
+}
+
 export type Response<T> = {
     id: number;
     project?: String;

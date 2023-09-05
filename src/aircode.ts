@@ -11,10 +11,12 @@ import {
     AddDependencyResponse, 
     DeleteFileResponse, 
     GetFunctionsResponse,
-    FindReferenceResponse } from './responses';
+    FindReferenceResponse, 
+    FindInFilesResponse} from './responses';
 import { Command } from './commands';
 import * as Parameters from './parameters';
 import * as Reference from './reference';
+import * as Search from './search';
 import { getWorkspaceUri } from './extension';
 import {
 	LanguageClient,
@@ -48,6 +50,7 @@ export class AirCode implements vscode.FileSystemProvider {
     outputChannel: vscode.OutputChannel;
     parametersView: Parameters.ParametersViewProvider;
     referenceView: Reference.ReferenceViewProvider;
+    searchView: Search.SearchViewProvider;
     debugEvents = new vscode.EventEmitter<string>();
     extensionVersion: string; 
 
@@ -63,10 +66,12 @@ export class AirCode implements vscode.FileSystemProvider {
     constructor(outputChannel: vscode.OutputChannel,
                 parametersView: Parameters.ParametersViewProvider,
                 referenceView: Reference.ReferenceViewProvider,
+                searchView: Search.SearchViewProvider,
                 extensionVersion: string) {
         this.outputChannel = outputChannel;
         this.parametersView = parametersView;
         this.referenceView = referenceView;
+        this.searchView = searchView;
         this.extensionVersion = extensionVersion;
         this.messageReader = new LSPMessageReader(this);
         this.messageWriter = new LSPMessageWriter(this);
@@ -212,6 +217,14 @@ export class AirCode implements vscode.FileSystemProvider {
         return VersionComparison.UpdateExtension;
     }
 
+    setStatusConnected() {
+        if (this.connectionStatusItem) {
+            this.connectionStatusItem.text = "Connected";
+            this.connectionStatusItem.backgroundColor = new vscode.ThemeColor("statusBarItem.remoteBackground");
+            this.connectionStatusItem.show();
+        }
+    }
+
     async getSocketForUri(uri: vscode.Uri, showError: boolean = true): Promise<WebSocket | undefined> {
         const host = uri.authority;
         if (host === undefined) {
@@ -230,6 +243,8 @@ export class AirCode implements vscode.FileSystemProvider {
             }
 
             if (ws?.readyState === OPEN) {
+                this.setStatusConnected();
+
                 return ws;
             }
         }
@@ -274,11 +289,7 @@ export class AirCode implements vscode.FileSystemProvider {
                 return;
             }
 
-            if (parent.connectionStatusItem) {
-                parent.connectionStatusItem.text = "Connected";
-                parent.connectionStatusItem.backgroundColor = new vscode.ThemeColor("statusBarItem.remoteBackground");
-                parent.connectionStatusItem.show();
-            }
+            parent.setStatusConnected();
 
             // Options to control the language client
             let clientOptions: LanguageClientOptions = {
@@ -307,6 +318,7 @@ export class AirCode implements vscode.FileSystemProvider {
             let parameters = await airCode.getParameters(uri);
 
             airCode.parametersView.setParameters(parameters);
+            await airCode.referenceView.getChapters(false);
 
             if (information.hasHost) {
                 airCode.startDebugging();
@@ -623,7 +635,11 @@ export class AirCode implements vscode.FileSystemProvider {
 
     async findReference(uri: vscode.Uri, text: string) : Promise<FindReferenceResponse> {
         return this.sendCommand<FindReferenceResponse>(uri, Command.FindReference.from(text));
-    }    
+    }
+    
+    async findInFiles(uri: vscode.Uri, text: string, caseSensitive: boolean, wholeWord: boolean, isRegex: boolean) : Promise<FindInFilesResponse> {
+        return this.sendCommand<FindInFilesResponse>(uri, Command.FindInFiles.from(uri.toString(), text, caseSensitive, wholeWord, isRegex));
+    }
 
     // VS Code FileSystemProvider Implementation
 
