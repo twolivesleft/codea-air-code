@@ -65,8 +65,6 @@
     vscode.postMessage({ type: 'webViewReady' });
 
     function refreshSearch() {
-        console.log("TODO IMPLEMENT REFRESH");
-
         if (inputSearch.value) {
             vscode.postMessage({ 
                 type: 'findInFiles', 
@@ -82,9 +80,9 @@
     }
 
     function clearSearch() {
-        console.log("TODO IMPLEMENT CLEAR");
-
         inputSearch.value = "";
+        searchResults.textContent = "";
+        filenameCollapsed = {};
     }
 
     function areAllFilesCollapsed() {
