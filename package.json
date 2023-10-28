@@ -2,7 +2,7 @@
   "name": "codea-air-code",
   "displayName": "Codea Air Code",
   "description": "A remote editor and debugger for Codea projects.",
-  "version": "1.1.5",
+  "version": "1.2.5",
   "publisher": "twolivesleft",
   "license": "MIT",
   "homepage": "https://twolivesleft.github.io/codea-air-code/",
@@ -48,6 +48,18 @@
       "codea-sidebar": [
         {
           "type": "webview",
+          "id": "codea-reference",
+          "name": "Reference",
+          "when": "codea-air-code.hasWorkspaceUri == true"
+        },
+        {
+          "type": "webview",
+          "id": "codea-search",
+          "name": "Search",
+          "when": "codea-air-code.hasWorkspaceUri == true"
+        },
+        {
+          "type": "webview",
           "id": "codea-parameters",
           "name": "Parameters",
           "when": "codea-air-code.hasWorkspaceUri == true"
@@ -78,6 +90,14 @@
       {
         "command": "codea-air-code.addDependency",
         "title": "Codea: Add dependency..."
+      },
+      {
+        "command": "codea-air-code.selectionReference",
+        "title": "Codea: Find reference..."
+      },
+      {
+        "command": "codea-air-code.textReference",
+        "title": "Codea: Find reference..."
       }
     ],
     "languages": [
@@ -107,7 +127,7 @@
         "initialConfigurations": [
           {
             "name": "wait",
-            "displayName": "Attach to Codea",
+            "displayName": "Play in Codea",
             "type": "lua",
             "request": "attach",
             "sourceBasePath": "${workspaceRoot}",
@@ -162,7 +182,12 @@
           "when": "resourceLangId == lua && !editorHasSelection",
           "command": "codea-air-code.executeLine",
           "group": "a_codea"
-        }
+        },
+        {
+          "when": "resourceLangId == lua && editorHasSelection",
+          "command": "codea-air-code.selectionReference",
+          "group": "a_codea"
+        }        
       ],
       "commandPalette": [
         {
@@ -183,7 +208,15 @@
         },
         {
           "command": "codea-air-code.addDependency",
-          "when": "workspaceFolderCount > 0"
+          "when": "workspaceFolderCount > 0 && resourceLangId == lua"
+        },
+        {
+          "command": "codea-air-code.textReference",
+          "when": "workspaceFolderCount > 0 && resourceLangId == lua"
+        },
+        {
+          "command": "codea-air-code.selectionReference",
+          "when": "false"
         }
       ]      
     }
@@ -198,6 +231,7 @@
   },
   "dependencies": {
     "@types/vscode-webview": "^1.57.1",
+    "vscode-languageclient": "^7.0.0",
     "ws": "8.12.0",
     "semver": "7.5.1"
   },
@@ -210,6 +244,7 @@
     "@types/ws": "8.5.4",
     "@typescript-eslint/eslint-plugin": "^5.53.0",
     "@typescript-eslint/parser": "^5.53.0",
+    "@vscode/codicons": "0.0.33",
     "@vscode/debugadapter": "^1.59.0",
     "@vscode/debugprotocol": "^1.59.0",
     "@vscode/test-electron": "^2.2.3",

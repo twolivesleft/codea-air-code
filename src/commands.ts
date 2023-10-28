@@ -21,10 +21,19 @@ export namespace Command {
         | "restart"
         | "listProjects"
         | "listUnimportedProjects"
+        | "createFolder"
         | "addDependency"
         | "getParameters"
         | "setParameter"
-        | "debugMessage";
+        | "debugMessage"
+        | "lspMessage"
+        | "probeGetChapters"
+        | "probeGetChapterImage"
+        | "probeGetFunctions"
+        | "probeGetCategoryImage"
+        | "probeGetFunctionDetails"
+        | "probeFindReference"
+        | "findInFiles";
 
     export interface GetInformation extends Command {
         command: 'getInformation';
@@ -69,6 +78,7 @@ export namespace Command {
 
     export interface StartHost extends Command {
         command: 'startHost'
+        path: string;
     }
 
     export interface StopHost extends Command {
@@ -85,11 +95,18 @@ export namespace Command {
 
     export interface ListUnimportedProjects extends Command {
         command: 'listUnimportedProjects';
+        path: string;
+    }
+
+    export interface CreateFolder extends Command {
+        command: 'createFolder';
+        path: string;
     }
 
     export interface AddDependency extends Command {
         command: 'addDependency';
         path: string;
+        dependency: string;
     }
 
     export interface GetParameters extends Command {
@@ -105,6 +122,50 @@ export namespace Command {
         command: 'debugMessage';
         content: string;
     }
+
+    export interface LSPMessage extends Command {
+        command: 'lspMessage';
+        content: string;
+    }
+
+    export interface GetChapters extends Command {
+        command: 'probeGetChapters';
+    }
+
+    export interface GetChapterImage extends Command {
+        command: 'probeGetChapterImage';
+        chapter: string;
+    }
+
+    export interface GetFunctions extends Command {
+        command: 'probeGetFunctions';
+        chapter: string;
+    }
+
+    export interface GetCategoryImage extends Command {
+        command: 'probeGetCategoryImage';
+        category: string;
+    }
+
+    export interface GetFunctionDetails extends Command {
+        command: 'probeGetFunctionDetails';
+        chapter: string;
+        function: string;
+    }
+
+    export interface FindReference extends Command {
+        command: 'probeFindReference';
+        text: string;
+    }    
+
+    export interface FindInFiles extends Command {
+        command: 'findInFiles';
+        path: string;
+        text: string;
+        caseSensitive: boolean;
+        wholeWord: boolean;
+        isRegex: boolean;
+    }    
 
     // Convenience Initializers
 
@@ -157,8 +218,8 @@ export namespace Command {
     }
 
     export namespace StartHost {
-        export function from(): StartHost {
-            return { command: 'startHost' };
+        export function from(path: string): StartHost {
+            return { command: 'startHost', path };
         }
     }
 
@@ -181,14 +242,20 @@ export namespace Command {
     }
 
     export namespace ListUnimportedProjects {
-        export function from(): ListUnimportedProjects {
-            return { command: 'listUnimportedProjects' };
+        export function from(path: string): ListUnimportedProjects {
+            return { command: 'listUnimportedProjects', path };
+        }
+    }
+
+    export namespace CreateFolder {
+        export function from(path: string): CreateFolder {
+            return { command: 'createFolder', path };
         }
     }
 
     export namespace AddDependency {
-        export function from(path: string): AddDependency {
-            return { command: 'addDependency', path };
+        export function from(path: string, dependency: string): AddDependency {
+            return { command: 'addDependency', path, dependency };
         }
     }
 
@@ -207,6 +274,54 @@ export namespace Command {
     export namespace DebugMessage {
         export function from(content: string): DebugMessage {
             return { command: 'debugMessage', content };
+        }
+    }
+
+    export namespace LSPMessage {
+        export function from(content: string): LSPMessage {
+            return { command: 'lspMessage', content };
+        }
+    }
+
+    export namespace GetChapters {
+        export function from(): GetChapters {
+            return { command: 'probeGetChapters' };
+        }
+    }
+
+    export namespace GetChapterImage {
+        export function from(chapter: string): GetChapterImage {
+            return { command: 'probeGetChapterImage', chapter };
+        }
+    }
+
+    export namespace GetFunctions {
+        export function from(chapter: string): GetFunctions {
+            return { command: 'probeGetFunctions', chapter };
+        }
+    }
+
+    export namespace GetCategoryImage {
+        export function from(category: string): GetCategoryImage {
+            return { command: 'probeGetCategoryImage', category };
+        }
+    }
+
+    export namespace GetFunctionDetails {
+        export function from(chapter: string, functionId: string): GetFunctionDetails {
+            return { command: 'probeGetFunctionDetails', chapter, function: functionId };
+        }
+    }
+
+    export namespace FindReference {
+        export function from(text: string): FindReference {
+            return { command: 'probeFindReference', text };
+        }
+    }
+
+    export namespace FindInFiles {
+        export function from(path: string, text: string, caseSensitive: boolean, wholeWord: boolean, isRegex: boolean): FindInFiles {
+            return { command: 'findInFiles', path, text, caseSensitive, wholeWord, isRegex };
         }
     }
 }

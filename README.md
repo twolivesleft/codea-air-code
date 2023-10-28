@@ -1,12 +1,12 @@
 # Codea Air Code
 
-This extension can connect remotely to the [Codea](https://codea.io/) iOS application, allowing to modify, tweak and debug Codea projects directly from Visual Studio Code.
+This extension can connect remotely to the [Codea](https://codea.io/) iOS application, allowing to modify, tweak and debug Codea projects directly from Visual Studio Code. Auto-completion and documentation features similar to Codea are available while working on the projects.
 
 ## Table of Contents 
 
 - [Features](#features)
   - [Editor](#editor)
-  - [Parameters](#parameters)
+  - [Sidebar](#sidebar)
   - [Debugger](#debugger)
 - [Installation](#installation)
 - [Usage](#usage)
@@ -21,17 +21,75 @@ This extension can connect remotely to the [Codea](https://codea.io/) iOS applic
 
 ### Editor
 
-Once connected to Codea, Visual Studio Code will list the files for the currently opened project, allowing to modify them, even if the project is running.
+Once connected to Codea, Visual Studio Code will list all the projets availables with their files and dependencies, allowing modifications even if a project is running.
 
 <img width="851" alt="Screenshot of the editor" src="images/editor_2.png">
 
-### Parameters
+#### Auto-Completion
 
-The Codea button on the Visual Studio Code Sidebar will show the current parameters for the running project in Codea, if any.
+Auto-completion is available for the Codea API as well as symbols defined in the project and its dependencies.
+
+#### Symbols
+
+<img width="527" alt="Objc auto-completion" src="images/autocomplete_5.png">
+
+#### Colors
+
+Methods such as `background`, `fill`, `tint`, `stroke` and `color` will show a color indicator which can be used to visualize and easily change the assigned color using VSCode's color picker.
+
+<img width="441" alt="Color auto-completion" src="images/autocomplete_1.png">
+
+#### Font and Sprites
+
+The `font` and `sprite` functions will automatically list the fonts and sprites available for the current project.
+
+<img width="448" alt="font auto-completion" src="images/autocomplete_2.png">
+
+<img width="442" alt="sprite auto-completion" src="images/autocomplete_3.png">
+
+#### Snippets
+
+Snippets make it easier to format the different Lua control structures such as `if`, `for`, `while` and `repeat`.
+
+<img width="136" alt="sprite auto-completion" src="images/autocomplete_4.png">
+
+#### Documentation
+
+Types can easily be documented using a triple-slash (`---`) comment.
+
+<img width="486" alt="sprite auto-completion" src="images/document_1.png">
+
+### Sidebar
+
+The Codea Sidebar gives access to Reference and Parameters sections as shown below.
+
+<img width="220" alt="Screenshot of the sidebar" src="images/sidebar.png">
+
+#### Reference
+
+The Codea Reference section of the Sidebar contains the full documentation for Codea which can be navigated by clicking on the different chapters and functions.
+
+It is also possible to select and right click a word in a project's code to find the corresponding reference in the documentation (or using the `Find reference...` command), automatically focusing on the sidebar and opening the corresponding page.
+
+<img width="342" alt="Screenshot of the sidebar" src="images/sidebar_4.png">
+
+<img width="385" alt="Screenshot of the sidebar" src="images/sidebar_3.png">
+
+#### Search
+
+This extension uses a virtual File System Provider to read the files from Codea. However, VSCode does not yet support searching in files provided this way (see [this issue](https://github.com/microsoft/vscode/issues/59921ùcdc2w3wwqqqq)).
+
+Until the feature is implemented, the extension provides its own limited version which will search in all files of the currently active project.
+
+<img width="383" alt="Screenshot of the sidebar" src="images/search.png">
+
+#### Parameters
+
+The second section of the Codea Sidebar will show the current parameters for the running project, if any.
 
 All parameters can be controlled directly from Visual Studio Code even if the parameters are hidden in Codea, making it easier to tweak the projects.
 
-<img width="255" alt="Screenshot of parameters" src="images/parameters.png">
+<img width="302" alt="Screenshot of parameters" src="images/parameters_2.png">
 
 ### Debugger
 
@@ -77,11 +135,15 @@ To find the device's IP to connect to, use the Air Code icon on the project sele
 >
 > Air Code's default port 18513 is actually based on the letters R (18) E (5) M (13), for REMote console.
 
+#### Multi-window
+
+Air Code does not currently support multiple Codea windows or running projects. For this reason, when running a project from Air Code, all windows will be closed except one before running the project.
+
 ### Files and Dependencies
 
 Files can be added, removed or renamed in Codea using the corresponding operations in Visual Studio Code.
 
-Dependencies can be added to the active project using the `Add dependency...` command.
+Dependencies can be added to the active project (based on the current file being edited) using the `Add dependency...` command.
 
 To remove a dependency, simply delete its corresponding folder in the Explorer.
 
@@ -97,10 +159,11 @@ All commands included with this extension are prefixed with `Codea:`.
 | `Execute command...`   | Enter a Lua command to execute in Codea.                         |
 | `Restart project`      | Restart the running project in Codea.                            |
 | `Add dependency...`    | Select a dependency to add to the active Codea project.          |
+| `Find reference...`    | Look-up the reference for the selected word.                     |
 
 ## Requirements
 
-Codea 3.8
+Codea 3.9
 
 <a href="http://itunes.apple.com/app/id439571171?mt=8"><img height="40" alt="Screenshot of the editor" src="images/App-Store-Badge.png"></a>
 

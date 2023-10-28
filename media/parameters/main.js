@@ -1,13 +1,7 @@
 //@ts-check
 
-class VsCodeState {
-    colors = [];
-}
-
 (function () {
     const vscode = acquireVsCodeApi();
-
-    const oldState = vscode.getState() || { parameters: [] };
 
     // Handle messages sent from the extension to the webview
     window.addEventListener('message', event => {
@@ -25,17 +19,10 @@ class VsCodeState {
 
                     break;
                 }
-
         }
     });
 
-    setInterval(keepAlive, 1000);
-
     vscode.postMessage({ type: 'webViewReady' });
-
-    function keepAlive() {
-        vscode.postMessage({ type: 'webViewKeepAlive' });
-    }
 
     function setParameter(parameter) {
         const li = document.getElementById(getParameterId(parameter));
