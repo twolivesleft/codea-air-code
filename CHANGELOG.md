@@ -1,6 +1,6 @@
 # Change Log
 
-## 1.2.5 (not released)
+## 1.2.5 (2023/10/27)
 - Added basic project search feature through a new sidebar view.
 
 ## 1.2.4 (pre-release, 2023/09/03)
