@@ -484,6 +484,7 @@ export class AirCode implements vscode.FileSystemProvider {
     send<T>(ws: WebSocket, command: Command, promise: (response: Response<T>) => void) {
         this.commandId++;
         command.id = this.commandId;
+        this.logLsp(`command ${command.id} - ${command.command}`);
         ws.send(JSON.stringify(command));
         this.promises.set(this.commandId, promise);
     }

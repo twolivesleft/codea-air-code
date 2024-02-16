@@ -74,7 +74,8 @@ export class LSPMessageWriter implements MessageWriter {
     async write(msg: Message): Promise<void> {
         let jsonMessage = JSON.stringify(msg);
 
-        this.airCode.logLsp(`LSPMessageWriter write ${jsonMessage}.`);
+        let likelyId = this.airCode.commandId + 1
+        this.airCode.logLsp(`LSPMessageWriter write id ${likelyId} ${jsonMessage}.`);
 
         this.airCode.lspMessage(jsonMessage);
     }
