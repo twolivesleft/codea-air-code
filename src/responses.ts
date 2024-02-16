@@ -23,6 +23,11 @@ export type AddDependencyResponse = {
     isFirstDependency: boolean;
 };
 
+export type ReadFileResponse = {
+    isTextAsset: boolean;
+    content: string;
+}
+
 export type DeleteFileResponse = {
     wasLastDependency: boolean;
 };

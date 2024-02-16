@@ -9,6 +9,7 @@ import {
     StartHostResponse, 
     GetInformationResponse, 
     AddDependencyResponse, 
+    ReadFileResponse,
     DeleteFileResponse, 
     GetFunctionsResponse,
     FindReferenceResponse, 
@@ -696,11 +697,17 @@ export class AirCode implements vscode.FileSystemProvider {
             return enc.encode(internal[0]);
         }
 
-        return this.sendCommandMapResponse<string, Uint8Array>(uri, Command.ReadFile.from(path), response => {
+        return this.sendCommandMapResponse<ReadFileResponse, Uint8Array>(uri, Command.ReadFile.from(uri.path), response => {
             if (response instanceof Error) {
                 return Result.error(response);
             } else {
-                return Result.success(enc.encode(response));
+                if (response.isTextAsset) {
+                    return Result.success(enc.encode(response.content));
+                }
+                else {
+                    // Decode the base64 content to a Uint8Array
+                    return Result.success(Buffer.from(response.content, 'base64'));
+                }
             }
         });
     }
