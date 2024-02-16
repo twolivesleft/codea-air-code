@@ -1,5 +1,8 @@
 # Change Log
 
+## 1.3.0 (not released)
+- Binary assets support (read, write and rename)
+
 ## 1.2.5 (2023/10/27)
 - Added basic project search feature through a new sidebar view.
 
