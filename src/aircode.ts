@@ -64,6 +64,8 @@ export class AirCode implements vscode.FileSystemProvider {
     connectionStatusItem: vscode.StatusBarItem | undefined;
     playProjectItem: vscode.StatusBarItem | undefined;
 
+    textFileExtensions = ["txt", "lua", "json", "js", "php", "html", "css", "text", "xml", "vs", "fs", "frag", "vert", "notes", "yaml", "md", "markdown", "plist"];
+
     constructor(outputChannel: vscode.OutputChannel,
                 parametersView: Parameters.ParametersViewProvider,
                 referenceView: Reference.ReferenceViewProvider,
@@ -715,9 +717,14 @@ export class AirCode implements vscode.FileSystemProvider {
     writeFile(uri: vscode.Uri, content: Uint8Array, options: { readonly create: boolean; readonly overwrite: boolean; }): void | Thenable<void> {
         const path = uri.path;
 
-        let dec = new TextDecoder();
-
-        return this.sendCommand(uri, Command.WriteFile.from(path, dec.decode(content)));
+        if (this.textFileExtensions.includes(uri.path.split('.').pop() || "")) {
+            let dec = new TextDecoder();
+            return this.sendCommand(uri, Command.WriteFile.from(path, dec.decode(content)));
+        }
+        else {
+            // Encode the Uint8Array to base64
+            return this.sendCommand(uri, Command.WriteFile.from(path, Buffer.from(content).toString('base64')));
+        }
     }
 
     getDependenciesUri(collectionName: String, projectName: String): vscode.Uri {
