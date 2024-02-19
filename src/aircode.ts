@@ -703,7 +703,7 @@ export class AirCode implements vscode.FileSystemProvider {
             if (response instanceof Error) {
                 return Result.error(response);
             } else {
-                if (response.isTextAsset) {
+                if (response.isText) {
                     return Result.success(enc.encode(response.content));
                 }
                 else {

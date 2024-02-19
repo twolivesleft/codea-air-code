@@ -24,7 +24,7 @@ export type AddDependencyResponse = {
 };
 
 export type ReadFileResponse = {
-    isTextAsset: boolean;
+    isText: boolean;
     content: string;
 }
 
