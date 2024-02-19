@@ -8,6 +8,7 @@ import { ReferenceViewProvider } from './reference';
 import { SearchViewProvider } from './search';
 import { CodeaDebugConfigurationProvider } from './debug-adapter/CodeaDebugConfigurationProvider';
 import { InlineDebugAdapterFactory } from './debug-adapter/InlineDebugAdapterFactory';
+import { AssetKeyOnDropProvider } from './drop';
 
 export function getWorkspaceUri(): vscode.Uri {
 	if (vscode.workspace.workspaceFolders?.length === 1) {
@@ -24,6 +25,7 @@ export function activate(context: vscode.ExtensionContext) {
 	const parametersViewProvider = new ParametersViewProvider(context.extensionUri);
 	const referenceViewProvider = new ReferenceViewProvider(context.extensionUri);
 	const searchViewProvider = new SearchViewProvider(context.extensionUri);
+	const assetKeyOnDropProvider = new AssetKeyOnDropProvider();
 	const outputChannel = vscode.window.createOutputChannel("Codea", "codea-output");
 
 	const airCode = new AirCode(
@@ -92,6 +94,7 @@ export function activate(context: vscode.ExtensionContext) {
 	parametersViewProvider.airCode = airCode;
 	referenceViewProvider.airCode = airCode;
 	searchViewProvider.airCode = airCode;
+	assetKeyOnDropProvider.airCode = airCode;
 
 	airCode.connectionStatusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
 	airCode.connectionStatusItem.text = "Not connected";
@@ -281,4 +284,6 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		});
 	}));
+
+	context.subscriptions.push(vscode.languages.registerDocumentDropEditProvider({ language: 'lua' }, assetKeyOnDropProvider));
 }

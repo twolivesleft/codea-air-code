@@ -13,7 +13,8 @@ import {
     DeleteFileResponse, 
     GetFunctionsResponse,
     FindReferenceResponse, 
-    FindInFilesResponse} from './responses';
+    FindInFilesResponse,
+    GetAssetKeyResponse} from './responses';
 import { Command } from './commands';
 import * as Parameters from './parameters';
 import * as Reference from './reference';
@@ -567,6 +568,10 @@ export class AirCode implements vscode.FileSystemProvider {
 
     async addDependency(uri: vscode.Uri, dependency: string) : Promise<AddDependencyResponse> {
         return this.sendCommand<AddDependencyResponse>(uri, Command.AddDependency.from(uri.path, dependency));
+    }
+
+    async getAssetKey(uri: vscode.Uri) : Promise<GetAssetKeyResponse> {
+        return this.sendCommand<GetAssetKeyResponse>(uri, Command.GetAssetKey.from(uri.path));
     }
 
     getParameters(uri: vscode.Uri): any[] | Thenable<any[]> {

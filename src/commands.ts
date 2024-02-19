@@ -24,6 +24,7 @@ export namespace Command {
         | "listUnimportedProjects"
         | "createFolder"
         | "addDependency"
+        | "getAssetKey"
         | "getParameters"
         | "setParameter"
         | "debugMessage"
@@ -114,6 +115,11 @@ export namespace Command {
         command: 'addDependency';
         path: string;
         dependency: string;
+    }
+
+    export interface GetAssetKey extends Command {
+        command: 'getAssetKey';
+        path: string;
     }
 
     export interface GetParameters extends Command {
@@ -269,6 +275,12 @@ export namespace Command {
     export namespace AddDependency {
         export function from(path: string, dependency: string): AddDependency {
             return { command: 'addDependency', path, dependency };
+        }
+    }
+
+    export namespace GetAssetKey {
+        export function from(path: string): GetAssetKey {
+            return { command: 'getAssetKey', path };
         }
     }
 

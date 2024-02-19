@@ -23,6 +23,10 @@ export type AddDependencyResponse = {
     isFirstDependency: boolean;
 };
 
+export type GetAssetKeyResponse = {
+    assetKey: string;
+};
+
 export type ReadFileResponse = {
     isText: boolean;
     content: string;
