@@ -717,7 +717,7 @@ export class AirCode implements vscode.FileSystemProvider {
     writeFile(uri: vscode.Uri, content: Uint8Array, options: { readonly create: boolean; readonly overwrite: boolean; }): void | Thenable<void> {
         const path = uri.path;
 
-        if (this.textFileExtensions.includes(uri.path.split('.').pop() || "")) {
+        if (this.textFileExtensions.includes(path.split('.').pop() || "")) {
             let dec = new TextDecoder();
             return this.sendCommand(uri, Command.WriteFile.from(path, dec.decode(content)));
         }
@@ -770,6 +770,10 @@ export class AirCode implements vscode.FileSystemProvider {
     }
 
     copy?(source: vscode.Uri, destination: vscode.Uri, options: { readonly overwrite: boolean; }): void | Thenable<void> {
+        const sourcePath = source.path;
+        const destinationPath = destination.path;
+
+        return this.sendCommand(source, Command.CopyFile.from(sourcePath, destinationPath));
     }
 
     fileCreated(uri: vscode.Uri) {

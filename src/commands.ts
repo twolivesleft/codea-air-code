@@ -15,6 +15,7 @@ export namespace Command {
         | "writeFile"
         | "deleteFile"
         | "renameFile"
+        | "copyFile"
         | "loadString"
         | "startHost"
         | "stopHost"
@@ -67,6 +68,12 @@ export namespace Command {
 
     export interface RenameFile extends Command {
         command: 'renameFile';
+        from: string;
+        path: string;
+    }
+
+    export interface CopyFile extends Command {
+        command: 'copyFile';
         from: string;
         path: string;
     }
@@ -208,6 +215,12 @@ export namespace Command {
     export namespace RenameFile {
         export function from(from: string, path: string): RenameFile {
             return { command: 'renameFile', from, path };
+        }
+    }
+
+    export namespace CopyFile {
+        export function from(from: string, path: string): CopyFile {
+            return { command: 'copyFile', from, path };
         }
     }
 
