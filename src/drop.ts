@@ -39,7 +39,7 @@ export class AssetKeyOnDropProvider implements vscode.DocumentDropEditProvider {
 		}
 
         const uri = uris[0];
-        const assetKey = await this.airCode?.getAssetKey(uri);
+        const assetKey = await this.airCode?.getAssetKey(uri, _document.uri);
         if (!assetKey) {
             return undefined;
         }

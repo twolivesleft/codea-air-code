@@ -572,8 +572,8 @@ export class AirCode implements vscode.FileSystemProvider {
         return this.sendCommand<AddDependencyResponse>(uri, Command.AddDependency.from(uri.path, dependency));
     }
 
-    async getAssetKey(uri: vscode.Uri) : Promise<GetAssetKeyResponse> {
-        return this.sendCommand<GetAssetKeyResponse>(uri, Command.GetAssetKey.from(uri.path));
+    async getAssetKey(uri: vscode.Uri, targetUri: vscode.Uri) : Promise<GetAssetKeyResponse> {
+        return this.sendCommand<GetAssetKeyResponse>(uri, Command.GetAssetKey.from(uri.path, targetUri.path));
     }
 
     getParameters(uri: vscode.Uri): any[] | Thenable<any[]> {

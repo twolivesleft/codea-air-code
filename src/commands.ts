@@ -119,6 +119,7 @@ export namespace Command {
 
     export interface GetAssetKey extends Command {
         command: 'getAssetKey';
+        from: string;
         path: string;
     }
 
@@ -279,8 +280,8 @@ export namespace Command {
     }
 
     export namespace GetAssetKey {
-        export function from(path: string): GetAssetKey {
-            return { command: 'getAssetKey', path };
+        export function from(from: string, path: string): GetAssetKey {
+            return { command: 'getAssetKey', from, path };
         }
     }
 
