@@ -17,6 +17,7 @@ export type StartHostResponse = {
 export type GetInformationResponse = {
     version: string;
     hasHost: boolean;
+    textExtensions: string[];
 }
 
 export type AddDependencyResponse = {

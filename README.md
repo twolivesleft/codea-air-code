@@ -21,7 +21,7 @@ This extension can connect remotely to the [Codea](https://codea.io/) iOS applic
 
 ### Editor
 
-Once connected to Codea, Visual Studio Code will list all the projets availables with their files and dependencies, allowing modifications even if a project is running.
+Once connected to Codea, Visual Studio Code will list all the projets availables with their files and dependencies, allowing modifications even if a project is running. Assets such as images, sounds and models are also available and can easily be integrated in a project.
 
 <img width="851" alt="Screenshot of the editor" src="images/editor_2.png">
 
@@ -147,6 +147,17 @@ Dependencies can be added to the active project (based on the current file being
 
 To remove a dependency, simply delete its corresponding folder in the Explorer.
 
+
+### Assets
+
+Assets such as images, sounds and models can be found under the Assets folder. New assets can be added by simply dragging them into a project folder, the Documents folder under Assets, or an External Folder referenced in Codea.
+
+To reference any asset in a project, simply drag-and-drop the asset from the Explorer view **while holding the Shift key** into a Lua file and the Asset Key will automatically be added.
+
+<img width="738" alt="Dragging an asset" src="images/asset_drag.png">
+
+<img width="398" alt="Asset key" src="images/asset_key.png">
+
 ### Commands
 
 All commands included with this extension are prefixed with `Codea:`.
@@ -163,7 +174,7 @@ All commands included with this extension are prefixed with `Codea:`.
 
 ## Requirements
 
-Codea 3.9
+Codea 3.10
 
 <a href="http://itunes.apple.com/app/id439571171?mt=8"><img height="40" alt="Screenshot of the editor" src="images/App-Store-Badge.png"></a>
 

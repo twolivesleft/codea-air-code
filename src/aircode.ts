@@ -65,7 +65,7 @@ export class AirCode implements vscode.FileSystemProvider {
     connectionStatusItem: vscode.StatusBarItem | undefined;
     playProjectItem: vscode.StatusBarItem | undefined;
 
-    textFileExtensions = ["txt", "lua", "json", "js", "php", "html", "css", "text", "xml", "vs", "fs", "frag", "vert", "notes", "yaml", "md", "markdown", "plist"];
+    textFileExtensions: string[] = [];
 
     constructor(outputChannel: vscode.OutputChannel,
                 parametersView: Parameters.ParametersViewProvider,
@@ -292,6 +292,8 @@ export class AirCode implements vscode.FileSystemProvider {
                 ws.close(CloseEventCode.IncompatibleVersion);
                 return;
             }
+
+            airCode.textFileExtensions = information.textExtensions;
 
             parent.setStatusConnected();
 
