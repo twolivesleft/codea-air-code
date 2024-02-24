@@ -29,7 +29,7 @@ import { LSPMessageReader, LSPMessageWriter } from './language_server';
 
 const semver = require('semver');
 
-const codeaVersion = "3.9";
+const codeaVersion = "3.10";
 
 enum CloseEventCode {
     None = 1000,
