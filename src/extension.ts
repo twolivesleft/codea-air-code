@@ -141,6 +141,10 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	}));
 
+	context.subscriptions.push(vscode.workspace.onDidSaveTextDocument((document) => {
+        reapplyBreakpoints(document.uri);
+    }));
+
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.refreshConnection', async () => {
 		await airCode.getSocketForUri(workspaceUri, true);
 	}));
@@ -286,4 +290,24 @@ export function activate(context: vscode.ExtensionContext) {
 	}));
 
 	context.subscriptions.push(vscode.languages.registerDocumentDropEditProvider({ language: 'lua' }, assetKeyOnDropProvider));
+}
+
+function reapplyBreakpoints(uri: vscode.Uri) {
+    const breakpoints = vscode.debug.breakpoints;
+
+    // Filter breakpoints for the saved document
+    const fileBreakpoints = breakpoints.filter(bp => bp instanceof vscode.SourceBreakpoint && bp.location.uri.toString() === uri.toString());
+
+    // Remove breakpoints for the current file
+    vscode.debug.removeBreakpoints(fileBreakpoints);
+
+    // Re-add the breakpoints
+    setTimeout(() => {
+        fileBreakpoints.forEach(bp => {
+            if (bp instanceof vscode.SourceBreakpoint) {
+                const newBp = new vscode.SourceBreakpoint(bp.location, bp.enabled, bp.condition, bp.hitCondition, bp.logMessage);
+                vscode.debug.addBreakpoints([newBp]);
+            }
+        });
+    }, 100); // Delay to ensure the breakpoints are properly re-added. Adjust as necessary.
 }
