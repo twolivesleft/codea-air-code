@@ -95,7 +95,7 @@ All parameters can be controlled directly from Visual Studio Code even if the pa
 
 With a project running, Visual Studio Code can be used to attach to the running project and then used for debugging.
 
-Some features such as modifying variables are not available yet but will be added in future updates of Codea and the extension.
+Values of variables and watches can be modified while the execution is paused.
 
 <img width="806" alt="Screenshot of the debugger" src="images/debugger.png">
 
