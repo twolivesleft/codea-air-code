@@ -8,6 +8,7 @@ import { ReferenceViewProvider } from './reference';
 import { SearchViewProvider } from './search';
 import { CodeaDebugConfigurationProvider } from './debug-adapter/CodeaDebugConfigurationProvider';
 import { InlineDebugAdapterFactory } from './debug-adapter/InlineDebugAdapterFactory';
+import { AssetKeyOnDropProvider } from './drop';
 
 export function getWorkspaceUri(): vscode.Uri {
 	if (vscode.workspace.workspaceFolders?.length === 1) {
@@ -24,6 +25,7 @@ export function activate(context: vscode.ExtensionContext) {
 	const parametersViewProvider = new ParametersViewProvider(context.extensionUri);
 	const referenceViewProvider = new ReferenceViewProvider(context.extensionUri);
 	const searchViewProvider = new SearchViewProvider(context.extensionUri);
+	const assetKeyOnDropProvider = new AssetKeyOnDropProvider();
 	const outputChannel = vscode.window.createOutputChannel("Codea", "codea-output");
 
 	const airCode = new AirCode(
@@ -92,6 +94,7 @@ export function activate(context: vscode.ExtensionContext) {
 	parametersViewProvider.airCode = airCode;
 	referenceViewProvider.airCode = airCode;
 	searchViewProvider.airCode = airCode;
+	assetKeyOnDropProvider.airCode = airCode;
 
 	airCode.connectionStatusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
 	airCode.connectionStatusItem.text = "Not connected";
@@ -137,6 +140,10 @@ export function activate(context: vscode.ExtensionContext) {
 			vscode.workspace.applyEdit(edit);
 		}
 	}));
+
+	context.subscriptions.push(vscode.workspace.onDidSaveTextDocument((document) => {
+        reapplyBreakpoints(document.uri);
+    }));
 
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.refreshConnection', async () => {
 		await airCode.getSocketForUri(workspaceUri, true);
@@ -281,4 +288,26 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		});
 	}));
+
+	context.subscriptions.push(vscode.languages.registerDocumentDropEditProvider({ language: 'lua' }, assetKeyOnDropProvider));
+}
+
+function reapplyBreakpoints(uri: vscode.Uri) {
+    const breakpoints = vscode.debug.breakpoints;
+
+    // Filter breakpoints for the saved document
+    const fileBreakpoints = breakpoints.filter(bp => bp instanceof vscode.SourceBreakpoint && bp.location.uri.toString() === uri.toString());
+
+    // Remove breakpoints for the current file
+    vscode.debug.removeBreakpoints(fileBreakpoints);
+
+    // Re-add the breakpoints
+    setTimeout(() => {
+        fileBreakpoints.forEach(bp => {
+            if (bp instanceof vscode.SourceBreakpoint) {
+                const newBp = new vscode.SourceBreakpoint(bp.location, bp.enabled, bp.condition, bp.hitCondition, bp.logMessage);
+                vscode.debug.addBreakpoints([newBp]);
+            }
+        });
+    }, 100); // Delay to ensure the breakpoints are properly re-added. Adjust as necessary.
 }

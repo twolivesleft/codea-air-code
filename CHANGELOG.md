@@ -1,5 +1,12 @@
 # Change Log
 
+## 1.3.1 (2024/03/09)
+- Release version of 1.3.0
+
+## 1.3.0 (pre-release, 2024/03/04)
+- Binary assets support (read, write and rename)
+- Refresh breakpoints on save
+
 ## 1.2.5 (2023/10/27)
 - Added basic project search feature through a new sidebar view.
 

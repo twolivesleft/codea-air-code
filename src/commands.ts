@@ -15,6 +15,7 @@ export namespace Command {
         | "writeFile"
         | "deleteFile"
         | "renameFile"
+        | "copyFile"
         | "loadString"
         | "startHost"
         | "stopHost"
@@ -23,6 +24,7 @@ export namespace Command {
         | "listUnimportedProjects"
         | "createFolder"
         | "addDependency"
+        | "getAssetKey"
         | "getParameters"
         | "setParameter"
         | "debugMessage"
@@ -71,6 +73,12 @@ export namespace Command {
         path: string;
     }
 
+    export interface CopyFile extends Command {
+        command: 'copyFile';
+        from: string;
+        path: string;
+    }
+
     export interface LoadString extends Command {
         command: 'loadString';
         content: string;
@@ -107,6 +115,12 @@ export namespace Command {
         command: 'addDependency';
         path: string;
         dependency: string;
+    }
+
+    export interface GetAssetKey extends Command {
+        command: 'getAssetKey';
+        from: string;
+        path: string;
     }
 
     export interface GetParameters extends Command {
@@ -211,6 +225,12 @@ export namespace Command {
         }
     }
 
+    export namespace CopyFile {
+        export function from(from: string, path: string): CopyFile {
+            return { command: 'copyFile', from, path };
+        }
+    }
+
     export namespace LoadString {
         export function from(content: string): LoadString {
             return { command: 'loadString', content };
@@ -256,6 +276,12 @@ export namespace Command {
     export namespace AddDependency {
         export function from(path: string, dependency: string): AddDependency {
             return { command: 'addDependency', path, dependency };
+        }
+    }
+
+    export namespace GetAssetKey {
+        export function from(from: string, path: string): GetAssetKey {
+            return { command: 'getAssetKey', from, path };
         }
     }
 

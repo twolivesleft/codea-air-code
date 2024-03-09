@@ -17,11 +17,21 @@ export type StartHostResponse = {
 export type GetInformationResponse = {
     version: string;
     hasHost: boolean;
+    textExtensions: string[];
 }
 
 export type AddDependencyResponse = {
     isFirstDependency: boolean;
 };
+
+export type GetAssetKeyResponse = {
+    assetKey: string;
+};
+
+export type ReadFileResponse = {
+    isText: boolean;
+    content: string;
+}
 
 export type DeleteFileResponse = {
     wasLastDependency: boolean;

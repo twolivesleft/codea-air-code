@@ -9,10 +9,12 @@ import {
     StartHostResponse, 
     GetInformationResponse, 
     AddDependencyResponse, 
+    ReadFileResponse,
     DeleteFileResponse, 
     GetFunctionsResponse,
     FindReferenceResponse, 
-    FindInFilesResponse} from './responses';
+    FindInFilesResponse,
+    GetAssetKeyResponse} from './responses';
 import { Command } from './commands';
 import * as Parameters from './parameters';
 import * as Reference from './reference';
@@ -27,7 +29,7 @@ import { LSPMessageReader, LSPMessageWriter } from './language_server';
 
 const semver = require('semver');
 
-const codeaVersion = "3.9";
+const codeaVersion = "3.10";
 
 enum CloseEventCode {
     None = 1000,
@@ -62,6 +64,8 @@ export class AirCode implements vscode.FileSystemProvider {
 
     connectionStatusItem: vscode.StatusBarItem | undefined;
     playProjectItem: vscode.StatusBarItem | undefined;
+
+    textFileExtensions: string[] = [];
 
     constructor(outputChannel: vscode.OutputChannel,
                 parametersView: Parameters.ParametersViewProvider,
@@ -289,6 +293,8 @@ export class AirCode implements vscode.FileSystemProvider {
                 return;
             }
 
+            airCode.textFileExtensions = information.textExtensions;
+
             parent.setStatusConnected();
 
             // Options to control the language client
@@ -484,6 +490,7 @@ export class AirCode implements vscode.FileSystemProvider {
     send<T>(ws: WebSocket, command: Command, promise: (response: Response<T>) => void) {
         this.commandId++;
         command.id = this.commandId;
+        this.logLsp(`command ${command.id} - ${command.command}`);
         ws.send(JSON.stringify(command));
         this.promises.set(this.commandId, promise);
     }
@@ -563,6 +570,10 @@ export class AirCode implements vscode.FileSystemProvider {
 
     async addDependency(uri: vscode.Uri, dependency: string) : Promise<AddDependencyResponse> {
         return this.sendCommand<AddDependencyResponse>(uri, Command.AddDependency.from(uri.path, dependency));
+    }
+
+    async getAssetKey(uri: vscode.Uri, targetUri: vscode.Uri) : Promise<GetAssetKeyResponse> {
+        return this.sendCommand<GetAssetKeyResponse>(uri, Command.GetAssetKey.from(uri.path, targetUri.path));
     }
 
     getParameters(uri: vscode.Uri): any[] | Thenable<any[]> {
@@ -695,11 +706,17 @@ export class AirCode implements vscode.FileSystemProvider {
             return enc.encode(internal[0]);
         }
 
-        return this.sendCommandMapResponse<string, Uint8Array>(uri, Command.ReadFile.from(path), response => {
+        return this.sendCommandMapResponse<ReadFileResponse, Uint8Array>(uri, Command.ReadFile.from(uri.path), response => {
             if (response instanceof Error) {
                 return Result.error(response);
             } else {
-                return Result.success(enc.encode(response));
+                if (response.isText) {
+                    return Result.success(enc.encode(response.content));
+                }
+                else {
+                    // Decode the base64 content to a Uint8Array
+                    return Result.success(Buffer.from(response.content, 'base64'));
+                }
             }
         });
     }
@@ -707,9 +724,14 @@ export class AirCode implements vscode.FileSystemProvider {
     writeFile(uri: vscode.Uri, content: Uint8Array, options: { readonly create: boolean; readonly overwrite: boolean; }): void | Thenable<void> {
         const path = uri.path;
 
-        let dec = new TextDecoder();
-
-        return this.sendCommand(uri, Command.WriteFile.from(path, dec.decode(content)));
+        if (this.textFileExtensions.includes(path.split('.').pop() || "")) {
+            let dec = new TextDecoder();
+            return this.sendCommand(uri, Command.WriteFile.from(path, dec.decode(content)));
+        }
+        else {
+            // Encode the Uint8Array to base64
+            return this.sendCommand(uri, Command.WriteFile.from(path, Buffer.from(content).toString('base64')));
+        }
     }
 
     getDependenciesUri(collectionName: String, projectName: String): vscode.Uri {
@@ -755,6 +777,10 @@ export class AirCode implements vscode.FileSystemProvider {
     }
 
     copy?(source: vscode.Uri, destination: vscode.Uri, options: { readonly overwrite: boolean; }): void | Thenable<void> {
+        const sourcePath = source.path;
+        const destinationPath = destination.path;
+
+        return this.sendCommand(source, Command.CopyFile.from(sourcePath, destinationPath));
     }
 
     fileCreated(uri: vscode.Uri) {
