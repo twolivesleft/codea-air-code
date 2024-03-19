@@ -129,6 +129,16 @@ After typing Enter or clicking the command, Visual Studio Code will ask for Code
 
 To find the device's IP to connect to, use the Air Code icon on the project selection screen in Codea. The default port is `18513`.
 
+### USB Connection
+
+If Wi-Fi is not accessible or it is slow, you can connect to Codea over a USB connection using iproxy, a utility part of libusbmuxd (or libimobiledevice).
+
+For Mac and Linux platforms, libusbmuxd can be be installed through Homebrew using `brew install libusbmuxd` (refer to https://brew.sh/ for Homebrew installation).
+
+Windows executables including iproxy.exe are also available (look for `libimobiledevice windows binaries`). Make sure iTunes is installed on your Windows system and that the directory of iproxy.exe is included in your PATH environment variable.
+
+Once iproxy is available, use the `Connect over USB...` command and provide the ports to use for the connection (local port to open on your host machine, and the port used in Codea for AirCode). If you are not using custom values, simply use the default values provided.
+
 #### Fun Fact
 
 > The idea for this extension started as a proof-of-concept of a browser based "Remote Console". The idea was to see a Codea project's logs and execute commands directly from a web browser.
@@ -162,15 +172,16 @@ To reference any asset in a project, simply drag-and-drop the asset from the Exp
 
 All commands included with this extension are prefixed with `Codea:`.
 
-| Command                | Description                                                      |
-|------------------------|------------------------------------------------------------------|
-| `Connect to Host...`   | Enter the IP and port to connect to a running instance of Codea. |
-| `Execute current line` | Executes the Lua code on the active line.                        |
-| `Execute selection`    | Executes the select Lua code in Codea.                           |
-| `Execute command...`   | Enter a Lua command to execute in Codea.                         |
-| `Restart project`      | Restart the running project in Codea.                            |
-| `Add dependency...`    | Select a dependency to add to the active Codea project.          |
-| `Find reference...`    | Look-up the reference for the selected word.                     |
+| Command                | Description                                                           |
+|------------------------|-----------------------------------------------------------------------|
+| `Connect to Host...`   | Enter the IP and port to connect to a running instance of Codea.      |
+| `Connect over USB...`  | Enter the local port and Codea port to connect over USB using iproxy. |
+| `Execute current line` | Executes the Lua code on the active line.                             |
+| `Execute selection`    | Executes the select Lua code in Codea.                                |
+| `Execute command...`   | Enter a Lua command to execute in Codea.                              |
+| `Restart project`      | Restart the running project in Codea.                                 |
+| `Add dependency...`    | Select a dependency to add to the active Codea project.               |
+| `Find reference...`    | Look-up the reference for the selected word.                          |
 
 ## Requirements
 
