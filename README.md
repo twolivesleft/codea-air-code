@@ -11,6 +11,7 @@ This extension can connect remotely to the [Codea](https://codea.io/) iOS applic
 - [Installation](#installation)
 - [Usage](#usage)
   - [Connection](#connection)
+  - [USB Connection](#usb-connection)
   - [Files and Dependencies](#files-and-dependencies)
   - [Commands](#commands)
 - [Requirements](#requirements)
