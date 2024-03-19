@@ -131,6 +131,12 @@ After typing Enter or clicking the command, Visual Studio Code will ask for Code
 
 To find the device's IP to connect to, use the Air Code icon on the project selection screen in Codea. The default port is `18513`.
 
+#### Fun Fact
+
+> The idea for this extension started as a proof-of-concept of a browser based "Remote Console". The idea was to see a Codea project's logs and execute commands directly from a web browser.
+>
+> Air Code's default port 18513 is actually based on the letters R (18) E (5) M (13), for REMote console.
+
 ### USB Connection
 
 If Wi-Fi is not accessible or is slow, you can connect to Codea over a USB connection using iproxy, a utility part of libusbmuxd (or libimobiledevice).
@@ -140,12 +146,6 @@ For Mac and Linux platforms, libusbmuxd can be installed through Homebrew using 
 Windows executables including iproxy.exe are also available (look for `libimobiledevice windows binaries`). Make sure iTunes is installed on your Windows system and that the directory of iproxy.exe is included in your PATH environment variable.
 
 Once iproxy is available, use the `Connect over USB...` command and provide the ports to use for the connection (local port to open on your host machine, and the port used in Codea for AirCode). If you are not using custom values, simply use the default values provided.
-
-#### Fun Fact
-
-> The idea for this extension started as a proof-of-concept of a browser based "Remote Console". The idea was to see a Codea project's logs and execute commands directly from a web browser.
->
-> Air Code's default port 18513 is actually based on the letters R (18) E (5) M (13), for REMote console.
 
 #### Multi-window
 
