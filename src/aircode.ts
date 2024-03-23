@@ -26,7 +26,11 @@ import {
     RevealOutputChannelOn
 } from 'vscode-languageclient/node';
 import { LSPMessageReader, LSPMessageWriter } from './language_server';
+import * as cp from 'child_process';
+import find_process = require('find-process');
+import tree_kill = require('tree-kill');
 
+const isPortReachable = require('is-port-reachable')
 const semver = require('semver');
 
 const codeaVersion = "3.10";
@@ -47,6 +51,8 @@ export class AirCode implements vscode.FileSystemProvider {
 
     webSockets = new Map<string, WebSocket>();
     closingSocket = false;
+    checkingProxy = false;
+    proxyProcess: cp.ChildProcess | undefined;
     commandId: number = 0;
     promises = new Map<number, (data: any) => void>();
     outputChannel: vscode.OutputChannel;
@@ -79,6 +85,18 @@ export class AirCode implements vscode.FileSystemProvider {
         this.extensionVersion = extensionVersion;
         this.messageReader = new LSPMessageReader(this);
         this.messageWriter = new LSPMessageWriter(this);
+    }
+
+    deactivate() {
+        this.webSockets.forEach(ws => {
+            ws.close();
+        });
+        this.webSockets.clear();
+
+        if (this.proxyProcess) {
+            this.proxyProcess.kill();
+            this.proxyProcess = undefined;
+        }
     }
 
     // Internal Files
@@ -229,11 +247,109 @@ export class AirCode implements vscode.FileSystemProvider {
         }
     }
 
+    async waitForProxy() {
+        while (this.checkingProxy) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+    }
+
+    async waitForLocalPort(port: number) {
+        // Wait up to 5 seconds for the port to be reachable
+        let attempts = 0;
+        while (attempts < 50) {
+            if (await isPortReachable(port, {host: 'localhost'})) {
+                return true;
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+        }
+        return false;
+    }
+
+    async checkForProxy(host: string, showError: boolean = true): Promise<string> {
+        // Check if this is a USB connection (e.g. codea://18513:18514, i.e. codea://codeaPort:localPort)
+        // Try to parse both parts as numbers
+        const parts = host.split(':');
+        if (parts.length == 2) {
+            // Check if both parts are digits only. If so, this is a USB connection.
+            if (parts[0].match(/^\d+$/) && parts[1].match(/^\d+$/)) {
+                if (this.checkingProxy) {
+                    await this.waitForProxy();
+                }
+        
+                this.checkingProxy = true;
+        
+                const codeaPort = parseInt(parts[0]);
+                const localPort = parseInt(parts[1]);
+
+                const isRunning = await isPortReachable(localPort, {host: 'localhost'});
+                if (isRunning && this.proxyProcess) {
+                    host = `localhost:${localPort}`;
+                }
+                else {
+                    // Kill any existing iproxy processes since they might not match the current ports
+                    if (this.proxyProcess) {
+                        this.proxyProcess.kill();
+                        this.proxyProcess = undefined;
+                    }
+                    
+                    // On non-Windows platforms, the spawned processes are not killed when the extension is killed
+                    // Use find_process to check if iproxy processes are running, and kill them using tree-kill
+                    const processes = await find_process('name', 'iproxy');
+                    for (const process of processes) {
+                        tree_kill(process.pid, 'SIGKILL');
+                    }
+
+                    this.proxyProcess = cp.spawn('iproxy', [`${localPort}:${codeaPort}`]);
+                    this.proxyProcess?.on('error', (err: any) => {
+                        if (showError) {
+                            if (err.code === 'ENOENT') {
+                                vscode.window.showErrorMessage(`iproxy not found. Please install libusbmuxd to connect over USB.`,
+                                ...["Documentation"]).then(selection => {
+                                    if (selection) {
+                                        vscode.env.openExternal(vscode.Uri.parse('https://twolivesleft.github.io/codea-air-code/#usb-connection'));
+                                    }
+                                });
+                            }
+                            else {
+                                vscode.window.showErrorMessage(`Failed to start iproxy: ${err}`);
+                            }
+                        }
+                    });
+                    this.proxyProcess?.on('exit', (code: any) => {
+                        if (showError) {
+                            vscode.window.showErrorMessage(`iproxy exited with code ${code}`);
+                        }
+                        this.proxyProcess = undefined;
+                    });
+
+                    let reachable = await this.waitForLocalPort(localPort);
+                    if (reachable) {
+                        host = `localhost:${localPort}`;
+                    }
+                    else {
+                        if (showError) {
+                            vscode.window.showErrorMessage(`Failed to connect using iproxy.`);
+                        }
+                        this.proxyProcess.kill();
+                        this.proxyProcess = undefined;
+                    }
+                }
+
+                this.checkingProxy = false;
+            }
+        }
+
+        return host;
+    }
+
     async getSocketForUri(uri: vscode.Uri, showError: boolean = true): Promise<WebSocket | undefined> {
-        const host = uri.authority;
+        var host = uri.authority;
         if (host === undefined) {
             return undefined;
         }
+
+        host = await this.checkForProxy(host, showError);
 
         if (this.closingSocket) {
             await this.waitForClosingSocket();
