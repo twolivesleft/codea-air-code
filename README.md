@@ -143,7 +143,7 @@ To find the device's IP to connect to, use the Air Code icon on the project sele
 
 If Wi-Fi is not accessible or is slow, you can connect to Codea over a USB connection using iproxy, a utility part of libusbmuxd (or libimobiledevice).
 
-For Mac and Linux platforms, libusbmuxd can be installed through Homebrew using `brew install libusbmuxd` (refer to https://brew.sh/ for Homebrew installation).
+For Mac and Linux platforms, libusbmuxd can be installed through Homebrew using `brew install libusbmuxd` (refer to [https://brew.sh/](https://brew.sh/) for Homebrew installation).
 
 Windows executables including iproxy.exe are also available (look for `libimobiledevice windows binaries`). Make sure iTunes is installed on your Windows system and that the directory of iproxy.exe is included in your PATH environment variable.
 
