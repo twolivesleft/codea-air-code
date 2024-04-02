@@ -65,17 +65,19 @@ Types can easily be documented using a triple-slash (`---`) comment.
 
 The Codea Sidebar gives access to Reference and Parameters sections as shown below.
 
-<img width="220" alt="Screenshot of the sidebar" src="images/sidebar.png">
+<img width="164" alt="Screenshot of the sidebar" src="images/sidebar_5.png">
 
 #### Reference
 
-The Codea Reference section of the Sidebar contains the full documentation for Codea which can be navigated by clicking on the different chapters and functions.
+The Codea Reference section of the Sidebar contains the full documentation for Codea Legacy (3.x) and Modern (4.x) which can be navigated by clicking on the different chapters and functions.
 
-It is also possible to select and right click a word in a project's code to find the corresponding reference in the documentation (or using the `Find reference...` command), automatically focusing on the sidebar and opening the corresponding page.
+It is also possible to select and right click a word in a project's code to find the corresponding reference in the Legacy documentation (or using the `Find reference...` command), automatically focusing on the sidebar and opening the corresponding page.
 
-<img width="342" alt="Screenshot of the sidebar" src="images/sidebar_4.png">
+<img width="318" alt="Screenshot of the sidebar" src="images/sidebar_6.png">
 
-<img width="385" alt="Screenshot of the sidebar" src="images/sidebar_3.png">
+<img width="318" alt="Screenshot of the sidebar" src="images/sidebar_7.png">
+
+<img width="384" alt="Screenshot of the sidebar" src="images/sidebar_8.png">
 
 #### Search
 
