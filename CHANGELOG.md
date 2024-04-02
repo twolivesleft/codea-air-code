@@ -1,5 +1,9 @@
 # Change Log
 
+## 1.3.2 (not released)
+- Implemented and documented support for connecting over USB
+- Exposed modern documentation
+
 ## 1.3.1 (2024/03/09)
 - Release version of 1.3.0
 

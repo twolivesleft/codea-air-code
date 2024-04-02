@@ -18,6 +18,12 @@ export function getWorkspaceUri(): vscode.Uri {
 	return vscode.window.activeTextEditor?.document.uri ?? vscode.Uri.parse("");
 }
 
+var airCode: AirCode;
+
+export function deactivate() {
+	airCode.deactivate();
+}
+
 export function activate(context: vscode.ExtensionContext) {
 	let workspaceUri = getWorkspaceUri();
 	vscode.commands.executeCommand('setContext', 'codea-air-code.hasWorkspaceUri', workspaceUri.scheme == "codea");
@@ -28,7 +34,7 @@ export function activate(context: vscode.ExtensionContext) {
 	const assetKeyOnDropProvider = new AssetKeyOnDropProvider();
 	const outputChannel = vscode.window.createOutputChannel("Codea", "codea-output");
 
-	const airCode = new AirCode(
+	airCode = new AirCode(
 		outputChannel,
 		parametersViewProvider,
 		referenceViewProvider,
@@ -174,6 +180,41 @@ export function activate(context: vscode.ExtensionContext) {
 		let uri = vscode.Uri.parse(`codea://${host}/${AirCode.rootFolder}/`);
 		await vscode.commands.executeCommand("vscode.openFolder", uri);
 	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.connectOverUSB', async () => {
+		let defaultCodeaPort = "18513";
+		let defaultLocalPort = "18514";
+
+		// Ask for "codeaPort:localPort" instead of two separate inputs.
+		let host = await vscode.window.showInputBox({
+			placeHolder: `${defaultCodeaPort}:${defaultLocalPort}`,
+			prompt: "Enter codeaPort:localPort, for example: '18513:18514'."
+		});
+		if (host === undefined) {
+			vscode.window.showWarningMessage("Connection to Codea was cancelled.");
+			return;
+		}
+		else if (host === "") {
+			host = `${defaultCodeaPort}:${defaultLocalPort}`;
+		}
+
+		let [codeaPort, localPort] = host.split(":");
+		if (localPort === undefined || codeaPort === undefined) {
+			vscode.window.showWarningMessage("Invalid input. Connection to Codea was cancelled.");
+			return;
+		}
+
+		// Make sure the ports are digits only
+		if (!/^\d+$/.test(localPort) || !/^\d+$/.test(codeaPort)) {
+			vscode.window.showWarningMessage("Invalid input. Connection to Codea was cancelled.");
+			return;
+		}
+
+		// We're using a special format here so we can tell when USB is used.
+		// e.g. codea://18513:18514/ (codeaPort = 18513, localPort = 18514)
+		let uri = vscode.Uri.parse(`codea://${host}/${AirCode.rootFolder}/`);
+		await vscode.commands.executeCommand("vscode.openFolder", uri);
+	}));	
 
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.executeLine', async () => {
 		let activeEditor = vscode.window.activeTextEditor;
