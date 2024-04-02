@@ -8,7 +8,13 @@
         Details: 'Details'
     };      
 
+    const legacyContent = document.getElementById('legacy-content');
+    const modernContent = document.getElementById('modern-content');
+    const legacyButton = document.getElementById('legacy');
+    const modernButton = document.getElementById('modern');
+
     var viewType = ViewType.None;
+    var isLegacy = true;
 
     // Handle messages sent from the extension to the webview
     window.addEventListener('message', event => {
@@ -48,13 +54,33 @@
             case 'setFunctionDetails':
                 {
                     setFunctionDetails(message.data.chapter, message.data.details, message.data.categoryImages);
-
+                    legacyButton.click();
                     break;
                 }
         }
     });
 
     vscode.postMessage({ type: 'webViewReady' });
+
+    legacyButton.addEventListener('click', () => {
+        if (!isLegacy) {
+            isLegacy = true;
+            modernButton.classList.remove('selected');
+            legacyButton.classList.add('selected');
+            legacyContent.style.display = 'block';
+            modernContent.style.display = 'none';
+        }
+    });
+
+    modernButton.addEventListener('click', () => {
+        if (isLegacy) {
+            isLegacy = false;
+            legacyButton.classList.remove('selected');
+            modernButton.classList.add('selected');
+            legacyContent.style.display = 'none';
+            modernContent.style.display = 'flex';
+        }
+    });
 
     function setChapters(chapters) {
         const content = document.querySelector('.reference-content');

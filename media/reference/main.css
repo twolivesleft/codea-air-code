@@ -1,3 +1,7 @@
+html, body {
+	height: 100%;
+}
+
 body {
 	background-color: transparent;
 }
@@ -236,4 +240,44 @@ body {
 
 pre {
 	white-space: pre-wrap;
+}
+
+.toolbar button {
+	display: block;
+	margin: 0 auto;
+	background: transparent;
+	border: #549D94;
+	border-style: solid;
+	border-radius: 4px;
+	color: #549D94;
+	width: 45%;
+	height: 30px;
+	cursor: pointer;
+}
+
+.toolbar button.selected {
+	background: #549D94;
+	color: black;
+}
+
+.toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	height: 40px;
+}
+
+.modern-div {
+	display: flex;
+	flex-direction: column;
+	height: calc(100% - 40px);
+	padding: 0px;
+	margin: 0px;
+	overflow: hidden;
+}
+
+.modern-frame {
+	flex-grow: 1;
+	width: 100%;
+	height: 100%;
 }

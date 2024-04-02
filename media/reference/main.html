@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src 'self'; font-src 'self'; img-src 'self' data: https:; style-src ${webview.cspSource} https://cdn.jsdelivr.net; script-src 'nonce-${nonce}' https://cdn.jsdelivr.net;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src 'self'; font-src 'self'; img-src 'self' data: https:; style-src ${webview.cspSource} https://cdn.jsdelivr.net; script-src 'nonce-${nonce}' https://cdn.jsdelivr.net; frame-src https://twolivesleft.github.io;">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <link href="${styleMainUri}" rel="stylesheet">
@@ -16,7 +16,19 @@
     <title>Codea Reference</title>
 </head>
 <body>
-    <div class="reference-content">Loading...</div>
+    <div class="toolbar">
+        <button id="legacy" class="selected">Legacy</button>
+        <button id="modern">Modern</button>
+    </div>
+    
+    <div id="legacy-content">
+        <div class="reference-content">Loading...</div>
+    </div>
+
+    <div id="modern-content" class="modern-div">
+        <iframe class="modern-frame" src="https://twolivesleft.github.io/Codea4-Docs/index.html" frameborder="0"></iframe>
+    </div>
+
     <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>
