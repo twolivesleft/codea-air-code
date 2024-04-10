@@ -14,7 +14,8 @@
 					"Starting incremental compilation\\.\\.\\.$",
 				  "endsPattern": "Watching for file changes\\.$"
 				}
-			  },			"isBackground": true,
+			  },
+			"isBackground": true,
 			"presentation": {
 				"reveal": "never"
 			},
