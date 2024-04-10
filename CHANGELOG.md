@@ -1,5 +1,8 @@
 # Change Log
 
+## 1.3.3 (2024/04/10)
+- Support for iCloud projects
+
 ## 1.3.2 (2024/04/02)
 - Implemented and documented support for connecting over USB
 - Exposed modern documentation

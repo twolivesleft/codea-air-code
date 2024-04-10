@@ -7,6 +7,7 @@ import { ParametersViewProvider } from './parameters';
 import { ReferenceViewProvider } from './reference';
 import { SearchViewProvider } from './search';
 import { CodeaDebugConfigurationProvider } from './debug-adapter/CodeaDebugConfigurationProvider';
+import { CodeaDecorationProvider } from './decorator';
 import { InlineDebugAdapterFactory } from './debug-adapter/InlineDebugAdapterFactory';
 import { AssetKeyOnDropProvider } from './drop';
 
@@ -32,6 +33,7 @@ export function activate(context: vscode.ExtensionContext) {
 	const referenceViewProvider = new ReferenceViewProvider(context.extensionUri);
 	const searchViewProvider = new SearchViewProvider(context.extensionUri);
 	const assetKeyOnDropProvider = new AssetKeyOnDropProvider();
+	const decorationProvider = new CodeaDecorationProvider();
 	const outputChannel = vscode.window.createOutputChannel("Codea", "codea-output");
 
 	airCode = new AirCode(
@@ -331,6 +333,8 @@ export function activate(context: vscode.ExtensionContext) {
 	}));
 
 	context.subscriptions.push(vscode.languages.registerDocumentDropEditProvider({ language: 'lua' }, assetKeyOnDropProvider));
+
+	context.subscriptions.push(vscode.window.registerFileDecorationProvider(decorationProvider));
 }
 
 function reapplyBreakpoints(uri: vscode.Uri) {
