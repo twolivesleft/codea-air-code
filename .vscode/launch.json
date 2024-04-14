@@ -15,7 +15,8 @@
 			"outFiles": [
 				"${workspaceFolder}/out/**/*.js"
 			],
-			"preLaunchTask": "${defaultBuildTask}"
+			"preLaunchTask": "${defaultBuildTask}",
+			"sourceMaps": true
 		},
 		{
 			"name": "Run Extension (LSP Debugging)",
@@ -30,7 +31,8 @@
 			"outFiles": [
 				"${workspaceFolder}/out/**/*.js"
 			],
-			"preLaunchTask": "${defaultBuildTask}"
+			"preLaunchTask": "${defaultBuildTask}",
+			"sourceMaps": true
 		},
 		{
 			"name": "Extension Tests",
