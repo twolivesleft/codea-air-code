@@ -39,33 +39,33 @@ Auto-completion is available for the Codea API as well as symbols defined in the
 
 Methods such as `background`, `fill`, `tint`, `stroke` and `color` will show a color indicator which can be used to visualize and easily change the assigned color using VSCode's color picker.
 
-<img width="441" alt="Color auto-completion" src="images/autocomplete_1.png">
+<img width="441" alt="Color Auto-Completion" src="images/autocomplete_1.png">
 
 #### Font and Sprites
 
 The `font` and `sprite` functions will automatically list the fonts and sprites available for the current project.
 
-<img width="448" alt="font auto-completion" src="images/autocomplete_2.png">
+<img width="448" alt="Font Auto-Completion" src="images/autocomplete_2.png">
 
-<img width="442" alt="sprite auto-completion" src="images/autocomplete_3.png">
+<img width="442" alt="Aprite Auto-Completion" src="images/autocomplete_3.png">
 
 #### Snippets
 
 Snippets make it easier to format the different Lua control structures such as `if`, `for`, `while` and `repeat`.
 
-<img width="136" alt="sprite auto-completion" src="images/autocomplete_4.png">
+<img width="136" alt="Code Snippet" src="images/autocomplete_4.png">
 
 #### Documentation
 
 Types can easily be documented using a triple-slash (`---`) comment.
 
-<img width="486" alt="sprite auto-completion" src="images/document_1.png">
+<img width="486" alt="Auto Documentation" src="images/document_1.png">
 
 ### Sidebar
 
 The Codea Sidebar gives access to Reference and Parameters sections as shown below.
 
-<img width="164" alt="Screenshot of the sidebar" src="images/sidebar_5.png">
+<img width="164" alt="Sidebar" src="images/sidebar_5.png">
 
 #### Reference
 
@@ -73,11 +73,11 @@ The Codea Reference section of the Sidebar contains the full documentation for C
 
 It is also possible to select and right click a word in a project's code to find the corresponding reference in the Legacy documentation (or using the `Find reference...` command), automatically focusing on the sidebar and opening the corresponding page.
 
-<img width="318" alt="Screenshot of the sidebar" src="images/sidebar_6.png">
+<img width="318" alt="Sidebar" src="images/sidebar_6.png">
 
-<img width="318" alt="Screenshot of the sidebar" src="images/sidebar_7.png">
+<img width="318" alt="Sidebar" src="images/sidebar_7.png">
 
-<img width="384" alt="Screenshot of the sidebar" src="images/sidebar_8.png">
+<img width="384" alt="Sidebar" src="images/sidebar_8.png">
 
 #### Search
 
@@ -85,7 +85,7 @@ This extension uses a virtual File System Provider to read the files from Codea.
 
 Until the feature is implemented, the extension provides its own limited version which will search in all files of the currently active project.
 
-<img width="383" alt="Screenshot of the sidebar" src="images/search.png">
+<img width="383" alt="Search" src="images/search.png">
 
 #### Parameters
 
@@ -93,7 +93,7 @@ The second section of the Codea Sidebar will show the current parameters for the
 
 All parameters can be controlled directly from Visual Studio Code even if the parameters are hidden in Codea, making it easier to tweak the projects.
 
-<img width="302" alt="Screenshot of parameters" src="images/parameters_2.png">
+<img width="302" alt="Parameters" src="images/parameters_2.png">
 
 ### Debugger
 
@@ -101,23 +101,29 @@ With a project running, Visual Studio Code can be used to attach to the running 
 
 Values of variables and watches can be modified while the execution is paused.
 
-<img width="806" alt="Screenshot of the debugger" src="images/debugger.png">
+<img width="806" alt="Debugger" src="images/debugger.png">
 
 #### Conditional Breakpoints
 
 To set a condition on a breakpoint, right click a breakpoint and select `Edit Breakpoint...`:
 
-<img width="457" alt="Screenshot of parameters" src="images/edit_breakpoint.png">
+<img width="457" alt="Edit breakpoint" src="images/edit_breakpoint.png">
 
 Enter a valid Lua expression which must be `true` for the breakpoint to hit.
 
-<img width="319" alt="Screenshot of parameters" src="images/breakpoint_condition.png">
+<img width="319" alt="Breakpoint condition" src="images/breakpoint_condition.png">
+
+#### Log Points
+
+Log Messages can be set on breakpoints to print the message in the Debug Console instead of breaking the execution. This can also be used to print the result of expressions within curly braces as can be seen in the following example:
+
+<img width="821" alt="Logpoint" src="images/logpoint.png">
 
 ## Installation
 
 Search for "Codea Air Code" in Visual Studio Code's Marketplace and install the extension.
 
-<img width="302" alt="Screenshot of the debugger" src="images/marketplace.png">
+<img width="302" alt="Installation" src="images/marketplace.png">
 
 ## Usage
 
@@ -125,11 +131,11 @@ Search for "Codea Air Code" in Visual Studio Code's Marketplace and install the 
 
 After installing the extension, open the Command Palette (Ctrl+Shift+P on Windows, ⇧⌘P on Mac), and run the `Codea: Connect to Host...` command to connect to a running instance of Codea on an iOS device.
 
-<img width="605" alt="Screenshot of the debugger" src="images/palette.png">
+<img width="605" alt="Command Palette" src="images/palette.png">
 
 After typing Enter or clicking the command, Visual Studio Code will ask for Codea's IP:
 
-<img width="605" alt="Screenshot of the debugger" src="images/connect.png">
+<img width="605" alt="Host Connection" src="images/connect.png">
 
 To find the device's IP to connect to, use the Air Code icon on the project selection screen in Codea. The default port is `18513`.
 
@@ -168,9 +174,9 @@ Assets such as images, sounds and models can be found under the Assets folder. N
 
 To reference any asset in a project, simply drag-and-drop the asset from the Explorer view **while holding the Shift key** into a Lua file and the Asset Key will automatically be added.
 
-<img width="738" alt="Dragging an asset" src="images/asset_drag.png">
+<img width="738" alt="Dragging an Asset" src="images/asset_drag.png">
 
-<img width="398" alt="Asset key" src="images/asset_key.png">
+<img width="398" alt="Asset Key" src="images/asset_key.png">
 
 ### Commands
 
