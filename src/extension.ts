@@ -10,6 +10,7 @@ import { CodeaDebugConfigurationProvider } from './debug-adapter/CodeaDebugConfi
 import { CodeaDecorationProvider } from './decorator';
 import { InlineDebugAdapterFactory } from './debug-adapter/InlineDebugAdapterFactory';
 import { AssetKeyOnDropProvider } from './drop';
+import { AirCodeService } from './service';
 
 export function getWorkspaceUri(): vscode.Uri {
 	if (vscode.workspace.workspaceFolders?.length === 1) {
@@ -35,6 +36,10 @@ export function activate(context: vscode.ExtensionContext) {
 	const assetKeyOnDropProvider = new AssetKeyOnDropProvider();
 	const decorationProvider = new CodeaDecorationProvider();
 	const outputChannel = vscode.window.createOutputChannel("Codea", "codea-output");
+	const service = new AirCodeService();
+
+	// Start the service to browse for codea-air-code services.
+	service.start();
 
 	airCode = new AirCode(
 		outputChannel,
@@ -161,26 +166,22 @@ export function activate(context: vscode.ExtensionContext) {
 		let defaultPort = "18513";
 		let defaultHost = `127.0.0.1:${defaultPort}`;
 
-		let host = await vscode.window.showInputBox({
-			placeHolder: defaultHost,
-			prompt: "Enter Codea's IP."
-		});
+		await service.pickService().then(async host => {
+			if (host === undefined) {
+				return;
+			}
 
-		if (host === undefined) {
-			vscode.window.showWarningMessage("Connection to Codea was cancelled.");
-			return;
-		}
-		else if (host === "") {
-			host = defaultHost;
-		}
-		else {
+			if (host == "") {
+				host = defaultHost;
+			}
+
 			if (!host.includes(":")) {
 				host += `:${defaultPort}`;
 			}
-		}
 
-		let uri = vscode.Uri.parse(`codea://${host}/${AirCode.rootFolder}/`);
-		await vscode.commands.executeCommand("vscode.openFolder", uri);
+			let uri = vscode.Uri.parse(`codea://${host}/${AirCode.rootFolder}/`);
+			await vscode.commands.executeCommand("vscode.openFolder", uri);
+		});
 	}));
 
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.connectOverUSB', async () => {

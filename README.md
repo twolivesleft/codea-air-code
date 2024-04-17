@@ -133,11 +133,11 @@ After installing the extension, open the Command Palette (Ctrl+Shift+P on Window
 
 <img width="605" alt="Command Palette" src="images/palette.png">
 
-After typing Enter or clicking the command, Visual Studio Code will ask for Codea's IP:
+After typing Enter or clicking the command, Visual Studio Code will ask to select a device or enter the IP and port to connect to:
 
-<img width="605" alt="Host Connection" src="images/connect.png">
+<img width="596" alt="Host Connection" src="images/connect_2.png">
 
-To find the device's IP to connect to, use the Air Code icon on the project selection screen in Codea. The default port is `18513`.
+To find the device's IP to connect to if the device is not in the list, use the Air Code icon on the project selection screen in Codea. The default port is `18513`.
 
 #### Fun Fact
 

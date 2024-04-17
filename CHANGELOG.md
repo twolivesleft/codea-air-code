@@ -1,5 +1,8 @@
 # Change Log
 
+## 1.3.4 (2024/04/17)
+- Use Bonjour to detect running instances of Codea on the local network
+
 ## 1.3.3 (2024/04/10)
 - Support for iCloud projects
 
