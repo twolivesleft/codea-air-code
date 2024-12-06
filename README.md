@@ -192,6 +192,7 @@ All commands included with this extension are prefixed with `Codea:`.
 | `Restart project`      | Restart the running project in Codea.                                 |
 | `Add dependency...`    | Select a dependency to add to the active Codea project.               |
 | `Find reference...`    | Look-up the reference for the selected word.                          |
+| `Set runtime...`       | Change the current project's runtime between legacy and modern.       |
 
 ## Requirements
 
