@@ -305,6 +305,22 @@ export function activate(context: vscode.ExtensionContext) {
 		airCode.restart(uri);
 	}));
 
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.setRuntime', async () => {
+		let activeEditor = vscode.window.activeTextEditor;
+
+		const uri = activeEditor?.document.uri;
+		if (uri === undefined) {
+			return;
+		}
+
+		let runtime = await vscode.window.showQuickPick(["modern", "legacy"], { placeHolder: "Select runtime" });
+		if (runtime === undefined) {
+			return;
+		}
+
+		airCode.setRuntime(uri, runtime);
+	}));
+
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.addDependency', async () => {
 		let activeEditor = vscode.window.activeTextEditor;
 

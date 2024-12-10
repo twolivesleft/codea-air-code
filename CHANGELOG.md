@@ -1,5 +1,8 @@
 # Change Log
 
+## 1.3.6 (not released)
+- New 'Set runtime...' command to switch a project between legacy and modern
+
 ## 1.3.5 (2024/04/17)
 - Fixing missing modules in packaged extension
 

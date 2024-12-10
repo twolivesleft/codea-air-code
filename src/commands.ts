@@ -21,6 +21,7 @@ export namespace Command {
         | "stopHost"
         | "restart"
         | "listProjects"
+        | "setRuntime"
         | "listUnimportedProjects"
         | "createFolder"
         | "addDependency"
@@ -99,6 +100,12 @@ export namespace Command {
 
     export interface ListProjects extends Command {
         command: 'listProjects';
+    }
+
+    export interface SetRuntime extends Command {
+        command: 'setRuntime';
+        path: string;
+        content: string;
     }
 
     export interface ListUnimportedProjects extends Command {
@@ -258,6 +265,12 @@ export namespace Command {
     export namespace ListProjectsCommand {
         export function from(): ListProjects {
             return { command: 'listProjects' };
+        }
+    }
+
+    export namespace SetRuntimeCommand {
+        export function from(path: string, content: string): SetRuntime {
+            return { command: 'setRuntime', path, content };
         }
     }
 

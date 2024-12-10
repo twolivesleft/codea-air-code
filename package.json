@@ -2,7 +2,7 @@
   "name": "codea-air-code",
   "displayName": "Codea Air Code",
   "description": "A remote editor and debugger for Codea projects.",
-  "version": "1.3.5",
+  "version": "1.3.6",
   "publisher": "twolivesleft",
   "license": "MIT",
   "homepage": "https://twolivesleft.github.io/codea-air-code/",
@@ -90,6 +90,10 @@
       {
         "command": "codea-air-code.restartProject",
         "title": "Codea: Restart project"
+      },
+      {
+        "command": "codea-air-code.setRuntime",
+        "title": "Codea: Set runtime..."
       },
       {
         "command": "codea-air-code.addDependency",
@@ -209,6 +213,10 @@
         {
           "command": "codea-air-code.restartProject",
           "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "codea-air-code.setRuntime",
+          "when": "workspaceFolderCount > 0 && resourceLangId == lua"
         },
         {
           "command": "codea-air-code.addDependency",
