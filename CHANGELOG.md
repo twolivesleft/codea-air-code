@@ -1,6 +1,10 @@
 # Change Log
 
-## 1.3.6 (not released)
+## 1.3.7 (2026/11/01)
+- Cmd+Shift+F (Ctrl+Shift+F) opens the Codea search, filled in with the selection or the word under the cursor
+- The Codea search no longer needs a code file to be focused
+
+## 1.3.6 (2025/01/14)
 - New 'Set runtime...' command to switch a project between legacy and modern
 
 ## 1.3.5 (2024/04/17)
