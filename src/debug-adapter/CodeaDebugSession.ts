@@ -17,7 +17,8 @@ export class CodeaDebugSession implements vscode.DebugAdapter {
 		}
 		
 		this._eventRegistration = this._airCode.debugEvents.event((message: string) => {
-			this._onDidSendMessage.fire(JSON.parse(message));
+			const parsed = JSON.parse(message);
+			this._onDidSendMessage.fire(this._airCode.links?.rewriteSourcePaths(parsed, 'toLocal') ?? parsed);
 		});
 	}
 
@@ -31,7 +32,7 @@ export class CodeaDebugSession implements vscode.DebugAdapter {
 			return;
 		}
 
-		this._airCode.debugMessage(uri, message);
+		this._airCode.debugMessage(uri, this._airCode.links?.rewriteSourcePaths(message, 'toRemote') ?? message);
 	}
 
 	public dispose() {

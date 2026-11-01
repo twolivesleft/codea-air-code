@@ -20,6 +20,7 @@ import * as Parameters from './parameters';
 import * as Reference from './reference';
 import * as Search from './search';
 import { getWorkspaceUri } from './extension';
+import { Links } from './links';
 import {
 	LanguageClient,
 	LanguageClientOptions,
@@ -72,6 +73,8 @@ export class AirCode implements vscode.FileSystemProvider {
     playProjectItem: vscode.StatusBarItem | undefined;
 
     textFileExtensions: string[] = [];
+
+    links: Links | undefined;
 
     constructor(outputChannel: vscode.OutputChannel,
                 parametersView: Parameters.ParametersViewProvider,
@@ -176,9 +179,26 @@ export class AirCode implements vscode.FileSystemProvider {
     startDebugging() {
         const folder = vscode.workspace.workspaceFolders?.[0];
         
-        if (folder !== undefined && vscode.debug.activeDebugSession === undefined) {
-            vscode.debug.startDebugging(folder, "Play in Codea");
+        if (folder === undefined || vscode.debug.activeDebugSession !== undefined) {
+            return;
         }
+
+        const connectionUri = folder.uri.scheme === 'file' ? this.links?.connectionUri() : undefined;
+        if (connectionUri === undefined) {
+            vscode.debug.startDebugging(folder, "Play in Codea");
+            return;
+        }
+
+        // A linked folder has no launch.json of ours, so the configuration is given here
+        vscode.debug.startDebugging(folder, {
+            name: "Play in Codea",
+            type: "luaInline",
+            request: "attach",
+            sourceBasePath: `codea://${connectionUri.authority}/${AirCode.rootFolder}/`,
+            listenPublicly: false,
+            listenPort: 56789,
+            encoding: "UTF-8"
+        });
     }
 
     // Web Socket
@@ -416,7 +436,12 @@ export class AirCode implements vscode.FileSystemProvider {
             // Options to control the language client
             let clientOptions: LanguageClientOptions = {
                 // Register the server for lua documents
-                documentSelector: [{ scheme: 'codea', language: 'lua' }],
+                documentSelector: [
+                    { scheme: 'codea', language: 'lua' },
+                    ...(airCode.links?.projects() ?? []).map(project => ({
+                        scheme: 'file', language: 'lua', pattern: `${project.localUri.fsPath}/*.lua`
+                    }))
+                ],
                 synchronize: {
                     // Notify the server about file changes to '.clientrc files contained in the workspace
                     fileEvents: vscode.workspace.createFileSystemWatcher('**/*.lua')
@@ -660,8 +685,8 @@ export class AirCode implements vscode.FileSystemProvider {
         this.sendCommand(uri, Command.Restart.from());
     }
 
-    setRuntime(uri: vscode.Uri, runtime: string) {
-        this.sendCommand(uri, Command.SetRuntimeCommand.from(uri.path, runtime));
+    async setRuntime(uri: vscode.Uri, runtime: string) {
+        await this.sendCommand(uri, Command.SetRuntimeCommand.from(uri.path, runtime));
     }
 
     listUnimportedProjects(uri: vscode.Uri): string[] | Thenable<string[]> {
@@ -686,6 +711,38 @@ export class AirCode implements vscode.FileSystemProvider {
 
     async getInformation(uri: vscode.Uri) : Promise<GetInformationResponse> {
         return this.sendCommand<GetInformationResponse>(uri, Command.GetInformation.from());
+    }
+
+    // Codea sends its answers to the newest connection only, and stops answering altogether when
+    // any older connection closes, such as one from another VS Code window. A connection that no
+    // longer answers is replaced. This also sets the text extensions writeFile needs.
+    async ensureResponsive(uri: vscode.Uri) {
+        for (let attempt = 0; attempt < 2; attempt++) {
+            const timeout = new Promise<undefined>(resolve => setTimeout(() => resolve(undefined), 5000));
+            const information = await Promise.race([this.getInformation(uri), timeout]);
+            if (information !== undefined) {
+                this.textFileExtensions = information.textExtensions;
+                return;
+            }
+            await this.closeConnection(uri);
+        }
+        throw new Error("Codea is not answering");
+    }
+
+    // Waits for the close to finish, so that it reaches Codea before any new connection does
+    async closeConnection(uri: vscode.Uri) {
+        const host = await this.checkForProxy(uri.authority, false);
+        const ws = this.webSockets.get(host);
+        this.webSockets.delete(host);
+        if (ws === undefined || ws.readyState === ws.CLOSED) {
+            return;
+        }
+        await new Promise<void>(resolve => {
+            ws.once('close', () => resolve());
+            setTimeout(resolve, 3000);
+            ws.close();
+        });
+        await this.waitForClosingSocket();
     }
 
     async addDependency(uri: vscode.Uri, dependency: string) : Promise<AddDependencyResponse> {

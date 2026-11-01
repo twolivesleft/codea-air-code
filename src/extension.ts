@@ -11,24 +11,42 @@ import { CodeaDecorationProvider } from './decorator';
 import { InlineDebugAdapterFactory } from './debug-adapter/InlineDebugAdapterFactory';
 import { AssetKeyOnDropProvider } from './drop';
 import { AirCodeService } from './service';
+import { Links } from './links';
+import { LinkSync } from './sync';
 
+// The uri commands are sent to: the codea:// workspace folder, or Codea's root for linked folders
 export function getWorkspaceUri(): vscode.Uri {
-	if (vscode.workspace.workspaceFolders?.length === 1) {
-		return vscode.workspace.workspaceFolders[0].uri;
+	const folders = vscode.workspace.workspaceFolders;
+	if (folders?.length === 1 && folders[0].uri.scheme === "codea") {
+		return folders[0].uri;
+	}
+
+	const connectionUri = links?.isLinked() ? links.connectionUri() : undefined;
+	if (connectionUri) {
+		return connectionUri;
+	}
+
+	if (folders?.length === 1) {
+		return folders[0].uri;
 	}
 
 	return vscode.window.activeTextEditor?.document.uri ?? vscode.Uri.parse("");
 }
 
 var airCode: AirCode;
+var links: Links | undefined;
 
 export function deactivate() {
 	airCode.deactivate();
 }
 
 export function activate(context: vscode.ExtensionContext) {
+	links = new Links(context);
+	const linkedFolders = links;
+
 	let workspaceUri = getWorkspaceUri();
 	vscode.commands.executeCommand('setContext', 'codea-air-code.hasWorkspaceUri', workspaceUri.scheme == "codea");
+	vscode.commands.executeCommand('setContext', 'codea-air-code.isLinked', linkedFolders.isLinked());
 
 	const parametersViewProvider = new ParametersViewProvider(context.extensionUri);
 	const referenceViewProvider = new ReferenceViewProvider(context.extensionUri);
@@ -47,6 +65,10 @@ export function activate(context: vscode.ExtensionContext) {
 		referenceViewProvider,
 		searchViewProvider,
 		context.extension.packageJSON.version);
+	airCode.links = linkedFolders;
+
+	const sync = new LinkSync(linkedFolders, airCode, context.workspaceState, outputChannel);
+	context.subscriptions.push(sync);
 
 	if (process.env.DEBUG_LSP == "1") {
 		console.log("LSP debugging enabled");
@@ -76,32 +98,85 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.window.registerWebviewViewProvider(SearchViewProvider.viewType, searchViewProvider)
 	);	
 
-	// Overwrite the debug actions if we are under a codea workspace
-	if (workspaceUri.scheme == "codea") {
+	// The linked project of the last linked file focused, which Play runs when no editor is open
+	let lastLinkedFile: vscode.Uri | undefined;
+
+	// Overwrite the debug actions if we are under a codea workspace or have linked folders
+	let playCommandsRegistered = false;
+	function registerPlayCommands() {
+		if (playCommandsRegistered) {
+			return;
+		}
+		playCommandsRegistered = true;
+
 		context.subscriptions.push(vscode.commands.registerCommand('workbench.action.debug.start', async () => {
 			const uri = vscode.window.activeTextEditor?.document.uri;
-			if (uri === undefined || uri.scheme != "codea") {
+			if (uri?.scheme == "codea") {
+				// The user has clicked the "Start" button or used the keyboard shortcut
+				await airCode.startHost(uri);
 				return;
 			}
 
-			// The user has clicked the "Start" button or used the keyboard shortcut
-			await airCode.startHost(uri);
+			const linkedFile = (uri && linkedFolders.find(uri)) ? uri : lastLinkedFile;
+			const found = linkedFile && linkedFolders.find(linkedFile);
+			if (linkedFile === undefined || found === undefined) {
+				return;
+			}
+
+			// Run what is on disk, including edits not pushed yet
+			await sync.sync(found[0]);
+			await airCode.startHost(linkedFolders.airCodeUri(linkedFile));
 		}));
 
 		context.subscriptions.push(vscode.commands.registerCommand('workbench.action.debug.restart', async () => {
 			// The user has clicked the "Restart" button or used the keyboard shortcut
-			airCode.restart(workspaceUri);
+			airCode.restart(getWorkspaceUri());
 		}));
 	
 		context.subscriptions.push(vscode.commands.registerCommand('workbench.action.debug.disconnect', () => {
 			// The user has clicked the "Disconnect" button or used the keyboard shortcut
 			vscode.debug.stopDebugging();
-			airCode.stopHost(workspaceUri);
+			airCode.stopHost(getWorkspaceUri());
 		}));
 
 		outputChannel.show(true);
 	}
-	
+
+	if (workspaceUri.scheme == "codea") {
+		registerPlayCommands();
+	}
+
+	// Linked folders sync on start, when the window regains focus, and as files change on disk
+	let lastSync = 0;
+	function syncLinkedFolders() {
+		if (!linkedFolders.isLinked() || Date.now() - lastSync < 2000) {
+			return;
+		}
+		lastSync = Date.now();
+		sync.syncAll();
+	}
+
+	function linksChanged() {
+		vscode.commands.executeCommand('setContext', 'codea-air-code.isLinked', linkedFolders.isLinked());
+		if (!linkedFolders.isLinked()) {
+			sync.dispose();
+			return;
+		}
+
+		registerPlayCommands();
+		sync.watch();
+		lastSync = 0;
+		syncLinkedFolders();
+	}
+
+	context.subscriptions.push(linkedFolders.onDidChange(linksChanged));
+	context.subscriptions.push(vscode.window.onDidChangeWindowState(state => {
+		if (state.focused) {
+			syncLinkedFolders();
+		}
+	}));
+	linksChanged();
+
 	console.log(`"codea-air-code" is now active`);
 	
 	parametersViewProvider.airCode = airCode;
@@ -128,6 +203,16 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.workspace.registerFileSystemProvider('codea', airCode, { isCaseSensitive: true }));
 
 	context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(async (textEditor) => {
+		const linked = textEditor && linkedFolders.find(textEditor.document.uri);
+		if (linked) {
+			lastLinkedFile = textEditor.document.uri;
+			if (airCode.playProjectItem) {
+				airCode.playProjectItem.text = `▶️ Play ${linked[0].remotePath.split('/').pop()} in Codea`;
+				airCode.playProjectItem.show();
+			}
+			return;
+		}
+
 		if (textEditor?.document.uri.scheme != "codea") {
 			airCode.playProjectItem?.hide();
 			return;
@@ -159,7 +244,7 @@ export function activate(context: vscode.ExtensionContext) {
     }));
 
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.refreshConnection', async () => {
-		await airCode.getSocketForUri(workspaceUri, true);
+		await airCode.getSocketForUri(getWorkspaceUri(), true);
 	}));
 
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.connectToHost', async () => {
@@ -228,7 +313,7 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
-		airCode.loadString(activeEditor?.document.uri, text);
+		airCode.loadString(linkedFolders.airCodeUri(activeEditor.document.uri), text);
 	}));
 
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.executeSelection', async () => {
@@ -239,7 +324,7 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
-		airCode.loadString(activeEditor?.document.uri, text);
+		airCode.loadString(linkedFolders.airCodeUri(activeEditor.document.uri), text);
 	}));
 
 	async function findReference(uri: vscode.Uri, text: string) {
@@ -264,7 +349,7 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
-		findReference(activeEditor?.document.uri, text);
+		findReference(linkedFolders.airCodeUri(activeEditor.document.uri), text);
 	}));
 
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.textReference', async () => {
@@ -323,26 +408,34 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.setRuntime', async () => {
 		let activeEditor = vscode.window.activeTextEditor;
 
-		const uri = activeEditor?.document.uri;
-		if (uri === undefined) {
+		const editorUri = activeEditor?.document.uri;
+		if (editorUri === undefined) {
 			return;
 		}
+		const uri = linkedFolders.airCodeUri(editorUri);
 
 		let runtime = await vscode.window.showQuickPick(["modern", "legacy"], { placeHolder: "Select runtime" });
 		if (runtime === undefined) {
 			return;
 		}
 
-		airCode.setRuntime(uri, runtime);
+		await airCode.setRuntime(uri, runtime);
+
+		// The runtime is stored in Info.plist
+		const linked = linkedFolders.find(editorUri);
+		if (linked) {
+			await sync.sync(linked[0]);
+		}
 	}));
 
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.addDependency', async () => {
 		let activeEditor = vscode.window.activeTextEditor;
 
-		const uri = activeEditor?.document.uri;
-		if (uri === undefined) {
+		const editorUri = activeEditor?.document.uri;
+		if (editorUri === undefined) {
 			return;
 		}
+		const uri = linkedFolders.airCodeUri(editorUri);
 
 		const airCodePath = new AirCodePath(uri.path);
 
@@ -360,8 +453,121 @@ export function activate(context: vscode.ExtensionContext) {
 				let path = `codea://${uri.authority}/${AirCode.rootFolder}/${airCodePath.project}/Dependencies/${choice}`;
 				let newUri = vscode.Uri.parse(path);
 				airCode.fileCreated(newUri);	
+
+				// Dependencies are stored in Info.plist
+				const linked = linkedFolders.find(editorUri);
+				if (linked) {
+					await sync.sync(linked[0]);
+				}
 			}
 		});
+	}));
+
+	async function pickHost(): Promise<string | undefined> {
+		const defaultPort = "18513";
+		let host = await service.pickService();
+		if (host === undefined) {
+			return undefined;
+		}
+		if (host == "") {
+			host = `127.0.0.1:${defaultPort}`;
+		}
+		if (!host.includes(":")) {
+			host += `:${defaultPort}`;
+		}
+		return host;
+	}
+
+	// Projects in Codea as paths under /Codea, e.g. "iPad Projects/EmuTests" or "iCloud/Collection/Project"
+	async function listCodeaProjects(host: string): Promise<string[]> {
+		const root = vscode.Uri.from({ scheme: 'codea', authority: host, path: `/${AirCode.rootFolder}` });
+		const folders = async (uri: vscode.Uri) =>
+			(await airCode.readDirectory(uri)).filter(([, type]) => type === vscode.FileType.Directory).map(([name]) => name);
+
+		const projects: string[] = [];
+		for (const collection of await folders(root)) {
+			if (collection === ".vscode") {
+				continue;
+			}
+			if (collection === "iCloud") {
+				for (const cloudCollection of await folders(vscode.Uri.joinPath(root, collection))) {
+					for (const project of await folders(vscode.Uri.joinPath(root, collection, cloudCollection))) {
+						projects.push(`${collection}/${cloudCollection}/${project}`);
+					}
+				}
+				continue;
+			}
+			for (const project of await folders(vscode.Uri.joinPath(root, collection))) {
+				projects.push(`${collection}/${project}`);
+			}
+		}
+		return projects;
+	}
+
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.linkFolder', async (target?: vscode.Uri) => {
+		let localUri = target;
+		if (localUri === undefined) {
+			const editorUri = vscode.window.activeTextEditor?.document.uri;
+			const picked = await vscode.window.showOpenDialog({
+				canSelectFiles: false,
+				canSelectFolders: true,
+				defaultUri: editorUri?.scheme === "file" ? vscode.Uri.joinPath(editorUri, "..") : vscode.workspace.workspaceFolders?.[0]?.uri,
+				openLabel: "Link to Codea",
+			});
+			localUri = picked?.[0];
+		}
+		if (localUri === undefined) {
+			return;
+		}
+
+		const folder = vscode.workspace.getWorkspaceFolder(localUri);
+		if (folder === undefined || folder.uri.scheme !== "file") {
+			vscode.window.showErrorMessage("Open the folder in VS Code before linking it: the link is saved in its .vscode/settings.json.");
+			return;
+		}
+
+		const host = linkedFolders.host() ?? await pickHost();
+		if (host === undefined) {
+			return;
+		}
+
+		let projects: string[];
+		try {
+			projects = await vscode.window.withProgress(
+				{ location: vscode.ProgressLocation.Notification, title: "Listing Codea projects..." },
+				() => listCodeaProjects(host));
+		} catch (error) {
+			vscode.window.showErrorMessage(`Could not list the projects in Codea: ${error}`);
+			return;
+		}
+
+		// Codea stores a project as "Name.codea", inside its collection's folder
+		const parts = localUri.path.split('/');
+		const localName = parts.pop()!.replace(/\.codea$/, '');
+		const localCollection = parts.pop();
+		const items = projects.map(project => ({ label: project, picked: false }));
+		const guess = items.find(item => item.label === `${localCollection}/${localName}`)
+			?? items.find(item => item.label.endsWith(`/${localName}`));
+		if (guess) {
+			items.splice(items.indexOf(guess), 1);
+			items.unshift({ ...guess, picked: true });
+		}
+
+		const choice = await vscode.window.showQuickPick(items, {
+			title: `Link ${vscode.workspace.asRelativePath(localUri)} to a Codea project`,
+			placeHolder: "Codea project",
+		});
+		if (choice === undefined) {
+			return;
+		}
+
+		await linkedFolders.addLink(folder, localUri, choice.label, host);
+		vscode.window.showInformationMessage(`${vscode.workspace.asRelativePath(localUri)} is linked to ${choice.label} in Codea.`);
+	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.syncLinkedFolders', async () => {
+		lastSync = 0;
+		await sync.syncAll();
 	}));
 
 	context.subscriptions.push(vscode.languages.registerDocumentDropEditProvider({ language: 'lua' }, assetKeyOnDropProvider));

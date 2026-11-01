@@ -49,7 +49,7 @@ export class LSPMessageReader implements MessageReader {
 
     // TODO Call this when we receive an lsp message from Codea?
     onMessage(data: Message) {
-        this.callback!(data);
+        this.callback!(this.airCode.links?.rewriteUris(data, 'toLocal') ?? data);
     }
 
     dispose(): void {
@@ -72,7 +72,7 @@ export class LSPMessageWriter implements MessageWriter {
     }
 
     async write(msg: Message): Promise<void> {
-        let jsonMessage = JSON.stringify(msg);
+        let jsonMessage = JSON.stringify(this.airCode.links?.rewriteUris(msg, 'toRemote') ?? msg);
 
         let likelyId = this.airCode.commandId + 1
         this.airCode.logLsp(`LSPMessageWriter write id ${likelyId} ${jsonMessage}.`);

@@ -31,7 +31,8 @@
     "debugger"
   ],
   "activationEvents": [
-    "onFileSystem:codea"
+    "onFileSystem:codea",
+    "workspaceContains:.vscode/settings.json"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -50,7 +51,7 @@
           "type": "webview",
           "id": "codea-reference",
           "name": "Reference",
-          "when": "codea-air-code.hasWorkspaceUri == true"
+          "when": "codea-air-code.hasWorkspaceUri == true || codea-air-code.isLinked == true"
         },
         {
           "type": "webview",
@@ -62,7 +63,7 @@
           "type": "webview",
           "id": "codea-parameters",
           "name": "Parameters",
-          "when": "codea-air-code.hasWorkspaceUri == true"
+          "when": "codea-air-code.hasWorkspaceUri == true || codea-air-code.isLinked == true"
         }
       ]
     },
@@ -110,6 +111,14 @@
       {
         "command": "codea-air-code.findInFiles",
         "title": "Codea: Find in Files"
+      },
+      {
+        "command": "codea-air-code.linkFolder",
+        "title": "Codea: Link Folder to Project..."
+      },
+      {
+        "command": "codea-air-code.syncLinkedFolders",
+        "title": "Codea: Sync Linked Folders"
       }
     ],
     "keybindings": [
@@ -245,8 +254,38 @@
         {
           "command": "codea-air-code.findInFiles",
           "when": "codea-air-code.hasWorkspaceUri"
+        },
+        {
+          "command": "codea-air-code.syncLinkedFolders",
+          "when": "codea-air-code.isLinked"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "codea-air-code.linkFolder",
+          "when": "explorerResourceIsFolder && resourceScheme == file",
+          "group": "a_codea"
         }
       ]
+    },
+    "configuration": {
+      "title": "Codea Air Code",
+      "properties": {
+        "codea-air-code.host": {
+          "type": "string",
+          "scope": "resource",
+          "description": "Codea's Air Code address (host:port) for linked folders."
+        },
+        "codea-air-code.links": {
+          "type": "object",
+          "scope": "resource",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "description": "Local folders kept in sync with Codea projects, from a path relative to the workspace folder to the project in Codea, e.g. \"iPad Projects/EmuTests\"."
+        }
+      }
     }
   },
   "scripts": {
