@@ -1,0 +1,48 @@
+# Publishes the extension to the Visual Studio Marketplace when a version tag
+# such as v1.3.7 is pushed. Authenticates with Marketplace Trusted Publishing
+# (OIDC), so there is no token to store: the publisher's Trusted Publishing
+# policy must name this repository, publish.yml and the marketplace environment.
+name: Publish
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: marketplace
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check the tag matches package.json
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match package.json version ${version}"
+            exit 1
+          fi
+
+      - run: npm ci
+
+      - name: Package
+        run: npx @vscode/vsce@4.1.0 package -o "codea-air-code-${GITHUB_REF_NAME#v}.vsix"
+
+      - name: Publish to the Marketplace
+        run: npx @vscode/vsce@4.1.0 publish --oidc --packagePath "codea-air-code-${GITHUB_REF_NAME#v}.vsix"
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          awk -v heading="## ${GITHUB_REF_NAME#v} " 'index($0, heading) == 1 { found = 1; next } /^## / { found = 0 } found' CHANGELOG.md > notes.md
+          gh release create "${GITHUB_REF_NAME}" "codea-air-code-${GITHUB_REF_NAME#v}.vsix" --title "${GITHUB_REF_NAME}" --notes-file notes.md
