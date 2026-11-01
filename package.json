@@ -383,7 +383,7 @@
       "codea-logo": {
         "description": "Codea logo",
         "default": {
-          "fontPath": "resources/icons/codea-icons.woff",
+          "fontPath": "resources/icons/codea-logo.woff",
           "fontCharacter": "\\E000"
         }
       }

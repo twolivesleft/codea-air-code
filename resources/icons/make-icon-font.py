@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-# Builds codea-icons.woff, the font behind the $(codea-logo) icon, from Codea's app icon:
+# Builds codea-logo.woff, the font behind the $(codea-logo) icon, from Codea's app icon:
 # the "Co" mark of AppIcon.icon (CoThick.svg in the Codea app's sources), placed on the
 # icon's canvas as Icon Composer places it. Run it from this folder with fontTools
-# installed (pip install fonttools).
+# installed (pip install fonttools). VS Code caches icon fonts by path, so a changed
+# logo needs a new file name to show up for people who had the old one.
 #
 #     python3 make-icon-font.py [outline|knockout|mark]   (outline by default)
 
@@ -131,7 +132,7 @@ def main():
     builder.setupOS2(sTypoAscender=EM, sTypoDescender=0, usWinAscent=EM, usWinDescent=0)
     builder.setupPost()
     builder.font.flavor = "woff"
-    builder.save("codea-icons.woff")
+    builder.save("codea-logo.woff")
 
 
 if __name__ == "__main__":
