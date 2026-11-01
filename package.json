@@ -422,6 +422,7 @@
               "altText": "The Projects section of the Codea sidebar"
             },
             "completionEvents": [
+              "onContext:codea-air-code.walkthroughConnected",
               "onSettingChanged:codea-air-code.host"
             ]
           },
@@ -434,6 +435,7 @@
               "altText": "Getting a project from Codea"
             },
             "completionEvents": [
+              "onContext:codea-air-code.walkthroughLinked",
               "onCommand:codea-air-code.getProject"
             ]
           },
@@ -445,6 +447,7 @@
               "markdown": "media/walkthrough/link.md"
             },
             "completionEvents": [
+              "onContext:codea-air-code.walkthroughLinked",
               "onCommand:codea-air-code.linkFolder"
             ]
           },
