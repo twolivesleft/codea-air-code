@@ -12,6 +12,8 @@ export class CodeaStatus {
     private syncing = false;
     private project: string | undefined;
     private running = false;
+    // The project started from here, shown instead of the one in focus while it runs
+    private startedProject: string | undefined;
     private visible = false;
 
     constructor(context: vscode.ExtensionContext) {
@@ -38,6 +40,7 @@ export class CodeaStatus {
         this.host = host ?? this.host;
         if (state !== 'connected') {
             this.running = false;
+            this.startedProject = undefined;
         }
         this.render();
     }
@@ -52,8 +55,16 @@ export class CodeaStatus {
         this.render();
     }
 
+    setStartedProject(project: string) {
+        this.startedProject = project;
+        this.render();
+    }
+
     setRunning(running: boolean) {
         this.running = running;
+        if (!running) {
+            this.startedProject = undefined;
+        }
         this.render();
     }
 
@@ -82,9 +93,10 @@ export class CodeaStatus {
         }
 
         const play = this.playItem;
-        if (this.project !== undefined) {
-            play.text = `${this.running ? "$(debug-stop)" : "$(play)"} ${this.project}`;
-            play.tooltip = this.running ? `Stop ${this.project} in Codea` : `Play ${this.project} in Codea`;
+        const project = this.running ? this.startedProject ?? this.project : this.project;
+        if (project !== undefined) {
+            play.text = `${this.running ? "$(debug-stop)" : "$(play)"} ${project}`;
+            play.tooltip = this.running ? `Stop ${project} in Codea` : `Play ${project} in Codea`;
             play.command = this.running ? "workbench.action.debug.disconnect" : "workbench.action.debug.start";
         }
 
@@ -94,7 +106,7 @@ export class CodeaStatus {
             connection.hide();
         }
 
-        if (this.visible && this.project !== undefined) {
+        if (this.visible && project !== undefined) {
             play.show();
         } else {
             play.hide();

@@ -741,6 +741,10 @@ export class AirCode implements vscode.FileSystemProvider {
     }
 
     async startHost(uri: vscode.Uri) : Promise<StartHostResponse> {
+        const project = new AirCodePath(uri.path).project;
+        if (project) {
+            this.status?.setStartedProject(project);
+        }
         return this.sendCommand<StartHostResponse>(uri, Command.StartHost.from(uri.path));
     }
 
