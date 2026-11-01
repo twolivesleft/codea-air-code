@@ -10,6 +10,16 @@
                     setResults(message.data.fileResults, message.data.uriMap);
                     break;
                 }
+            case 'setQuery':
+                {
+                    if (message.text) {
+                        inputSearch.value = message.text;
+                        refreshSearch();
+                    }
+                    inputSearch.focus();
+                    inputSearch.select();
+                    break;
+                }
         }
     });
 
