@@ -409,7 +409,8 @@
               "altText": "A folder of Codea projects in the Explorer"
             },
             "completionEvents": [
-              "onContext:workspaceFolderCount > 0"
+              "onContext:codea-air-code.walkthroughFolderReady",
+              "onCommand:workbench.action.files.openFolder"
             ]
           },
           {

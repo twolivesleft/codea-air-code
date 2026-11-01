@@ -71,6 +71,7 @@ export function activate(context: vscode.ExtensionContext) {
 		context.extension.packageJSON.version);
 	airCode.links = linkedFolders;
 
+
 	const status = new CodeaStatus(context);
 	airCode.status = status;
 	status.setVisible(isCodeaWorkspace);
@@ -242,8 +243,15 @@ export function activate(context: vscode.ExtensionContext) {
 	}));
 
 	const walkthrough = `${context.extension.id}#linkedFolders`;
-	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.showWalkthrough', () =>
-		vscode.commands.executeCommand('workbench.action.openWalkthrough', walkthrough, false)));
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.showWalkthrough', async () => {
+		await vscode.commands.executeCommand('workbench.action.openWalkthrough', walkthrough, false);
+
+		// VS Code never checks off a step whose context already holds when it registers the
+		// walkthrough, which it does when the walkthrough is first shown, so this key is only
+		// set once it is open
+		const hasLocalFolder = vscode.workspace.workspaceFolders?.some(folder => folder.uri.scheme === "file") ?? false;
+		await vscode.commands.executeCommand('setContext', 'codea-air-code.walkthroughFolderReady', hasLocalFolder);
+	}));
 
 	// People who connect to Codea the old way hear about linked folders once
 	const introducedKey = 'linkedFoldersIntroduced';
