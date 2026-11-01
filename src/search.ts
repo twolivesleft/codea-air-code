@@ -14,10 +14,39 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
 
 	private findInFilesResponse?: FindInFilesResponse
 	private uriMap?: {[uri: string]: string}
+	private lastProjectUri?: vscode.Uri
+	private pendingQuery?: string
 
 	constructor(
 		private readonly _extensionUri: vscode.Uri
 	) { }
+
+	public async show(query: string) {
+		this.pendingQuery = query;
+		await vscode.commands.executeCommand(`${SearchViewProvider.viewType}.focus`);
+		if (this._view?.visible && await this._view.webview.postMessage({ type: 'setQuery', text: query })) {
+			this.pendingQuery = undefined;
+		}
+	}
+
+	// The search runs in the project of the last Codea file focused, or of the workspace folder
+	private projectUri(): vscode.Uri | undefined {
+		const editorUri = vscode.window.activeTextEditor?.document.uri;
+		if (editorUri?.scheme == "codea") {
+			this.lastProjectUri = editorUri;
+		}
+
+		if (this.lastProjectUri) {
+			return this.lastProjectUri;
+		}
+
+		const workspaceUri = getWorkspaceUri();
+		if (workspaceUri.scheme == "codea" && new AirCodePath(workspaceUri.path).project) {
+			return workspaceUri;
+		}
+
+		return undefined;
+	}
 
 	public resolveWebviewView(
 		webviewView: vscode.WebviewView,
@@ -40,6 +69,10 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
 				switch (data.type) {
 					case 'webViewReady':
 						{
+							if (this.pendingQuery !== undefined) {
+								webviewView.webview.postMessage({ type: 'setQuery', text: this.pendingQuery });
+								this.pendingQuery = undefined;
+							}
 							break;
 						}
 					case 'debugMessage':
@@ -49,9 +82,9 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
 						}
 					case 'findInFiles':
 						{
-							let activeEditor = vscode.window.activeTextEditor;
-							if (activeEditor?.document.uri.scheme == "codea") {
-								this.findInFilesResponse = await this.airCode?.findInFiles(activeEditor.document.uri, data.text, data.caseSensitive, data.wholeWord, data.isRegex);
+							const projectUri = this.projectUri();
+							if (projectUri) {
+								this.findInFilesResponse = await this.airCode?.findInFiles(projectUri, data.text, data.caseSensitive, data.wholeWord, data.isRegex);
 								this.uriMap = {}
 								if (this.findInFilesResponse) {
 									for (const [uri, fileResults] of Object.entries(this.findInFilesResponse.fileResults)) {
@@ -65,7 +98,7 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
 								this.sendResults();
 							}
 							else {
-								vscode.window.showErrorMessage("Open and click inside a code file in order to search in the corresponding project.");
+								vscode.window.showErrorMessage("Open a code file in order to search in the corresponding project.");
 							}				
 
 							break;

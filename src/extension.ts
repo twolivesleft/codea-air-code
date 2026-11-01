@@ -279,6 +279,21 @@ export function activate(context: vscode.ExtensionContext) {
 		findReference(getWorkspaceUri(), text);
 	}));
 
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.findInFiles', async () => {
+		let query = "";
+
+		const editor = vscode.window.activeTextEditor;
+		if (editor) {
+			const selection = editor.selection;
+			const range = selection.isEmpty ? editor.document.getWordRangeAtPosition(selection.active) : selection;
+			if (range && range.isSingleLine) {
+				query = editor.document.getText(range);
+			}
+		}
+
+		await searchViewProvider.show(query);
+	}));
+
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.executeCommand', async () => {
 		let command = await vscode.window.showInputBox({
 			prompt: "Enter a Lua command."

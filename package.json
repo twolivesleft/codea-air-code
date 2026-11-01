@@ -106,6 +106,18 @@
       {
         "command": "codea-air-code.textReference",
         "title": "Codea: Find reference..."
+      },
+      {
+        "command": "codea-air-code.findInFiles",
+        "title": "Codea: Find in Files"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "codea-air-code.findInFiles",
+        "key": "ctrl+shift+f",
+        "mac": "cmd+shift+f",
+        "when": "codea-air-code.hasWorkspaceUri"
       }
     ],
     "languages": [
@@ -229,6 +241,10 @@
         {
           "command": "codea-air-code.selectionReference",
           "when": "false"
+        },
+        {
+          "command": "codea-air-code.findInFiles",
+          "when": "codea-air-code.hasWorkspaceUri"
         }
       ]
     }
