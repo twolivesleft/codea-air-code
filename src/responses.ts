@@ -18,6 +18,7 @@ export type GetInformationResponse = {
     version: string;
     hasHost: boolean;
     textExtensions: string[];
+    watchesFiles?: boolean;
 }
 
 export type AddDependencyResponse = {

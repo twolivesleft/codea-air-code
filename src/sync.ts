@@ -25,6 +25,10 @@ export class LinkSync {
     private queues = new Map<string, Promise<void>>();
     private pendingFiles = new Map<string, NodeJS.Timeout>();
     private conflicts = new Set<string>();
+    private running = 0;
+
+    private _onDidChangeBusy = new vscode.EventEmitter<boolean>();
+    onDidChangeBusy = this._onDidChangeBusy.event;
 
     constructor(
         private readonly links: Links,
@@ -93,12 +97,55 @@ export class LinkSync {
                     return;
                 }
 
-                const remoteFiles = await this.listRemote(project);
-                if (remoteFiles !== undefined) {
-                    await this.syncFile(project, name, remoteFiles);
-                }
+                await this.syncNamed(project, [name]);
             });
         }, 150));
+    }
+
+    // Brings the named files of a project up to date, for changes Codea reported or a file opened here
+    syncFiles(project: LinkedProject, names: string[]): Promise<void> {
+        return this.enqueue(project, () => this.syncNamed(project, names));
+    }
+
+    // Projects of filesChanged paths, e.g. "/Codea/Documents/Project"
+    remoteFilesChanged(path: string, files: string[]) {
+        for (const project of this.links.projects()) {
+            if (path === `/${AirCode.rootFolder}/${project.remotePath}`) {
+                this.syncFiles(project, files.filter(name => !name.startsWith('.')));
+            }
+        }
+    }
+
+    private async syncNamed(project: LinkedProject, names: string[]) {
+        const projectUri = this.links.remoteProjectUri(project);
+        if (projectUri === undefined) {
+            return;
+        }
+
+        try {
+            await this.airCode.ensureResponsive(projectUri);
+        } catch (error) {
+            this.log.appendLine(`Could not reach Codea for ${project.remotePath}: ${error}`);
+            return;
+        }
+
+        const remoteFiles = new Map<string, RemoteFile>();
+        for (const name of names) {
+            try {
+                const stat = await this.airCode.stat(vscode.Uri.joinPath(projectUri, name));
+                if (stat.type === vscode.FileType.File) {
+                    remoteFiles.set(name, { mtime: stat.mtime });
+                }
+            } catch (error) {
+                if (!(error instanceof vscode.FileSystemError && error.code === 'FileNotFound')) {
+                    throw error;
+                }
+            }
+        }
+
+        for (const name of names) {
+            await this.syncFile(project, name, remoteFiles);
+        }
     }
 
     private async syncFile(project: LinkedProject, name: string, remoteFiles: Map<string, RemoteFile>) {
@@ -227,10 +274,18 @@ export class LinkSync {
     // Runs one task at a time per project, so a save never races a sync of the same files
     private enqueue(project: LinkedProject, task: () => Promise<void>): Promise<void> {
         const key = project.localUri.toString();
+        if (this.running++ === 0) {
+            this._onDidChangeBusy.fire(true);
+        }
         const next = (this.queues.get(key) ?? Promise.resolve())
             .then(task)
             .catch(error => {
                 this.log.appendLine(`Sync of ${project.remotePath} failed: ${error}`);
+            })
+            .finally(() => {
+                if (--this.running === 0) {
+                    this._onDidChangeBusy.fire(false);
+                }
             });
         this.queues.set(key, next);
         return next;

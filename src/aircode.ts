@@ -76,6 +76,11 @@ export class AirCode implements vscode.FileSystemProvider {
 
     links: Links | undefined;
 
+    // Whether Codea sends filesChanged for the projects named with watchFiles
+    watchesFiles = false;
+    private watchedPaths: string[] = [];
+    filesChanged = new vscode.EventEmitter<{ path: string, files: string[] }>();
+
     constructor(outputChannel: vscode.OutputChannel,
                 parametersView: Parameters.ParametersViewProvider,
                 referenceView: Reference.ReferenceViewProvider,
@@ -433,34 +438,10 @@ export class AirCode implements vscode.FileSystemProvider {
 
             parent.setStatusConnected();
 
-            // Options to control the language client
-            let clientOptions: LanguageClientOptions = {
-                // Register the server for lua documents
-                documentSelector: [
-                    { scheme: 'codea', language: 'lua' },
-                    ...(airCode.links?.projects() ?? []).map(project => ({
-                        scheme: 'file', language: 'lua', pattern: `${project.localUri.fsPath}/*.lua`
-                    }))
-                ],
-                synchronize: {
-                    // Notify the server about file changes to '.clientrc files contained in the workspace
-                    fileEvents: vscode.workspace.createFileSystemWatcher('**/*.lua')
-                },
-                revealOutputChannelOn: RevealOutputChannelOn.Never
-            };
+            airCode.watchesFiles = information.watchesFiles === true;
+            airCode.sendWatchedPaths(uri);
 
-            // Create the language client and start the client.
-            airCode.languageClient = new LanguageClient(
-                'codea-air-code.languageClient',
-                'Codea Language Client',
-                () => Promise.resolve({
-                    reader: airCode.messageReader,
-                    writer: airCode.messageWriter,
-                }),
-                clientOptions
-            );
-
-            airCode.languageClient.start();
+            airCode.startLanguageClient();
 
             let parameters = await airCode.getParameters(uri);
 
@@ -569,6 +550,14 @@ export class AirCode implements vscode.FileSystemProvider {
                                 airCode.debugEvents.fire(data.message);
                                 break;
                             }
+                        case "filesChanged":
+                            {
+                                airCode.filesChanged.fire(data);
+                                for (const file of data.files as string[]) {
+                                    airCode.fileChanged(uri.with({ path: `${data.path}/${file}` }));
+                                }
+                                break;
+                            }
                         case "lspResponse":
                             {
                                 airCode.logLsp(`lspResponse ${data.message}`)
@@ -583,6 +572,11 @@ export class AirCode implements vscode.FileSystemProvider {
         };
 
         ws.onclose = async function (event: CloseEvent) {
+            const current = airCode.webSockets.get(host);
+            if (current !== undefined && current !== ws) {
+                return;
+            }
+
             airCode.closingSocket = true;
 
             airCode.logLsp("Stopping languageClient...");
@@ -624,6 +618,61 @@ export class AirCode implements vscode.FileSystemProvider {
         }
 
         return ws;
+    }
+
+    startLanguageClient() {
+        this.languageClient?.stop();
+
+        // Options to control the language client
+        let clientOptions: LanguageClientOptions = {
+            // Register the server for lua documents
+            documentSelector: [
+                { scheme: 'codea', language: 'lua' },
+                ...(this.links?.projects() ?? []).map(project => ({
+                    scheme: 'file', language: 'lua', pattern: `${project.localUri.fsPath}/*.lua`
+                }))
+            ],
+            synchronize: {
+                // Notify the server about file changes to '.clientrc files contained in the workspace
+                fileEvents: vscode.workspace.createFileSystemWatcher('**/*.lua')
+            },
+            revealOutputChannelOn: RevealOutputChannelOn.Never
+        };
+
+        // Create the language client and start the client.
+        this.languageClient = new LanguageClient(
+            'codea-air-code.languageClient',
+            'Codea Language Client',
+            () => Promise.resolve({
+                reader: this.messageReader,
+                writer: this.messageWriter,
+            }),
+            clientOptions
+        );
+
+        this.languageClient.start();
+    }
+
+    // The language client only sees the linked folders it was started with
+    restartLanguageClient() {
+        if (this.languageClient !== undefined) {
+            this.startLanguageClient();
+        }
+    }
+
+    // Projects to hear about, as paths under /Codea, e.g. "/Codea/Documents/Project"
+    setWatchedPaths(uri: vscode.Uri, paths: string[]) {
+        const unchanged = paths.length === this.watchedPaths.length && paths.every((path, i) => path === this.watchedPaths[i]);
+        this.watchedPaths = paths;
+        if (!unchanged) {
+            this.sendWatchedPaths(uri);
+        }
+    }
+
+    private sendWatchedPaths(uri: vscode.Uri) {
+        if (this.watchesFiles && uri.scheme === "codea") {
+            this.sendCommand(uri, Command.WatchFiles.from(this.watchedPaths));
+        }
     }
 
     // Sending Commands
@@ -713,15 +762,19 @@ export class AirCode implements vscode.FileSystemProvider {
         return this.sendCommand<GetInformationResponse>(uri, Command.GetInformation.from());
     }
 
-    // Codea sends its answers to the newest connection only, and stops answering altogether when
-    // any older connection closes, such as one from another VS Code window. A connection that no
-    // longer answers is replaced. This also sets the text extensions writeFile needs.
+    // Codea sends its answers to the newest connection only, and older versions stop answering
+    // altogether when any older connection closes, such as one from another VS Code window. A
+    // connection that no longer answers is replaced. This also sets the text extensions writeFile
+    // needs. The check is a stat: a getInformation would make Codea skip commands still queued.
     async ensureResponsive(uri: vscode.Uri) {
+        const root = uri.with({ path: `/${AirCode.rootFolder}` });
         for (let attempt = 0; attempt < 2; attempt++) {
-            const timeout = new Promise<undefined>(resolve => setTimeout(() => resolve(undefined), 5000));
-            const information = await Promise.race([this.getInformation(uri), timeout]);
-            if (information !== undefined) {
-                this.textFileExtensions = information.textExtensions;
+            const timeout = new Promise<boolean>(resolve => setTimeout(() => resolve(false), 5000));
+            const answered = Promise.resolve(this.sendCommand(root, Command.StatFile.from(root.path))).then(() => true, () => true);
+            if (await Promise.race([answered, timeout])) {
+                if (this.textFileExtensions.length === 0) {
+                    this.textFileExtensions = (await this.getInformation(uri)).textExtensions;
+                }
                 return;
             }
             await this.closeConnection(uri);

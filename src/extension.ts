@@ -156,18 +156,59 @@ export function activate(context: vscode.ExtensionContext) {
 		sync.syncAll();
 	}
 
+	// Codea reports changes to the linked projects, and to those of codea:// files open here
+	function updateWatchedPaths() {
+		const paths = new Set(linkedFolders.projects().map(project => `/${AirCode.rootFolder}/${project.remotePath}`));
+		for (const document of vscode.workspace.textDocuments) {
+			if (document.uri.scheme === "codea") {
+				const airCodePath = new AirCodePath(document.uri.path);
+				if (airCodePath.project) {
+					const collection = airCodePath.isCloud ? `iCloud/${airCodePath.collection}` : airCodePath.collection;
+					paths.add(`/${AirCode.rootFolder}/${collection}/${airCodePath.project}`);
+				}
+			}
+		}
+		airCode.setWatchedPaths(getWorkspaceUri(), [...paths].sort());
+	}
+
+	const syncItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 98);
+	syncItem.text = "$(sync)";
+	syncItem.tooltip = "Sync linked folders with Codea";
+	syncItem.command = "codea-air-code.syncLinkedFolders";
+	context.subscriptions.push(syncItem);
+	context.subscriptions.push(sync.onDidChangeBusy(busy => {
+		syncItem.text = busy ? "$(sync~spin) Syncing" : "$(sync)";
+	}));
+
 	function linksChanged() {
 		vscode.commands.executeCommand('setContext', 'codea-air-code.isLinked', linkedFolders.isLinked());
+		updateWatchedPaths();
+		airCode.restartLanguageClient();
 		if (!linkedFolders.isLinked()) {
+			syncItem.hide();
 			sync.dispose();
 			return;
 		}
 
+		syncItem.show();
 		registerPlayCommands();
 		sync.watch();
 		lastSync = 0;
 		syncLinkedFolders();
 	}
+
+	context.subscriptions.push(airCode.filesChanged.event(({ path, files }) => sync.remoteFilesChanged(path, files)));
+	context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(updateWatchedPaths));
+	context.subscriptions.push(vscode.workspace.onDidCloseTextDocument(updateWatchedPaths));
+
+	// Without change reports from Codea, check the linked folders every few seconds instead
+	const fallbackSync = setInterval(() => {
+		if (!airCode.watchesFiles && vscode.window.state.focused) {
+			lastSync = 0;
+			syncLinkedFolders();
+		}
+	}, 10000);
+	context.subscriptions.push({ dispose: () => clearInterval(fallbackSync) });
 
 	context.subscriptions.push(linkedFolders.onDidChange(linksChanged));
 	context.subscriptions.push(vscode.window.onDidChangeWindowState(state => {
@@ -206,6 +247,9 @@ export function activate(context: vscode.ExtensionContext) {
 		const linked = textEditor && linkedFolders.find(textEditor.document.uri);
 		if (linked) {
 			lastLinkedFile = textEditor.document.uri;
+			if (!linked[1].includes('/')) {
+				sync.syncFiles(linked[0], [linked[1]]);
+			}
 			if (airCode.playProjectItem) {
 				airCode.playProjectItem.text = `▶️ Play ${linked[0].remotePath.split('/').pop()} in Codea`;
 				airCode.playProjectItem.show();

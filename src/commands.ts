@@ -36,7 +36,8 @@ export namespace Command {
         | "probeGetCategoryImage"
         | "probeGetFunctionDetails"
         | "probeFindReference"
-        | "findInFiles";
+        | "findInFiles"
+        | "watchFiles";
 
     export interface GetInformation extends Command {
         command: 'getInformation';
@@ -187,6 +188,11 @@ export namespace Command {
         wholeWord: boolean;
         isRegex: boolean;
     }    
+
+    export interface WatchFiles extends Command {
+        command: 'watchFiles';
+        paths: string[];
+    }
 
     // Convenience Initializers
 
@@ -361,6 +367,12 @@ export namespace Command {
     export namespace FindInFiles {
         export function from(path: string, text: string, caseSensitive: boolean, wholeWord: boolean, isRegex: boolean): FindInFiles {
             return { command: 'findInFiles', path, text, caseSensitive, wholeWord, isRegex };
+        }
+    }
+
+    export namespace WatchFiles {
+        export function from(paths: string[]): WatchFiles {
+            return { command: 'watchFiles', paths };
         }
     }
 }

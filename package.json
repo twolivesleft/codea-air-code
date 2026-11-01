@@ -118,7 +118,8 @@
       },
       {
         "command": "codea-air-code.syncLinkedFolders",
-        "title": "Codea: Sync Linked Folders"
+        "title": "Codea: Sync Linked Folders",
+        "icon": "$(sync)"
       }
     ],
     "keybindings": [
@@ -265,6 +266,13 @@
           "command": "codea-air-code.linkFolder",
           "when": "explorerResourceIsFolder && resourceScheme == file",
           "group": "a_codea"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "codea-air-code.syncLinkedFolders",
+          "when": "view == workbench.explorer.fileView && codea-air-code.isLinked",
+          "group": "navigation"
         }
       ]
     },
