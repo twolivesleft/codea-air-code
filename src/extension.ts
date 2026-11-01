@@ -233,12 +233,31 @@ export function activate(context: vscode.ExtensionContext) {
 		items.push(
 			{ label: "$(debug-restart) Reconnect", command: "codea-air-code.refreshConnection" },
 			{ label: "$(link) Link Folder to Project...", command: "codea-air-code.linkFolder" },
-			{ label: "$(output) Show Output", command: "codea-air-code.showOutput" });
+			{ label: "$(output) Show Output", command: "codea-air-code.showOutput" },
+			{ label: "$(book) Get Started with Codea Projects", command: "codea-air-code.showWalkthrough" });
 		const choice = await vscode.window.showQuickPick(items, { placeHolder: "Codea" });
 		if (choice) {
 			await vscode.commands.executeCommand(choice.command);
 		}
 	}));
+
+	const walkthrough = `${context.extension.id}#linkedFolders`;
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.showWalkthrough', () =>
+		vscode.commands.executeCommand('workbench.action.openWalkthrough', walkthrough, false)));
+
+	// People who connect to Codea the old way hear about linked folders once
+	const introducedKey = 'linkedFoldersIntroduced';
+	if (isCodeaWorkspace && !context.globalState.get(introducedKey)) {
+		context.globalState.update(introducedKey, true);
+		const open = "Open Walkthrough";
+		vscode.window.showInformationMessage(
+			"Codea Air Code now works with folders on your computer. Your projects can live in a local folder that stays in sync with Codea, so search, source control and AI coding assistants work with them.",
+			open, "Not Now").then(choice => {
+				if (choice === open) {
+					vscode.commands.executeCommand('codea-air-code.showWalkthrough');
+				}
+			});
+	}
 
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.showOutput', () => outputChannel.show()));
 

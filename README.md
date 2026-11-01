@@ -136,6 +136,8 @@ Search for "Codea Air Code" in Visual Studio Code's Marketplace and install the 
 
 A linked folder is a regular folder on your computer that the extension keeps in sync with a project in Codea. Since the files are local, everything in Visual Studio Code works with them: search, source control, and other extensions and tools, while playing, debugging, auto-completion and parameters still work with Codea.
 
+The `Codea: Get Started with Codea Projects` command opens a walkthrough of the steps below.
+
 To link a project:
 
 - In the Codea Sidebar, open the Projects section, connect to Codea and click the download button next to a project. The project is copied into your workspace, the same way Codea organizes its files (`Project.codea` for Documents, `Collection/Project.codea` for other collections), and opened.
@@ -160,11 +162,11 @@ Changes are kept in sync both ways:
 
 The Codea items in the status bar show the connection and play the project you are working on. Clicking the Codea item shows a menu to sync, reconnect or link a folder. Syncing can also be started with the button at the top of the Explorer.
 
-<img width="280" alt="Status bar" src="images/status_bar_idle.png">
+<img width="165" alt="Status bar" src="images/status_bar_idle.png">
 
 While the project is running, the play button becomes a stop button.
 
-<img width="280" alt="Status bar while running" src="images/status_bar_running.png">
+<img width="165" alt="Status bar while running" src="images/status_bar_running.png">
 
 ### Connection
 
