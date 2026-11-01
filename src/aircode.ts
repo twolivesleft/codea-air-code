@@ -21,6 +21,7 @@ import * as Reference from './reference';
 import * as Search from './search';
 import { getWorkspaceUri } from './extension';
 import { Links } from './links';
+import { CodeaStatus } from './status';
 import {
 	LanguageClient,
 	LanguageClientOptions,
@@ -69,8 +70,7 @@ export class AirCode implements vscode.FileSystemProvider {
     messageWriter: LSPMessageWriter;
     languageClient: LanguageClient | undefined;
 
-    connectionStatusItem: vscode.StatusBarItem | undefined;
-    playProjectItem: vscode.StatusBarItem | undefined;
+    status: CodeaStatus | undefined;
 
     textFileExtensions: string[] = [];
 
@@ -265,11 +265,7 @@ export class AirCode implements vscode.FileSystemProvider {
     }
 
     setStatusConnected() {
-        if (this.connectionStatusItem) {
-            this.connectionStatusItem.text = "Connected";
-            this.connectionStatusItem.backgroundColor = new vscode.ThemeColor("statusBarItem.remoteBackground");
-            this.connectionStatusItem.show();
-        }
+        this.status?.setConnection('connected');
     }
 
     async waitForProxy() {
@@ -394,10 +390,7 @@ export class AirCode implements vscode.FileSystemProvider {
             }
         }
 
-        if (this.connectionStatusItem) {
-            this.connectionStatusItem.text = "Connecting...";
-            this.connectionStatusItem.backgroundColor = new vscode.ThemeColor("statusBarItem.warningBackground");
-        }
+        this.status?.setConnection('connecting', host);
 
         let ws = new WebSocket(`ws://${host}/`);
 
@@ -448,6 +441,7 @@ export class AirCode implements vscode.FileSystemProvider {
             airCode.parametersView.setParameters(parameters);
             await airCode.referenceView.getChapters(false);
 
+            airCode.status?.setRunning(information.hasHost);
             if (information.hasHost) {
                 airCode.startDebugging();
             }
@@ -531,6 +525,7 @@ export class AirCode implements vscode.FileSystemProvider {
                             }
                         case "projectStarted":
                             {
+                                parent.status?.setRunning(true);
                                 parent.startDebugging();
                                 break;
                             }
@@ -541,6 +536,7 @@ export class AirCode implements vscode.FileSystemProvider {
                             }
                         case "projectStopped":
                             {
+                                parent.status?.setRunning(false);
                                 parent.parametersView.clearParameters();
                                 vscode.debug.stopDebugging();
                                 break;
@@ -592,10 +588,7 @@ export class AirCode implements vscode.FileSystemProvider {
             }
             parent.promises.clear();
 
-            if (parent.connectionStatusItem) {
-                parent.connectionStatusItem.text = "Connection lost";
-                parent.connectionStatusItem.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
-            }
+            parent.status?.setConnection('lost');
 
             await vscode.debug.stopDebugging();
             parent.parametersView.clearParameters();
@@ -607,10 +600,7 @@ export class AirCode implements vscode.FileSystemProvider {
         let success = await this.waitForSocket(ws, showError);
 
         if (!success) {
-            if (parent.connectionStatusItem) {
-                parent.connectionStatusItem.text = "Connection failed";
-                parent.connectionStatusItem.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
-            }
+            parent.status?.setConnection('failed');
 
             this.webSockets.clear();
             ws.close();

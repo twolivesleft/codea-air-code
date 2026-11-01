@@ -32,7 +32,8 @@
   ],
   "activationEvents": [
     "onFileSystem:codea",
-    "workspaceContains:.vscode/settings.json"
+    "workspaceContains:.vscode/settings.json",
+    "onView:codea-projects"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -47,6 +48,11 @@
     },
     "views": {
       "codea-sidebar": [
+        {
+          "id": "codea-projects",
+          "name": "Projects",
+          "when": "!codea-air-code.hasWorkspaceUri && workspaceFolderCount > 0"
+        },
         {
           "type": "webview",
           "id": "codea-reference",
@@ -120,6 +126,38 @@
         "command": "codea-air-code.syncLinkedFolders",
         "title": "Codea: Sync Linked Folders",
         "icon": "$(sync)"
+      },
+      {
+        "command": "codea-air-code.showMenu",
+        "title": "Codea: Show Menu"
+      },
+      {
+        "command": "codea-air-code.showOutput",
+        "title": "Codea: Show Output"
+      },
+      {
+        "command": "codea-air-code.connect",
+        "title": "Codea: Connect to Codea..."
+      },
+      {
+        "command": "codea-air-code.refreshProjects",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "codea-air-code.getProject",
+        "title": "Get Project",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "codea-air-code.playProject",
+        "title": "Play in Codea",
+        "icon": "$(play)"
+      },
+      {
+        "command": "codea-air-code.revealProject",
+        "title": "Reveal Linked Folder",
+        "icon": "$(go-to-file)"
       }
     ],
     "keybindings": [
@@ -259,6 +297,26 @@
         {
           "command": "codea-air-code.syncLinkedFolders",
           "when": "codea-air-code.isLinked"
+        },
+        {
+          "command": "codea-air-code.showMenu",
+          "when": "false"
+        },
+        {
+          "command": "codea-air-code.refreshProjects",
+          "when": "false"
+        },
+        {
+          "command": "codea-air-code.getProject",
+          "when": "false"
+        },
+        {
+          "command": "codea-air-code.playProject",
+          "when": "false"
+        },
+        {
+          "command": "codea-air-code.revealProject",
+          "when": "false"
         }
       ],
       "explorer/context": [
@@ -273,6 +331,28 @@
           "command": "codea-air-code.syncLinkedFolders",
           "when": "view == workbench.explorer.fileView && codea-air-code.isLinked",
           "group": "navigation"
+        },
+        {
+          "command": "codea-air-code.refreshProjects",
+          "when": "view == codea-projects",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "codea-air-code.getProject",
+          "when": "view == codea-projects && viewItem == project",
+          "group": "inline"
+        },
+        {
+          "command": "codea-air-code.playProject",
+          "when": "view == codea-projects && viewItem == linkedProject",
+          "group": "inline"
+        },
+        {
+          "command": "codea-air-code.revealProject",
+          "when": "view == codea-projects && viewItem == linkedProject",
+          "group": "inline"
         }
       ]
     },
@@ -294,7 +374,22 @@
           "description": "Local folders kept in sync with Codea projects, from a path relative to the workspace folder to the project in Codea, e.g. \"iPad Projects/EmuTests\"."
         }
       }
-    }
+    },
+    "icons": {
+      "codea-logo": {
+        "description": "Codea logo",
+        "default": {
+          "fontPath": "resources/icons/codea-icons.woff",
+          "fontCharacter": "\\E000"
+        }
+      }
+    },
+    "viewsWelcome": [
+      {
+        "view": "codea-projects",
+        "contents": "Connect to Codea to see its projects. A project you get from Codea is kept in a folder here and stays in sync with the device.\n[Connect to Codea](command:codea-air-code.connect)"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
