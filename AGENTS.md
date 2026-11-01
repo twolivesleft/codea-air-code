@@ -16,9 +16,23 @@ code --install-extension /tmp/codea-air-code.vsix   # replaces the Marketplace b
 
 `npm run lint` fails before checking anything: the repo has no ESLint config.
 
+## Linked folders
+
+A linked folder is a local folder kept in sync with a Codea project (`src/links.ts`
+for the settings and path mapping, `src/sync.ts` for the sync, `src/syncplan.ts` for
+the decision per file, which `npx mocha --ui tdd out/test/suite/syncplan.test.js`
+tests). Commands, the debugger and the language server still talk to Codea with
+`codea://` URIs: `Links` rewrites local paths to them and back. Codea's debugger
+matches a breakpoint by what follows `/Codea/` in its path, unencoded.
+
+Codea runs commands in id order and answers only its newest connection. Do not use
+`getInformation` to check a connection: on Codea versions before the fix it resets
+the expected id and can stall every later command. `ensureResponsive` sends a stat.
+
 ## Search
 
-VS Code's Find in Files cannot search `codea://` files. It needs a
+VS Code's Find in Files cannot search `codea://` files (linked folders are local and
+use the built-in search). It needs a
 `TextSearchProvider`/`FileSearchProvider`, and both are still proposed APIs
 (microsoft/vscode#59921, #73524), which Marketplace extensions cannot use. So
 search is our own webview view (`src/search.ts`, `media/search/`), which asks

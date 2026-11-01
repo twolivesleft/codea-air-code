@@ -10,6 +10,7 @@ This extension can connect remotely to the [Codea](https://codea.io/) iOS applic
   - [Debugger](#debugger)
 - [Installation](#installation)
 - [Usage](#usage)
+  - [Linked Folders](#linked-folders)
   - [Connection](#connection)
   - [USB Connection](#usb-connection)
   - [Files and Dependencies](#files-and-dependencies)
@@ -63,9 +64,13 @@ Types can easily be documented using a triple-slash (`---`) comment.
 
 ### Sidebar
 
-The Codea Sidebar gives access to Reference and Parameters sections as shown below.
+The Codea Sidebar gives access to Projects, Reference and Parameters sections as shown below.
 
 <img width="164" alt="Sidebar" src="images/sidebar_5.png">
+
+#### Projects
+
+When working in a local folder, the Projects section lists the collections and projects in Codea. Click the download button next to a project to get a copy in your workspace, linked to Codea (see [Linked Folders](#linked-folders)). Linked projects can be played from the list, or revealed in the Explorer.
 
 #### Reference
 
@@ -81,9 +86,9 @@ It is also possible to select and right click a word in a project's code to find
 
 #### Search
 
-This extension uses a virtual File System Provider to read the files from Codea. However, VSCode does not yet support searching in files provided this way (see [this issue](https://github.com/microsoft/vscode/issues/59921ùcdc2w3wwqqqq)).
+In [linked folders](#linked-folders), the files are on your computer and Visual Studio Code's own search works as usual.
 
-Until the feature is implemented, the extension provides its own limited version which will search in all files of the currently active project.
+When connected with `Connect to Host...`, files are read from Codea through a virtual File System Provider, which Visual Studio Code cannot search yet (see [this issue](https://github.com/microsoft/vscode/issues/59921)). The extension then provides its own limited version, which searches all files of the currently active project.
 
 <img width="383" alt="Search" src="images/search.png">
 
@@ -126,6 +131,40 @@ Search for "Codea Air Code" in Visual Studio Code's Marketplace and install the 
 <img width="302" alt="Installation" src="images/marketplace.png">
 
 ## Usage
+
+### Linked Folders
+
+A linked folder is a regular folder on your computer that the extension keeps in sync with a project in Codea. Since the files are local, everything in Visual Studio Code works with them: search, source control, and other extensions and tools, while playing, debugging, auto-completion and parameters still work with Codea.
+
+To link a project:
+
+- In the Codea Sidebar, open the Projects section, connect to Codea and click the download button next to a project. The project is copied into your workspace, the same way Codea organizes its files (`Project.codea` for Documents, `Collection/Project.codea` for other collections), and opened.
+- Or, if you already have the project's files, right-click its folder in the Explorer and choose `Codea: Link Folder to Project...`.
+
+Links are saved in the workspace's `.vscode/settings.json`:
+
+```json
+{
+    "codea-air-code.host": "192.168.1.10:18513",
+    "codea-air-code.links": {
+        "EmuTests.codea": "iPad Projects/EmuTests"
+    }
+}
+```
+
+Changes are kept in sync both ways:
+
+- Files saved here, created, deleted, or changed by any other tool are sent to Codea right away.
+- Changes made in Codea, or by another app on the device, come back within a second. With older versions of Codea, linked folders are checked every 10 seconds instead.
+- If a file changed on both sides, you will be asked whether to keep the local version or Codea's, and you can compare them first. Nothing is overwritten until you choose.
+
+The Codea items in the status bar show the connection and play the project you are working on. Clicking the Codea item shows a menu to sync, reconnect or link a folder. Syncing can also be started with the button at the top of the Explorer.
+
+<img width="280" alt="Status bar" src="images/status_bar_idle.png">
+
+While the project is running, the play button becomes a stop button.
+
+<img width="280" alt="Status bar while running" src="images/status_bar_running.png">
 
 ### Connection
 
@@ -186,6 +225,8 @@ All commands included with this extension are prefixed with `Codea:`.
 |------------------------|-----------------------------------------------------------------------|
 | `Connect to Host...`   | Enter the IP and port to connect to a running instance of Codea.      |
 | `Connect over USB...`  | Enter the local port and Codea port to connect over USB using iproxy. |
+| `Link Folder to Project...` | Keep a local folder in sync with a project in Codea.             |
+| `Sync Linked Folders`  | Sync all linked folders with Codea now.                               |
 | `Execute current line` | Executes the Lua code on the active line.                             |
 | `Execute selection`    | Executes the select Lua code in Codea.                                |
 | `Execute command...`   | Enter a Lua command to execute in Codea.                              |
