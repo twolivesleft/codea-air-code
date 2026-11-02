@@ -200,11 +200,31 @@
         "icon": "$(add)"
       },
       {
+        "command": "codea-air-code.renameAsset",
+        "title": "Rename..."
+      },
+      {
+        "command": "codea-air-code.deleteAsset",
+        "title": "Delete"
+      },
+      {
         "command": "codea-air-code.disconnect",
         "title": "Codea: Disconnect"
       }
     ],
     "keybindings": [
+      {
+        "command": "codea-air-code.renameAsset",
+        "key": "f2",
+        "mac": "enter",
+        "when": "focusedView == codea-assets"
+      },
+      {
+        "command": "codea-air-code.deleteAsset",
+        "key": "delete",
+        "mac": "cmd+backspace",
+        "when": "focusedView == codea-assets"
+      },
       {
         "command": "codea-air-code.findInFiles",
         "key": "ctrl+shift+f",
@@ -397,6 +417,14 @@
         {
           "command": "codea-air-code.addAssetFiles",
           "when": "false"
+        },
+        {
+          "command": "codea-air-code.renameAsset",
+          "when": "false"
+        },
+        {
+          "command": "codea-air-code.deleteAsset",
+          "when": "false"
         }
       ],
       "explorer/context": [
@@ -496,8 +524,18 @@
         },
         {
           "command": "codea-air-code.addAssetFiles",
-          "when": "view == codea-assets && viewItem == assetPack",
+          "when": "view == codea-assets && viewItem =~ /^writable asset(Pack|Folder)$/",
           "group": "inline"
+        },
+        {
+          "command": "codea-air-code.renameAsset",
+          "when": "view == codea-assets && viewItem =~ /^writable asset/ && viewItem != 'writable assetPack'",
+          "group": "edit@1"
+        },
+        {
+          "command": "codea-air-code.deleteAsset",
+          "when": "view == codea-assets && viewItem =~ /^writable asset/ && viewItem != 'writable assetPack'",
+          "group": "edit@2"
         }
       ]
     },

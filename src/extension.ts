@@ -656,9 +656,20 @@ export function activate(context: vscode.ExtensionContext) {
 	}));
 
 	const assetsView = new AssetsViewProvider(airCode, linkedFolders);
-	context.subscriptions.push(vscode.window.createTreeView(AssetsViewProvider.viewType, { treeDataProvider: assetsView, dragAndDropController: assetsView }));
+	const assetsTree = vscode.window.createTreeView(AssetsViewProvider.viewType, { treeDataProvider: assetsView, dragAndDropController: assetsView });
+	context.subscriptions.push(assetsTree);
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.refreshAssets', () => assetsView.refresh()));
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.addAssetFiles', (node: AssetNode) => assetsView.addFiles(node)));
+	// From a menu the item comes with the command; from a key, it is the one selected
+	const assetTarget = (node?: AssetNode) => node instanceof AssetNode ? node : assetsTree.selection[0];
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.renameAsset', (node?: AssetNode) => {
+		const target = assetTarget(node);
+		return target?.writable && target.depth > 1 ? assetsView.rename(target) : undefined;
+	}));
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.deleteAsset', (node?: AssetNode) => {
+		const target = assetTarget(node);
+		return target?.writable && target.depth > 1 ? assetsView.delete(target) : undefined;
+	}));
 	context.subscriptions.push(linkedFolders.onDidChange(() => assetsView.refresh()));
 
 	const projectsView = new ProjectsViewProvider(airCode, linkedFolders);
