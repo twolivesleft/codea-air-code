@@ -667,6 +667,17 @@
             ]
           },
           {
+            "id": "newProject",
+            "title": "Create a project",
+            "description": "Click the New Project button at the top of the Explorer, or right-click a folder and choose New Project. The project is created in Codea and copied into your folder, linked. Renaming the folder renames the project in Codea.\n[New Project](command:codea-air-code.newProject)",
+            "media": {
+              "markdown": "media/walkthrough/new.md"
+            },
+            "completionEvents": [
+              "onCommand:codea-air-code.newProject"
+            ]
+          },
+          {
             "id": "edit",
             "title": "Edit with any tool",
             "description": "Files you save, and files changed by other tools, are sent to Codea right away. Changes made in Codea come back within a second. If a file changes on both sides, you choose which version to keep, and can compare them first.\nYour projects are regular files, so you can [search](command:workbench.action.findInFiles) them, track them with source control, and work on them with AI coding assistants.",
@@ -688,6 +699,18 @@
             },
             "completionEvents": [
               "onCommand:workbench.action.debug.start"
+            ]
+          },
+          {
+            "id": "assets",
+            "title": "Work with assets",
+            "description": "The Assets section of the Codea sidebar lists your asset packs. Drag an asset into a Lua file to insert its key, drop files on Documents to add them, or link a pack to keep it in your folder as ordinary files.\n[Show Assets](command:codea-assets.focus)",
+            "media": {
+              "markdown": "media/walkthrough/assets.md"
+            },
+            "completionEvents": [
+              "onCommand:codea-assets.focus",
+              "onCommand:codea-air-code.linkAssetPack"
             ]
           }
         ]

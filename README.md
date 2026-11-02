@@ -15,7 +15,9 @@ This extension connects Visual Studio Code to the [Codea](https://codea.io/) iOS
   - [Linked Folders](#linked-folders)
   - [Connection](#connection)
   - [USB Connection](#usb-connection)
-  - [Files and Dependencies](#files-and-dependencies)
+  - [Creating, Renaming and Deleting Projects](#creating-renaming-and-deleting-projects)
+  - [Files and Folders](#files-and-folders)
+  - [Dependencies](#dependencies)
   - [Assets](#assets)
   - [Commands](#commands)
 - [Requirements](#requirements)
@@ -72,7 +74,7 @@ Types can easily be documented using a triple-slash (`---`) comment.
 
 ### Sidebar
 
-The Codea Sidebar gives access to the Projects, Reference and Parameters sections.
+The Codea Sidebar gives access to the Projects, Assets, Reference and Parameters sections.
 
 #### Projects
 
@@ -80,7 +82,13 @@ The Projects section lists the collections and projects in Codea. Click the down
 
 To get all your projects at once, click the download button at the top of the section, or the one next to a collection to get all of its projects. Codea's built-in collections, such as Examples, are left out of the first, but each of their projects can still be got on its own.
 
+The New Project button at the top of the section, or next to a collection, creates a project in Codea and gets it (see [Creating, Renaming and Deleting Projects](#creating-renaming-and-deleting-projects)). A linked project lists its dependencies under it (see [Dependencies](#dependencies)), and projects in iCloud are marked with a cloud in the Explorer.
+
 <img width="420" alt="Projects" src="images/projects.png">
+
+#### Assets
+
+The Assets section lists Codea's asset packs: your Documents and iCloud Documents, your external folders, and the packs that come with Codea. Click a file to open it, or drag it into a Lua file to insert its asset key (see [Assets](#assets)).
 
 #### Reference
 
@@ -171,6 +179,13 @@ Changes are kept in sync both ways:
 - Changes made in Codea, or by another app on the device, come back within a second. With older versions of Codea, linked folders are checked every 10 seconds instead.
 - If a file changed on both sides, you will be asked whether to keep the local version or Codea's, and you can compare them first. Nothing is overwritten until you choose. When many projects are linked at once, the files that differ are listed together, to keep one side for all of them or review each.
 
+Deletions are handled carefully, since Codea deletes files for good:
+
+- A file deleted here is deleted in Codea only if the deletion happens while the folder is connected. A file found missing on one side when the folder connects is brought back from the other, and the output says so.
+- Deleting more than 5 files at once asks first; anything but `Delete in Codea` brings them back.
+- `Main.lua` and `Info.plist` are put back if they are deleted, and `Main.lua` is renamed back if it is renamed: Codea projects need them.
+- A linked project whose folder goes missing, here or in Codea, is not synced. You are asked whether to get it again or unlink it, and nothing is changed in Codea.
+
 The Codea items in the status bar show the connection and play the project you are working on. Clicking the Codea item shows a menu to sync, reconnect or link a folder. Syncing can also be started with the button at the top of the Explorer.
 
 <img width="165" alt="Status bar" src="images/status_bar_idle.png">
@@ -209,18 +224,36 @@ Once iproxy is available, connect to Codea and, instead of an address, enter the
 
 Air Code does not currently support multiple Codea windows or running projects. For this reason, when running a project from Air Code, all windows will be closed except one before running the project.
 
-### Files and Dependencies
+### Creating, Renaming and Deleting Projects
 
-Files added, removed or renamed in a project's folder, from Visual Studio Code or any other tool, are added, removed or renamed in Codea as well.
+To create a project, click the New Project button (the Codea logo with a plus) at the top of the Explorer or of the Projects section, or right-click a folder in the Explorer and choose `Codea: New Project...`. From a folder, the project goes in the collection that folder stands for: the workspace folder for Documents, a folder at the top for a collection of that name, which is created in Codea if needed. The project is created in Codea from your default template, then got and linked like any other.
 
-Dependencies can be added to the active project (based on the current file being edited) using the `Add dependency...` command. They are stored in the project's `Info.plist`, which is updated in the folder too.
+Renaming a linked project's folder in Visual Studio Code renames the project in Codea. The `.codea` extension is added back if it is left out, so renaming `Game.codea` to `Racer` gives `Racer.codea` and a project named Racer. If Codea cannot take the name, for example because it already has a project named so, the folder is renamed back. A project folder moved elsewhere stays linked to the same project.
+
+Deleting a project's folder never deletes the project in Codea. To delete a project in Codea, right-click its folder in the Explorer, or the project in the Projects section, and choose `Delete Project in Codea...`: it asks first, then deletes the project in Codea and moves the folder to the Trash.
+
+### Files and Folders
+
+Files added, removed or renamed in a project's folder, from Visual Studio Code or any other tool, are added, removed or renamed in Codea as well. A renamed tab keeps its place among Codea's tabs.
+
+Folders inside a project are kept in sync too, with a version of Codea that keeps them. With an older one, a file moved into a folder is put back and left in Codea, and the output says so.
+
+### Dependencies
+
+A linked project lists its dependencies under it in the Projects section, as Codea's editor lists them: the projects its code requires with `require(asset.documents.Project)` on the modern runtime, those in its `Info.plist` on the legacy one. Right-click the project and choose `Add dependency...` to add one, or use the command on the project of the file being edited, and click the cross next to a dependency to remove it. Codea writes the change, and the project's `Main.lua` or `Info.plist` comes back to the folder.
+
+When a dependency is linked too, the debugger opens its files in its own folder, and breakpoints set there stop in the projects that use it.
 
 
 ### Assets
 
 Assets kept in a project, such as images, sounds and models, are part of its folder and are synced like any other file, so new assets can be added by copying them into the project's folder.
 
-To reference an asset in a project, drag-and-drop the asset from the Explorer view **while holding the Shift key** into a Lua file and the Asset Key will automatically be added.
+To reference an asset in a project, drag-and-drop the asset from the Explorer view **while holding the Shift key** into a Lua file and the Asset Key will automatically be added. Assets in the Assets section of the Codea Sidebar drag into a Lua file the same way.
+
+Packs Codea lets you change, such as Documents, take new files with the add button next to them or by dropping files on them, and their assets can be renamed (F2, or Enter on Mac) and deleted (Delete, or ⌘⌫ on Mac).
+
+To work on a pack's files as ordinary files, click the link button next to it: the pack is kept in `Assets/<Pack>` in your folder, in sync like a project, so the Explorer, source control and other tools work with it. The Documents packs hold only their own files: their folders are your collections and projects, which the Projects section gets.
 
 <img width="738" alt="Dragging an Asset" src="images/asset_drag.png">
 
@@ -237,13 +270,15 @@ All commands included with this extension are prefixed with `Codea:`.
 | `Get All Projects`     | Get every project from Codea into the open folder, linked.            |
 | `Link All Matching Folders...` | Link the folder's projects to the projects of the same name in Codea. |
 | `Link Folder to Project...` | Keep a local folder in sync with a project in Codea.             |
+| `New Project...`       | Create a project in Codea and get it into the folder, linked.         |
+| `Delete Project in Codea...` | Delete a project in Codea, and move its linked folder to the Trash. |
 | `Sync Linked Folders`  | Sync all linked folders with Codea now.                               |
 | `Disconnect`           | Disconnect the folder from Codea until you connect again.             |
 | `Execute current line` | Executes the Lua code on the active line.                             |
 | `Execute selection`    | Executes the select Lua code in Codea.                                |
 | `Execute command...`   | Enter a Lua command to execute in Codea.                              |
 | `Restart project`      | Restart the running project in Codea.                                 |
-| `Add dependency...`    | Select a dependency to add to the active Codea project.               |
+| `Add dependency...`    | Add a dependency to a project, as Codea's editor does.                |
 | `Find reference...`    | Look-up the reference for the selected word.                          |
 | `Set runtime...`       | Change the current project's runtime between legacy and modern.       |
 
