@@ -926,26 +926,33 @@ export function activate(context: vscode.ExtensionContext) {
 
 		const parent = (path: string) => path.split('/').slice(0, -1).join('/');
 		const oldName = oldPath.split('/').pop()!;
-		const newName = newUri.path.split('/').pop()!;
-		// A project's folder keeps its .codea extension, which Codea and the layout rely on
+		let target = newUri;
+		// A project's folder keeps its .codea extension, which Codea and the layout rely on, so a
+		// rename without it gets it back first
 		if (moved.some(project => project.localUri.path === oldPath) && parent(oldPath) === parent(newUri.path)
-			&& oldName.endsWith('.codea') && !newName.endsWith('.codea')) {
-			await vscode.workspace.fs.rename(newUri, oldUri);
-			vscode.window.showWarningMessage(`A project's folder keeps its .codea extension, so ${newName} was renamed back to ${oldName}.`);
-			return;
+			&& oldName.endsWith('.codea') && !newUri.path.endsWith('.codea')) {
+			target = newUri.with({ path: `${newUri.path}.codea` });
+			try {
+				await vscode.workspace.fs.rename(newUri, target, { overwrite: false });
+			} catch {
+				await vscode.workspace.fs.rename(newUri, oldUri);
+				vscode.window.showWarningMessage(`${vscode.workspace.asRelativePath(target)} already exists here, so the folder was renamed back.`);
+				return;
+			}
 		}
+		const newName = target.path.split('/').pop()!;
 
 		for (const project of moved) {
-			const localUri = newUri.with({ path: newUri.path + project.localUri.path.slice(oldPath.length) });
+			const localUri = target.with({ path: target.path + project.localUri.path.slice(oldPath.length) });
 			let remotePath = project.remotePath;
 			const projectName = remotePath.split('/').pop()!;
-			if (project.localUri.path === oldPath && parent(oldPath) === parent(newUri.path)
+			if (project.localUri.path === oldPath && parent(oldPath) === parent(target.path)
 				&& oldName === `${projectName}.codea` && newName.endsWith('.codea') && newName !== oldName) {
 				const renamed = `${parent(remotePath)}/${newName.slice(0, -'.codea'.length)}`;
 				const problem = await renameInCodea(host, remotePath, renamed);
 				if (problem !== undefined) {
 					// The folder keeps the project's name, so it goes back to it
-					await vscode.workspace.fs.rename(newUri, oldUri);
+					await vscode.workspace.fs.rename(target, oldUri);
 					vscode.window.showWarningMessage(`${problem} The folder was renamed back.`);
 					return;
 				}
