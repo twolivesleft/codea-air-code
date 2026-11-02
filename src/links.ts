@@ -11,6 +11,16 @@ export interface LinkedProject {
     remotePath: string;
 }
 
+// A linked asset pack rather than a project: its path under /Codea is in Assets
+export function isAssetPack(project: LinkedProject): boolean {
+    return project.remotePath.startsWith('Assets/');
+}
+
+// Codea's Documents packs, local and iCloud, whose folders are collections and projects, not assets
+export function isDocumentsPack(project: LinkedProject): boolean {
+    return project.remotePath === 'Assets/Internal/Documents' || project.remotePath === 'Assets/Internal/iCloud Documents';
+}
+
 const section = 'codea-air-code';
 
 // Linked folders are configured per workspace folder in .vscode/settings.json:

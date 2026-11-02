@@ -4,7 +4,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 
 import { AirCode } from './aircode';
-import { LinkedProject, Links } from './links';
+import { isAssetPack, isDocumentsPack, LinkedProject, Links } from './links';
 import { renameInBufferOrder } from './bufferorder';
 import { guardDeletion, planSync, shortList, SyncSource } from './syncplan';
 
@@ -149,7 +149,7 @@ export class LinkSync {
             const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(folder, '**/*'));
             const onEvent = (uri: vscode.Uri) => {
                 const found = this.links.find(uri);
-                if (found && this.isSyncedName(found[1]) && !this.isRenaming(uri.path)) {
+                if (found && this.isSyncedName(found[0], found[1]) && !this.isRenaming(uri.path)) {
                     this.fileChanged(found[0], found[1]);
                 }
             };
@@ -236,8 +236,13 @@ export class LinkSync {
     }
 
     // Files in folders inside a project only with a Codea that keeps them; hidden ones never
-    private isSyncedName(name: string): boolean {
-        return !name.split('/').some(part => part.startsWith('.')) && (this.airCode.listsSubfolders || !name.includes('/'));
+    private isSyncedName(project: LinkedProject, name: string): boolean {
+        return !name.split('/').some(part => part.startsWith('.')) && (this.keepsFolders(project) || !name.includes('/'));
+    }
+
+    // Whether files in folders are synced: when Codea keeps them, except in a Documents pack
+    private keepsFolders(project: LinkedProject): boolean {
+        return this.airCode.listsSubfolders && !isDocumentsPack(project);
     }
 
     private fileChanged(project: LinkedProject, name: string) {
@@ -277,7 +282,7 @@ export class LinkSync {
         }
 
         const found = this.links.find(uri);
-        if (found === undefined || !this.isSyncedName(found[1])) {
+        if (found === undefined || !this.isSyncedName(found[0], found[1])) {
             return;
         }
         // A folder inside a project: its files that were synced are what was deleted
@@ -310,7 +315,7 @@ export class LinkSync {
             return;
         }
 
-        const kept = files.filter(({ name }) => keptFiles.includes(name));
+        const kept = files.filter(({ project, name }) => !isAssetPack(project) && keptFiles.includes(name));
         if (kept.length > 0) {
             vscode.window.showWarningMessage(
                 `Codea projects need ${kept.map(({ name }) => name).filter((name, i, all) => all.indexOf(name) === i).join(' and ')}, so ${kept.length === 1 ? "it was" : "they were"} put back.`);
@@ -323,19 +328,26 @@ export class LinkSync {
             }
         }
 
-        // A Codea that keeps no folders inside projects would lose a tab moved into one
-        if (!this.airCode.listsSubfolders) {
-            const moved = await this.movedIntoFolders(files);
-            if (moved.length > 0) {
+        // Where folders are not synced, a file moved into one would be lost in Codea
+        const moved = await this.movedIntoFolders(files.filter(({ project }) => !this.keepsFolders(project)));
+        if (moved.length > 0) {
+            const describe = (list: typeof moved) => list.map(({ project, name }) => this.describe(project, name)).join(', ');
+            const inPacks = moved.filter(({ project }) => isDocumentsPack(project));
+            const inProjects = moved.filter(({ project }) => !isDocumentsPack(project));
+            if (inProjects.length > 0) {
                 vscode.window.showWarningMessage(
-                    `This version of Codea cannot keep folders inside a project, so ${moved.map(({ project, name }) => this.describe(project, name)).join(', ')} ${moved.length === 1 ? "was" : "were"} put back here and left in Codea. Update Codea to sync folders.`);
-                for (const { project, name } of moved) {
-                    await this.syncFiles(project, [name], 'full');
-                }
-                files = files.filter(file => !moved.includes(file));
-                if (files.length === 0) {
-                    return;
-                }
+                    `This version of Codea cannot keep folders inside a project, so ${describe(inProjects)} ${inProjects.length === 1 ? "was" : "were"} put back here and left in Codea. Update Codea to sync folders.`);
+            }
+            if (inPacks.length > 0) {
+                vscode.window.showWarningMessage(
+                    `Codea's Documents assets keep no folders, so ${describe(inPacks)} ${inPacks.length === 1 ? "was" : "were"} put back here and left in Codea.`);
+            }
+            for (const { project, name } of moved) {
+                await this.syncFiles(project, [name], 'full');
+            }
+            files = files.filter(file => !moved.includes(file));
+            if (files.length === 0) {
+                return;
             }
         }
 
@@ -353,7 +365,7 @@ export class LinkSync {
         }
 
         if (source === 'local') {
-            for (const { project, name } of files) {
+            for (const { project, name } of files.filter(({ project }) => !isAssetPack(project))) {
                 await this.keepTabPlaceOfRename(project, name);
             }
         }
@@ -880,7 +892,7 @@ export class LinkSync {
             const path = folder ? `${folder}/${name}` : name;
             if (type === vscode.FileType.File) {
                 names.push(path);
-            } else if (type === vscode.FileType.Directory && (everything || this.airCode.listsSubfolders)) {
+            } else if (type === vscode.FileType.Directory && (everything || this.keepsFolders(project))) {
                 names.push(...await this.listLocal(project, path, everything));
             }
         }

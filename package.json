@@ -208,6 +208,16 @@
         "title": "Delete"
       },
       {
+        "command": "codea-air-code.linkAssetPack",
+        "title": "Link to Folder",
+        "icon": "$(link)"
+      },
+      {
+        "command": "codea-air-code.revealAssetPack",
+        "title": "Reveal Linked Folder",
+        "icon": "$(go-to-file)"
+      },
+      {
         "command": "codea-air-code.disconnect",
         "title": "Codea: Disconnect"
       }
@@ -425,6 +435,14 @@
         {
           "command": "codea-air-code.deleteAsset",
           "when": "false"
+        },
+        {
+          "command": "codea-air-code.linkAssetPack",
+          "when": "false"
+        },
+        {
+          "command": "codea-air-code.revealAssetPack",
+          "when": "false"
         }
       ],
       "explorer/context": [
@@ -524,7 +542,7 @@
         },
         {
           "command": "codea-air-code.addAssetFiles",
-          "when": "view == codea-assets && viewItem =~ /^writable asset(Pack|Folder)$/",
+          "when": "view == codea-assets && viewItem =~ /^writable (linked )?asset(Pack|Folder)$/",
           "group": "inline"
         },
         {
@@ -536,6 +554,16 @@
           "command": "codea-air-code.deleteAsset",
           "when": "view == codea-assets && viewItem =~ /^writable asset/ && viewItem != 'writable assetPack'",
           "group": "edit@2"
+        },
+        {
+          "command": "codea-air-code.linkAssetPack",
+          "when": "view == codea-assets && viewItem == 'writable assetPack'",
+          "group": "inline"
+        },
+        {
+          "command": "codea-air-code.revealAssetPack",
+          "when": "view == codea-assets && viewItem =~ /linked assetPack$/",
+          "group": "inline"
         }
       ]
     },

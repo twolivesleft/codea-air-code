@@ -13,7 +13,7 @@ import { CodeaDecorationProvider } from './decorator';
 import { InlineDebugAdapterFactory } from './debug-adapter/InlineDebugAdapterFactory';
 import { AssetKeyOnDropProvider } from './drop';
 import { AirCodeService } from './service';
-import { Links } from './links';
+import { isAssetPack, Links } from './links';
 import { LinkSync } from './sync';
 import { LinkedProject } from './links';
 import { CodeaStatus } from './status';
@@ -148,7 +148,8 @@ export function activate(context: vscode.ExtensionContext) {
 				return;
 			}
 
-			const linkedFile = (uri && linkedFolders.find(uri)) ? uri : lastLinkedFile ?? await pickProjectToPlay();
+			const focused = uri && linkedFolders.find(uri);
+			const linkedFile = focused && !isAssetPack(focused[0]) ? uri : lastLinkedFile ?? await pickProjectToPlay();
 			const found = linkedFile && linkedFolders.find(linkedFile);
 			if (linkedFile === undefined || found === undefined) {
 				return;
@@ -160,7 +161,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 		// With no linked file focused yet: the only linked project, or the one picked
 		async function pickProjectToPlay(): Promise<vscode.Uri | undefined> {
-			const projects = linkedFolders.projects();
+			const projects = linkedFolders.projects().filter(project => !isAssetPack(project));
 			const picked = projects.length === 1 ? projects[0] : (await vscode.window.showQuickPick(
 				projects.map(project => ({ label: project.remotePath.split('/').pop()!, description: project.remotePath, project })),
 				{ title: "Play which project?" }))?.project;
@@ -351,7 +352,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// Play shows the project of the Codea file in focus, or of the last linked file focused
 	context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(async (textEditor) => {
 		const linked = textEditor && linkedFolders.find(textEditor.document.uri);
-		if (linked) {
+		if (linked && !isAssetPack(linked[0])) {
 			lastLinkedFile = textEditor.document.uri;
 			if (!linked[1].includes('/')) {
 				sync.syncFiles(linked[0], [linked[1]], 'full');
@@ -660,6 +661,52 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(assetsTree);
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.refreshAssets', () => assetsView.refresh()));
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.addAssetFiles', (node: AssetNode) => assetsView.addFiles(node)));
+	// Links a pack Codea lets be written to with a folder here, Assets/Pack, kept in sync like a project
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.linkAssetPack', async (node: AssetNode) => {
+		const folder = await requireFolder();
+		const host = folder && await requireHost();
+		if (folder === undefined || host === undefined) {
+			return;
+		}
+		const remotePath = node.uri.path.slice(`/${AirCode.rootFolder}/`.length);
+		const name = remotePath.split('/').pop()!;
+		const localUri = vscode.Uri.joinPath(folder.uri, 'Assets', name);
+
+		let existing: [string, vscode.FileType][] = [];
+		try {
+			existing = await vscode.workspace.fs.readDirectory(localUri);
+		} catch {
+			// The folder does not exist yet
+		}
+		if (existing.length > 0) {
+			const link = "Link";
+			const choice = await vscode.window.showWarningMessage(
+				`${vscode.workspace.asRelativePath(localUri)} already exists. Link it to ${name} in Codea? Files that differ will be compared before anything is overwritten.`,
+				{ modal: true }, link);
+			if (choice !== link) {
+				return;
+			}
+		}
+
+		await vscode.workspace.fs.createDirectory(localUri);
+		sync.startAfresh([{ localUri, remotePath }]);
+		await linkedFolders.addLink(folder, localUri, remotePath, host);
+		const pack = linkedFolders.projects().find(linked => linked.remotePath === remotePath);
+		if (pack) {
+			await vscode.window.withProgress(
+				{ location: vscode.ProgressLocation.Notification, title: `Getting ${name} from Codea...` },
+				() => sync.sync(pack));
+			await vscode.commands.executeCommand('revealInExplorer', localUri);
+		}
+		assetsView.refresh();
+	}));
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.revealAssetPack', async (node: AssetNode) => {
+		const linked = assetsView.linkedFolder(node);
+		if (linked) {
+			await vscode.commands.executeCommand('revealInExplorer', linked);
+		}
+	}));
+
 	// From a menu the item comes with the command; from a key, it is the one selected
 	const assetTarget = (node?: AssetNode) => node instanceof AssetNode ? node : assetsTree.selection[0];
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.renameAsset', (node?: AssetNode) => {

@@ -38,6 +38,12 @@ export class AssetsViewProvider implements vscode.TreeDataProvider<AssetNode>, v
         if (node.isFolder) {
             item.iconPath = new vscode.ThemeIcon(node.depth === 1 ? "package" : "folder");
             item.contextValue = node.depth === 1 ? `${writable}assetPack` : `${writable}assetFolder`;
+            const linked = node.depth === 1 && this.linkedFolder(node);
+            if (linked) {
+                item.contextValue = `${writable}linked assetPack`;
+                item.description = "linked";
+                item.tooltip = `Linked to ${vscode.workspace.asRelativePath(linked)}`;
+            }
         } else {
             item.contextValue = `${writable}asset`;
             item.tooltip = "Drag into a file to insert its asset key";
@@ -66,6 +72,12 @@ export class AssetsViewProvider implements vscode.TreeDataProvider<AssetNode>, v
         } catch {
             return [];
         }
+    }
+
+    // Where a pack is linked here, if it is
+    linkedFolder(node: AssetNode): vscode.Uri | undefined {
+        const remotePath = node.uri.path.slice(`/${AirCode.rootFolder}/`.length);
+        return this.links.projects().find(project => project.remotePath === remotePath)?.localUri;
     }
 
     handleDrag(nodes: readonly AssetNode[], dataTransfer: vscode.DataTransfer) {
