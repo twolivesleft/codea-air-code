@@ -230,7 +230,7 @@ export class LinkSync {
             const names = new Set([...localNames, ...remoteFiles.keys(), ...Object.keys(bases)]);
 
             for (const name of [...names].sort()) {
-                await this.syncFile(project, name, remoteFiles, 'full');
+                await this.syncFileOrSay(project, name, remoteFiles, 'full');
             }
         });
     }
@@ -583,7 +583,19 @@ export class LinkSync {
         }
 
         for (const name of names) {
+            await this.syncFileOrSay(project, name, remoteFiles, source);
+        }
+    }
+
+    // One file that cannot be synced is reported and the others go on
+    private async syncFileOrSay(project: LinkedProject, name: string, remoteFiles: Map<string, RemoteFile>, source: SyncSource) {
+        try {
             await this.syncFile(project, name, remoteFiles, source);
+        } catch (error) {
+            if (error instanceof vscode.FileSystemError && error.code === 'Unavailable') {
+                throw error;
+            }
+            this.log.appendLine(`Could not sync ${this.describe(project, name)}: ${error}`);
         }
     }
 
