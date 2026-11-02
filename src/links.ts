@@ -206,6 +206,16 @@ export class Links {
         await config.update('links', links, vscode.ConfigurationTarget.WorkspaceFolder);
     }
 
+    // Points a project's link at its folder's new place, or at the project's new name in Codea
+    async moveLink(project: LinkedProject, folder: vscode.WorkspaceFolder, localUri: vscode.Uri, remotePath: string) {
+        const config = vscode.workspace.getConfiguration(section, folder);
+        const links = { ...(config.get<{ [local: string]: string }>('links') ?? {}) };
+        const root = folder.uri.path.replace(/\/$/, '');
+        delete links[project.localUri.path.slice(root.length + 1)];
+        links[localUri.path.slice(root.length + 1)] = remotePath;
+        await config.update('links', links, vscode.ConfigurationTarget.WorkspaceFolder);
+    }
+
     // Removes the links of these projects, leaving their folders and Codea alone
     async removeLinks(projects: LinkedProject[]) {
         for (const folder of this.fileFolders()) {

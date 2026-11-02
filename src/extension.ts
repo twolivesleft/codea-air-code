@@ -869,6 +869,75 @@ export function activate(context: vscode.ExtensionContext) {
 		projectsView.refresh();
 	}));
 
+	// A linked project's folder renamed in VS Code renames the project in Codea when only its name
+	// changed and it still names the project; moved anywhere else, it stays linked to the project.
+	// Renames made outside VS Code are only seen as the folder going missing.
+	context.subscriptions.push(vscode.workspace.onWillRenameFiles(event => {
+		for (const { oldUri } of event.files) {
+			sync.renameStarting(oldUri);
+		}
+	}));
+	context.subscriptions.push(vscode.workspace.onDidRenameFiles(async event => {
+		for (const { oldUri, newUri } of event.files) {
+			try {
+				await followRename(oldUri, newUri);
+			} finally {
+				sync.renameDone(oldUri);
+			}
+		}
+	}));
+
+	async function followRename(oldUri: vscode.Uri, newUri: vscode.Uri) {
+		const oldPath = oldUri.path.replace(/\/$/, '');
+		const moved = linkedFolders.projects().filter(project =>
+			project.localUri.path === oldPath || project.localUri.path.startsWith(`${oldPath}/`));
+		const folder = vscode.workspace.getWorkspaceFolder(newUri);
+		const host = linkedFolders.host();
+		if (moved.length === 0 || folder === undefined || host === undefined) {
+			return;
+		}
+
+		const parent = (path: string) => path.split('/').slice(0, -1).join('/');
+		const oldName = oldPath.split('/').pop()!;
+		const newName = newUri.path.split('/').pop()!;
+		for (const project of moved) {
+			const localUri = newUri.with({ path: newUri.path + project.localUri.path.slice(oldPath.length) });
+			let remotePath = project.remotePath;
+			const projectName = remotePath.split('/').pop()!;
+			if (project.localUri.path === oldPath && parent(oldPath) === parent(newUri.path)
+				&& oldName === `${projectName}.codea` && newName.endsWith('.codea') && newName !== oldName) {
+				const renamed = `${parent(remotePath)}/${newName.slice(0, -'.codea'.length)}`;
+				const problem = await renameInCodea(host, remotePath, renamed);
+				if (problem === undefined) {
+					remotePath = renamed;
+				} else {
+					vscode.window.showWarningMessage(`${problem} ${vscode.workspace.asRelativePath(localUri)} stays linked to ${remotePath}.`);
+				}
+			}
+			await sync.moveLink(project, folder, localUri, remotePath);
+		}
+	}
+
+	// Renames a project in Codea, within its collection; says why not when it could not
+	async function renameInCodea(host: string, remotePath: string, renamed: string): Promise<string | undefined> {
+		if (airCode.disconnected) {
+			return `Not connected, so ${remotePath} was not renamed in Codea.`;
+		}
+		const codeaUri = (path: string) => vscode.Uri.from({ scheme: 'codea', authority: host, path: `/${AirCode.rootFolder}/${path}` });
+		const collection = renamed.split('/').slice(0, -1).join('/');
+		const newName = renamed.split('/').pop()!;
+		try {
+			const existing = (await airCode.readDirectory(codeaUri(collection))).map(([name]) => name.toLowerCase());
+			if (existing.includes(newName.toLowerCase()) && newName.toLowerCase() !== remotePath.split('/').pop()!.toLowerCase()) {
+				return `${collection} already has a project named ${newName}, so ${remotePath} was not renamed in Codea.`;
+			}
+			await airCode.rename(codeaUri(remotePath), codeaUri(renamed), { overwrite: false });
+		} catch (error) {
+			return `Codea did not rename ${remotePath} (${error}).`;
+		}
+		return await waitFor(codeaUri(collection), newName) ? undefined : `Codea did not rename ${remotePath}.`;
+	}
+
 	function validName(value: string): string | undefined {
 		const name = value.trim();
 		if (name === "") {

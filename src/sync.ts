@@ -94,6 +94,10 @@ export class LinkSync {
     private pendingDeletions = new Map<string, { project: LinkedProject, name: string }>();
     private deletionTimer: NodeJS.Timeout | undefined;
 
+    // Folders being renamed in VS Code. Until their links follow, the old folder going is not a
+    // deletion, and the projects in them are not synced.
+    private renaming = new Set<string>();
+
     // Linked projects found missing on one side, which are not synced until asked about
     private missingLocally = new Map<string, LinkedProject>();
     private missingInCodea = new Map<string, LinkedProject>();
@@ -194,7 +198,7 @@ export class LinkSync {
     // left alone until asked about.
     sync(project: LinkedProject): Promise<void> {
         return this.enqueue(project, async () => {
-            if (this.airCode.disconnected) {
+            if (this.airCode.disconnected || this.isRenaming(project.localUri.path)) {
                 return;
             }
             const key = project.localUri.toString();
@@ -251,7 +255,7 @@ export class LinkSync {
     // linked project's folder, or a folder holding some, counts as those projects going missing.
     private deleted(uri: vscode.Uri) {
         // Connect compares everything and asks then
-        if (this.airCode.disconnected) {
+        if (this.airCode.disconnected || this.isRenaming(uri.path)) {
             return;
         }
         const folderPath = uri.path.replace(/\/$/, '');
@@ -386,6 +390,29 @@ export class LinkSync {
         return shortList(items, itemsInDialog);
     }
 
+    renameStarting(uri: vscode.Uri) {
+        this.renaming.add(uri.path.replace(/\/$/, ''));
+    }
+
+    // The file watcher reports the old folder going a moment after the rename
+    renameDone(uri: vscode.Uri) {
+        setTimeout(() => this.renaming.delete(uri.path.replace(/\/$/, '')), 3000);
+    }
+
+    private isRenaming(path: string): boolean {
+        return [...this.renaming].some(renamed => path === renamed || path.startsWith(`${renamed}/`));
+    }
+
+    // Moves a project's link, and what was last synced, to its renamed folder or project
+    async moveLink(project: LinkedProject, folder: vscode.WorkspaceFolder, localUri: vscode.Uri, remotePath: string) {
+        this.store.set(this.stateKey({ localUri, remotePath }), this.bases(project));
+        this.store.set(this.stateKey(project), undefined);
+        await this.links.moveLink(project, folder, localUri, remotePath);
+        this.log.appendLine(remotePath === project.remotePath
+            ? `${remotePath} is now linked to ${vscode.workspace.asRelativePath(localUri)}`
+            : `Renamed ${project.remotePath} to ${remotePath} in Codea`);
+    }
+
     async unlink(projects: LinkedProject[]) {
         for (const project of projects) {
             this.store.set(this.stateKey(project), undefined);
@@ -428,7 +455,7 @@ export class LinkSync {
 
     private async syncNamed(project: LinkedProject, names: string[], source: SyncSource) {
         const projectUri = this.links.remoteProjectUri(project);
-        if (projectUri === undefined || this.airCode.disconnected) {
+        if (projectUri === undefined || this.airCode.disconnected || this.isRenaming(project.localUri.path)) {
             return;
         }
 
