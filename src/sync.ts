@@ -5,7 +5,7 @@ import * as vscode from 'vscode';
 
 import { AirCode } from './aircode';
 import { LinkedProject, Links } from './links';
-import { guardDeletion, planSync, SyncSource } from './syncplan';
+import { guardDeletion, planSync, shortList, SyncSource } from './syncplan';
 
 // When both sides last agreed on a file: its content hash, Codea's modification time for it,
 // and the local file's modification time and size, which spare reading it again when unchanged
@@ -19,6 +19,9 @@ type Conflict = { project: LinkedProject; name: string };
 
 // Deleting more files than this at once asks before they are deleted in Codea
 const deletionsWithoutAsking = 5;
+
+// A modal dialog taller than the screen hides its buttons, so its detail lists only this many
+const itemsInDialog = 12;
 
 // What each linked project's files were when both sides last agreed, kept in a file per project
 // and saved within moments of each change: VS Code's own state is saved later, and lost if VS
@@ -292,7 +295,7 @@ export class LinkSync {
             const deleteInCodea = 'Delete in Codea';
             const choice = await vscode.window.showWarningMessage(
                 `${files.length} files were deleted from linked projects. Delete them in Codea too?`,
-                { modal: true, detail: files.map(({ project, name }) => this.describe(project, name)).join('\n') },
+                { modal: true, detail: this.listForDialog('Deleted locally:', files.map(({ project, name }) => this.describe(project, name))) },
                 deleteInCodea, 'Restore Them Here');
             // Anything but an explicit yes brings the files back
             source = choice === deleteInCodea ? 'local' : 'full';
@@ -328,7 +331,7 @@ export class LinkSync {
                     projects.length === 1
                         ? `The linked project ${projects[0].remotePath} is missing from this folder. Nothing was changed in Codea.`
                         : `${projects.length} linked projects are missing from this folder. Nothing was changed in Codea.`,
-                    { modal: true, detail: projects.map(project => project.remotePath).join('\n') },
+                    { modal: true, detail: this.listForDialog('Missing from this folder:', projects.map(project => project.remotePath)) },
                     getAgain, unlink);
                 this.missingLocally.clear();
                 if (choice === getAgain) {
@@ -349,7 +352,7 @@ export class LinkSync {
                     projects.length === 1
                         ? `The linked project ${projects[0].remotePath} is missing in Codea. Its folder here was left as it is.`
                         : `${projects.length} linked projects are missing in Codea. Their folders here were left as they are.`,
-                    { modal: true, detail: projects.map(project => project.remotePath).join('\n') },
+                    { modal: true, detail: this.listForDialog('Missing in Codea:', projects.map(project => project.remotePath)) },
                     unlink);
                 this.missingInCodea.clear();
                 if (choice === unlink) {
@@ -359,6 +362,18 @@ export class LinkSync {
         } finally {
             this.askingAboutMissing = false;
         }
+    }
+
+    // The first items for a dialog's detail. A longer list goes in full to the output, shown behind the dialog.
+    private listForDialog(heading: string, items: string[]): string {
+        if (items.length > itemsInDialog) {
+            this.log.appendLine(heading);
+            for (const item of items) {
+                this.log.appendLine(`  ${item}`);
+            }
+            this.log.show(true);
+        }
+        return shortList(items, itemsInDialog);
     }
 
     private async unlink(projects: LinkedProject[]) {

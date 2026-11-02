@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 
-import { guardDeletion, planSync } from '../../syncplan';
+import { guardDeletion, planSync, shortList } from '../../syncplan';
 
 suite('planSync', () => {
 	test('first sync copies a file that exists on one side only', () => {
@@ -71,5 +71,19 @@ suite('guardDeletion', () => {
 				assert.strictEqual(guardDeletion(action, source), action);
 			}
 		}
+	});
+});
+
+suite('shortList', () => {
+	test('a short list is shown whole', () => {
+		assert.strictEqual(shortList(['a', 'b'], 2), 'a\nb');
+	});
+
+	test('a long list shows its first items and how many more', () => {
+		const items = Array.from({ length: 219 }, (_, i) => `Project ${i + 1}`);
+		const lines = shortList(items, 12).split('\n');
+		assert.strictEqual(lines.length, 13);
+		assert.deepStrictEqual(lines.slice(0, 12), items.slice(0, 12));
+		assert.strictEqual(lines[12], 'and 207 more, all listed in the Codea output');
 	});
 });

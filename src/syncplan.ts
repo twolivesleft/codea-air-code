@@ -62,3 +62,11 @@ export function guardDeletion(action: SyncAction, source: SyncSource): SyncActio
     }
     return action;
 }
+
+// A list for a dialog's detail: the first items, then how many more there are
+export function shortList(items: string[], count: number): string {
+    if (items.length <= count) {
+        return items.join('\n');
+    }
+    return [...items.slice(0, count), `and ${items.length - count} more, all listed in the Codea output`].join('\n');
+}
