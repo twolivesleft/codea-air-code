@@ -801,6 +801,73 @@ export function activate(context: vscode.ExtensionContext) {
 		await getProject(folder, host, `${collection}/${name}`);
 	}));
 
+	// Deletes a project in Codea, after asking, then its linked folder here. The link goes first,
+	// so neither the folder going nor Codea's report of the deletion is synced.
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.deleteProject', async (target: vscode.Uri | ProjectNode) => {
+		const folder = await requireFolder();
+		const host = folder && await requireHost();
+		if (folder === undefined || host === undefined) {
+			return;
+		}
+		const linked = target instanceof ProjectNode
+			? linkedFolders.projects().find(project => project.remotePath === target.remotePath)
+			: linkedFolders.projects().find(project => project.localUri.path === target.path);
+		const remotePath = target instanceof ProjectNode ? target.remotePath : linked?.remotePath;
+		if (remotePath === undefined) {
+			vscode.window.showErrorMessage(`${vscode.workspace.asRelativePath(target as vscode.Uri)} is not linked to a project in Codea.`);
+			return;
+		}
+		const projectUri = vscode.Uri.from({ scheme: 'codea', authority: host, path: `/${AirCode.rootFolder}/${remotePath}` });
+
+		let files: number;
+		try {
+			files = (await airCode.readDirectory(projectUri)).filter(([, type]) => type === vscode.FileType.File).length;
+		} catch (error) {
+			vscode.window.showErrorMessage(`Could not read ${remotePath} in Codea: ${error}`);
+			return;
+		}
+		const deleteProject = "Delete Project";
+		const choice = await vscode.window.showWarningMessage(
+			`Delete ${remotePath} in Codea? Its ${files} ${files === 1 ? "file" : "files"} will be deleted on the device, where they cannot be recovered.`,
+			{ modal: true, detail: linked ? `${vscode.workspace.asRelativePath(linked.localUri)} here goes to the Trash.` : undefined },
+			deleteProject);
+		if (choice !== deleteProject) {
+			return;
+		}
+
+		if (linked) {
+			await sync.unlink([linked]);
+		}
+		const collectionUri = projectUri.with({ path: projectUri.path.split('/').slice(0, -1).join('/') });
+		const deleted = await vscode.window.withProgress(
+			{ location: vscode.ProgressLocation.Notification, title: `Deleting ${remotePath} in Codea...` },
+			async () => {
+				try {
+					await airCode.delete(projectUri, { recursive: true });
+				} catch {
+					// Codea refuses while the project runs; whether it is gone decides
+				}
+				return waitFor(collectionUri, remotePath.split('/').pop()!, false);
+			});
+		if (!deleted) {
+			if (linked) {
+				await linkedFolders.addLink(folder, linked.localUri, linked.remotePath, host);
+			}
+			vscode.window.showErrorMessage(`Codea did not delete ${remotePath}. If it is running, stop it and try again.`);
+			return;
+		}
+		outputChannel.appendLine(`Deleted ${remotePath} in Codea`);
+
+		if (linked) {
+			try {
+				await vscode.workspace.fs.delete(linked.localUri, { recursive: true, useTrash: true });
+			} catch {
+				// Already gone here
+			}
+		}
+		projectsView.refresh();
+	}));
+
 	function validName(value: string): string | undefined {
 		const name = value.trim();
 		if (name === "") {
@@ -812,11 +879,11 @@ export function activate(context: vscode.ExtensionContext) {
 		return undefined;
 	}
 
-	// Whether a Codea folder comes to list the named entry within ten seconds
-	async function waitFor(folderUri: vscode.Uri, entry: string): Promise<boolean> {
+	// Whether a Codea folder comes to list the named entry, or to no longer list it, within ten seconds
+	async function waitFor(folderUri: vscode.Uri, entry: string, listed = true): Promise<boolean> {
 		for (let attempt = 0; attempt < 40; attempt++) {
 			try {
-				if ((await airCode.readDirectory(folderUri)).some(([name]) => name === entry)) {
+				if ((await airCode.readDirectory(folderUri)).some(([name]) => name === entry) === listed) {
 					return true;
 				}
 			} catch {

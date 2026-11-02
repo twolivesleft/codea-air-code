@@ -339,7 +339,7 @@ export class LinkSync {
                 this.log.appendLine(question);
                 const choice = await vscode.window.showWarningMessage(
                     question,
-                    { modal: true, detail: this.listForDialog('Missing from this folder:', projects.map(project => project.remotePath)) },
+                    { modal: true, detail: `${this.listForDialog('Missing from this folder:', projects.map(project => project.remotePath))}\n\nTo delete a project in Codea, use Delete Project in Codea on its folder or in the Projects view.` },
                     getAgain, unlink);
                 this.missingLocally.clear();
                 if (choice === getAgain) {
@@ -386,7 +386,7 @@ export class LinkSync {
         return shortList(items, itemsInDialog);
     }
 
-    private async unlink(projects: LinkedProject[]) {
+    async unlink(projects: LinkedProject[]) {
         for (const project of projects) {
             this.store.set(this.stateKey(project), undefined);
         }

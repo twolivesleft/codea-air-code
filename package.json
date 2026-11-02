@@ -175,6 +175,11 @@
         "icon": "$(codea-new)"
       },
       {
+        "command": "codea-air-code.deleteProject",
+        "title": "Codea: Delete Project in Codea...",
+        "icon": "$(trash)"
+      },
+      {
         "command": "codea-air-code.disconnect",
         "title": "Codea: Disconnect"
       }
@@ -356,6 +361,10 @@
         {
           "command": "codea-air-code.newProject",
           "when": "codea-air-code.hasLocalHost"
+        },
+        {
+          "command": "codea-air-code.deleteProject",
+          "when": "false"
         }
       ],
       "explorer/context": [
@@ -367,6 +376,11 @@
         {
           "command": "codea-air-code.newProject",
           "when": "explorerResourceIsFolder && resourceScheme == file && codea-air-code.hasLocalHost",
+          "group": "a_codea"
+        },
+        {
+          "command": "codea-air-code.deleteProject",
+          "when": "explorerResourceIsFolder && resourceScheme == file && resourceFilename =~ /\\.codea$/ && codea-air-code.hasLocalHost",
           "group": "a_codea"
         }
       ],
@@ -427,6 +441,11 @@
           "command": "codea-air-code.newProject",
           "when": "view == codea-projects && viewItem == collection",
           "group": "inline"
+        },
+        {
+          "command": "codea-air-code.deleteProject",
+          "when": "view == codea-projects && viewItem =~ /^(project|linkedProject)$/",
+          "group": "z_delete"
         }
       ]
     },
