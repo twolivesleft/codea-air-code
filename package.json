@@ -57,7 +57,7 @@
           "type": "webview",
           "id": "codea-reference",
           "name": "Reference",
-          "when": "codea-air-code.hasWorkspaceUri == true || codea-air-code.isLinked == true"
+          "when": "codea-air-code.hasWorkspaceUri == true || codea-air-code.hasLocalHost == true"
         },
         {
           "type": "webview",
@@ -69,7 +69,7 @@
           "type": "webview",
           "id": "codea-parameters",
           "name": "Parameters",
-          "when": "codea-air-code.hasWorkspaceUri == true || codea-air-code.isLinked == true"
+          "when": "codea-air-code.hasWorkspaceUri == true || codea-air-code.hasLocalHost == true"
         }
       ]
     },

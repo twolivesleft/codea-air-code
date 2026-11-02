@@ -24,7 +24,7 @@ export function getWorkspaceUri(): vscode.Uri {
 		return folders[0].uri;
 	}
 
-	const connectionUri = links?.isLinked() ? links.connectionUri() : undefined;
+	const connectionUri = links?.connectionUri();
 	if (connectionUri) {
 		return connectionUri;
 	}
@@ -200,7 +200,12 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.commands.executeCommand('setContext', 'codea-air-code.hasLocalHost', linkedFolders.host() !== undefined);
 		updateWatchedPaths();
 		airCode.restartLanguageClient();
-		status.setVisible(isCodeaWorkspace || linkedFolders.isLinked());
+		// A folder with a Codea host is connected like a codea:// workspace, linked projects or not
+		const connectionUri = linkedFolders.connectionUri();
+		status.setVisible(isCodeaWorkspace || connectionUri !== undefined);
+		if (connectionUri !== undefined) {
+			airCode.getSocketForUri(connectionUri, false);
+		}
 		if (!linkedFolders.isLinked()) {
 			sync.dispose();
 			return;
@@ -677,11 +682,14 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 		await vscode.workspace.getConfiguration('codea-air-code', folder).update('host', host, vscode.ConfigurationTarget.WorkspaceFolder);
-		projectsView.refresh();
 
-		// Choosing the device already saved changes nothing, so say it worked and show the projects
-		await vscode.commands.executeCommand(`${ProjectsViewProvider.viewType}.focus`);
-		vscode.window.showInformationMessage(`Connected to Codea at ${host}.`);
+		// Choosing the device already saved changes no setting, so the connection is opened here
+		const socket = await airCode.getSocketForUri(linkedFolders.connectionUri()!, true);
+		projectsView.refresh();
+		if (socket !== undefined) {
+			await vscode.commands.executeCommand(`${ProjectsViewProvider.viewType}.focus`);
+			vscode.window.showInformationMessage(`Connected to Codea at ${host}.`);
+		}
 	}));
 
 	// Downloads a project into the workspace, where Codea itself would keep it, and links it
