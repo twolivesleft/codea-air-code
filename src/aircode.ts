@@ -14,7 +14,8 @@ import {
     GetFunctionsResponse,
     FindReferenceResponse, 
     FindInFilesResponse,
-    GetAssetKeyResponse} from './responses';
+    GetAssetKeyResponse,
+    FileVersion} from './responses';
 import { Command } from './commands';
 import * as Parameters from './parameters';
 import * as Reference from './reference';
@@ -78,6 +79,13 @@ export class AirCode implements vscode.FileSystemProvider {
 
     // Whether Codea sends filesChanged for the projects named with watchFiles
     watchesFiles = false;
+    // Whether Codea lists a folder's files with their dates in one request
+    listsFileVersions = false;
+    // Collections that ship with Codea, which getting every project skips
+    builtInCollections: string[] = ["Examples", "Craft"];
+    private lastAnswer = 0;
+    private _onDidConnect = new vscode.EventEmitter<void>();
+    onDidConnect = this._onDidConnect.event;
     private watchedPaths: string[] = [];
     filesChanged = new vscode.EventEmitter<{ path: string, files: string[] }>();
 
@@ -432,6 +440,10 @@ export class AirCode implements vscode.FileSystemProvider {
             parent.setStatusConnected();
 
             airCode.watchesFiles = information.watchesFiles === true;
+            airCode.listsFileVersions = information.listsFileVersions === true;
+            if (information.builtInCollections) {
+                airCode.builtInCollections = information.builtInCollections;
+            }
             airCode.sendWatchedPaths(uri);
 
             airCode.startLanguageClient();
@@ -445,12 +457,15 @@ export class AirCode implements vscode.FileSystemProvider {
             if (information.hasHost) {
                 airCode.startDebugging();
             }
+
+            airCode._onDidConnect.fire();
         };
 
         let parent = this;
 
         ws.onmessage = function (evt: MessageEvent) {
             let result = JSON.parse(evt.data as string);
+            airCode.lastAnswer = Date.now();
 
             if (result.id !== undefined) {
                 let id = result.id as number;
@@ -669,10 +684,37 @@ export class AirCode implements vscode.FileSystemProvider {
 
     send<T>(ws: WebSocket, command: Command, promise: (response: Response<T>) => void) {
         this.commandId++;
-        command.id = this.commandId;
+        const id = this.commandId;
+        command.id = id;
         this.logLsp(`command ${command.id} - ${command.command}`);
         ws.send(JSON.stringify(command));
-        this.promises.set(this.commandId, promise);
+        this.promises.set(id, promise);
+
+        // Codea can stop answering a connection, as when a newer one connects and leaves. The
+        // command then fails and the connection is replaced, rather than waiting forever.
+        const timeout = AirCode.slowCommands.includes(command.command) ? 60000 : 15000;
+        setTimeout(() => {
+            const pending = this.promises.get(id);
+            if (pending === undefined) {
+                return;
+            }
+            this.promises.delete(id);
+            this.logLsp(`command ${id} - ${command.command} timed out`);
+            pending({ id, error: "connectionLost" } as any);
+            this.dropConnection(ws);
+        }, timeout);
+    }
+
+    private static readonly slowCommands: Command.Type[] = ["readFile", "writeFile", "startHost", "findInFiles"];
+
+    // Forgets a connection that stopped answering, so the next command opens a new one
+    private dropConnection(ws: WebSocket) {
+        for (const [host, socket] of this.webSockets) {
+            if (socket === ws) {
+                this.webSockets.delete(host);
+            }
+        }
+        ws.close();
     }
 
     sendCommandMapResponse<R, T>(uri: vscode.Uri, command: Command, map: (response: R | Error) => Result<T, Error>): T | Thenable<T> {
@@ -761,6 +803,10 @@ export class AirCode implements vscode.FileSystemProvider {
     // connection that no longer answers is replaced. This also sets the text extensions writeFile
     // needs. The check is a stat: a getInformation would make Codea skip commands still queued.
     async ensureResponsive(uri: vscode.Uri) {
+        if (Date.now() - this.lastAnswer < 3000 && this.textFileExtensions.length > 0) {
+            return;
+        }
+
         const root = uri.with({ path: `/${AirCode.rootFolder}` });
         for (let attempt = 0; attempt < 2; attempt++) {
             const timeout = new Promise<boolean>(resolve => setTimeout(() => resolve(false), 5000));
@@ -872,6 +918,11 @@ export class AirCode implements vscode.FileSystemProvider {
         return this.sendCommand<FindReferenceResponse>(uri, Command.FindReference.from(text));
     }
     
+    // The files of a folder with Codea's modification dates, in one request
+    async listFileVersions(uri: vscode.Uri): Promise<FileVersion[]> {
+        return this.sendCommand<FileVersion[]>(uri, Command.ListFileVersions.from(uri.path));
+    }
+
     async findInFiles(uri: vscode.Uri, text: string, caseSensitive: boolean, wholeWord: boolean, isRegex: boolean) : Promise<FindInFilesResponse> {
         return this.sendCommand<FindInFilesResponse>(uri, Command.FindInFiles.from(uri.toString(), text, caseSensitive, wholeWord, isRegex));
     }

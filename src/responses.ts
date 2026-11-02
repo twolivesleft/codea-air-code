@@ -19,6 +19,14 @@ export type GetInformationResponse = {
     hasHost: boolean;
     textExtensions: string[];
     watchesFiles?: boolean;
+    listsFileVersions?: boolean;
+    builtInCollections?: string[];
+}
+
+export type FileVersion = {
+    name: string;
+    mtime: number;
+    size: number;
 }
 
 export type AddDependencyResponse = {

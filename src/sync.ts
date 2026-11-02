@@ -5,11 +5,15 @@ import { AirCode } from './aircode';
 import { LinkedProject, Links } from './links';
 import { planSync } from './syncplan';
 
-// The content hash of a file and Codea's modification time for it, when both sides last agreed
-type Base = { hash: string; mtime: number };
+// When both sides last agreed on a file: its content hash, Codea's modification time for it,
+// and the local file's modification time and size, which spare reading it again when unchanged
+type Base = { hash: string; mtime: number; localMtime?: number; localSize?: number };
 type Bases = { [file: string]: Base };
 
 type RemoteFile = { mtime: number };
+type LocalStat = { mtime: number; size: number };
+
+type Conflict = { project: LinkedProject; name: string };
 
 function hash(content: Uint8Array): string {
     return crypto.createHash('sha1').update(content).digest('hex');
@@ -27,6 +31,9 @@ export class LinkSync {
     private conflicts = new Set<string>();
     private running = 0;
 
+    // While syncing many projects at once, conflicts are gathered and asked about together
+    private gatheredConflicts: Conflict[] | undefined;
+
     private _onDidChangeBusy = new vscode.EventEmitter<boolean>();
     onDidChangeBusy = this._onDidChangeBusy.event;
 
@@ -41,13 +48,23 @@ export class LinkSync {
         this.watchers = [];
     }
 
-    // Pushes local edits, from VS Code or any other tool, as they land on disk
+    // Pushes local edits, from VS Code or any other tool, as they land on disk. One watcher per
+    // workspace folder serves all of its linked projects, however many there are.
     watch() {
         this.dispose();
 
-        for (const project of this.links.projects()) {
-            const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(project.localUri, '*'));
-            const onEvent = (uri: vscode.Uri) => this.fileChanged(project, uri);
+        const folders = new Set(this.links.projects()
+            .map(project => vscode.workspace.getWorkspaceFolder(project.localUri))
+            .filter((folder): folder is vscode.WorkspaceFolder => folder !== undefined));
+
+        for (const folder of folders) {
+            const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(folder, '**/*'));
+            const onEvent = (uri: vscode.Uri) => {
+                const found = this.links.find(uri);
+                if (found && !found[1].includes('/')) {
+                    this.fileChanged(found[0], uri);
+                }
+            };
             watcher.onDidCreate(onEvent);
             watcher.onDidChange(onEvent);
             watcher.onDidDelete(onEvent);
@@ -59,6 +76,38 @@ export class LinkSync {
         for (const project of this.links.projects()) {
             await this.sync(project);
         }
+    }
+
+    // Syncs projects one after the other with a progress notification, then asks about all the
+    // files that differ on both sides at once
+    async syncMany(projects: LinkedProject[], title: string) {
+        this.gatheredConflicts = [];
+        try {
+            await vscode.window.withProgress(
+                { location: vscode.ProgressLocation.Notification, title, cancellable: true },
+                async (progress, token) => {
+                    for (const [index, project] of projects.entries()) {
+                        if (token.isCancellationRequested) {
+                            this.log.appendLine(`Stopped after ${index} of ${projects.length} projects; the others sync when Codea next connects.`);
+                            break;
+                        }
+                        progress.report({
+                            message: `${index + 1} of ${projects.length}: ${project.remotePath.split('/').pop()}`,
+                            increment: 100 / projects.length,
+                        });
+                        await this.sync(project);
+                    }
+                });
+        } finally {
+            const conflicts = this.gatheredConflicts;
+            this.gatheredConflicts = undefined;
+            await this.resolveConflicts(conflicts);
+        }
+    }
+
+    // Waits for the syncs already queued for a project
+    async idle(project: LinkedProject) {
+        await this.queues.get(project.localUri.toString());
     }
 
     // Brings both sides of a project up to date, asking about files changed on both
@@ -153,8 +202,17 @@ export class LinkSync {
         const remoteUri = this.remoteUri(project, name);
         const base = this.bases(project)[name];
 
-        const local = await this.readLocal(project, name);
-        const localHash = local && hash(local);
+        const localStat = await this.statLocal(localUri);
+        let local: Uint8Array | undefined;
+        let localHash: string | undefined;
+        if (localStat !== undefined) {
+            if (base !== undefined && base.localMtime === localStat.mtime && base.localSize === localStat.size) {
+                localHash = base.hash;
+            } else {
+                local = await this.readLocal(project, name);
+                localHash = local && hash(local);
+            }
+        }
 
         const remoteFile = remoteFiles.get(name);
         let remote: Uint8Array | undefined;
@@ -172,22 +230,27 @@ export class LinkSync {
         switch (action) {
             case 'none':
                 if (remoteFile !== undefined && base !== undefined && base.mtime !== remoteFile.mtime) {
-                    this.setBase(project, name, { hash: base.hash, mtime: remoteFile.mtime });
+                    this.setBase(project, name, { ...base, mtime: remoteFile.mtime });
+                }
+                if (local !== undefined && base !== undefined) {
+                    await this.recordLocal(project, name);
                 }
                 break;
             case 'record':
                 this.setBase(project, name, { hash: localHash!, mtime: remoteFile!.mtime });
+                await this.recordLocal(project, name);
                 break;
             case 'forget':
                 this.setBase(project, name, undefined);
                 break;
             case 'push':
-                await this.push(project, name, local!);
+                await this.push(project, name, local ?? (await this.readLocal(project, name))!);
                 break;
             case 'pull':
                 // The base is set first so the watcher sees this write as already synced
                 this.setBase(project, name, { hash: remoteHash!, mtime: remoteFile!.mtime });
                 await vscode.workspace.fs.writeFile(localUri, remote ?? await this.airCode.readFile(remoteUri));
+                await this.recordLocal(project, name);
                 this.log.appendLine(`Pulled ${this.describe(project, name)}`);
                 break;
             case 'deleteLocal':
@@ -201,7 +264,11 @@ export class LinkSync {
                 this.log.appendLine(`Deleted ${this.describe(project, name)} in Codea`);
                 break;
             case 'conflict':
-                this.resolveConflict(project, name);
+                if (this.gatheredConflicts) {
+                    this.gatheredConflicts.push({ project, name });
+                } else {
+                    this.resolveConflict(project, name);
+                }
                 break;
         }
     }
@@ -211,7 +278,37 @@ export class LinkSync {
         await this.airCode.writeFile(remoteUri, content, { create: true, overwrite: true });
         const stat = await this.airCode.stat(remoteUri);
         this.setBase(project, name, { hash: hash(content), mtime: stat.mtime });
+        await this.recordLocal(project, name);
         this.log.appendLine(`Pushed ${this.describe(project, name)}`);
+    }
+
+    // Asks once about many files that differ on both sides, with the choice of going through them
+    private async resolveConflicts(conflicts: Conflict[]) {
+        if (conflicts.length === 0) {
+            return;
+        }
+        if (conflicts.length === 1) {
+            await this.resolveConflict(conflicts[0].project, conflicts[0].name);
+            return;
+        }
+
+        const keepLocal = 'Keep Local for All';
+        const keepCodea = 'Keep Codea for All';
+        const review = 'Review Each';
+        const choice = await vscode.window.showWarningMessage(
+            `${conflicts.length} files differ between this folder and Codea.`,
+            { modal: true, detail: conflicts.map(({ project, name }) => this.describe(project, name)).join('\n') },
+            keepLocal, keepCodea, review);
+
+        if (choice === review) {
+            for (const { project, name } of conflicts) {
+                this.resolveConflict(project, name);
+            }
+        } else if (choice !== undefined) {
+            for (const { project, name } of conflicts) {
+                await this.enqueue(project, () => this.keep(project, name, choice === keepLocal ? 'local' : 'codea'));
+            }
+        }
     }
 
     // Asks which side to keep; leaving the question unanswered leaves both sides as they are
@@ -238,36 +335,43 @@ export class LinkSync {
                 }
             }
 
-            if (choice === undefined) {
-                return;
+            if (choice !== undefined) {
+                await this.enqueue(project, () => this.keep(project, name, choice === keepLocal ? 'local' : 'codea'));
             }
-
-            await this.enqueue(project, async () => {
-                const local = await this.readLocal(project, name);
-                const remoteFiles = await this.listRemote(project);
-                if (remoteFiles === undefined) {
-                    return;
-                }
-                const remoteFile = remoteFiles.get(name);
-
-                if (choice === keepLocal) {
-                    if (local !== undefined) {
-                        await this.push(project, name, local);
-                    } else {
-                        this.setBase(project, name, undefined);
-                        await this.airCode.delete(remoteUri, { recursive: false });
-                    }
-                } else if (remoteFile !== undefined) {
-                    const remote = await this.airCode.readFile(remoteUri);
-                    this.setBase(project, name, { hash: hash(remote), mtime: remoteFile.mtime });
-                    await vscode.workspace.fs.writeFile(localUri, remote);
-                } else {
-                    this.setBase(project, name, undefined);
-                    await vscode.workspace.fs.delete(localUri, { useTrash: true });
-                }
-            });
         } finally {
             this.conflicts.delete(key);
+        }
+    }
+
+    private async keep(project: LinkedProject, name: string, side: 'local' | 'codea') {
+        const localUri = vscode.Uri.joinPath(project.localUri, name);
+        const remoteUri = this.remoteUri(project, name);
+        const local = await this.readLocal(project, name);
+        let remoteFile: RemoteFile | undefined;
+        try {
+            const stat = await this.airCode.stat(remoteUri);
+            remoteFile = { mtime: stat.mtime };
+        } catch (error) {
+            if (!(error instanceof vscode.FileSystemError && error.code === 'FileNotFound')) {
+                throw error;
+            }
+        }
+
+        if (side === 'local') {
+            if (local !== undefined) {
+                await this.push(project, name, local);
+            } else {
+                this.setBase(project, name, undefined);
+                await this.airCode.delete(remoteUri, { recursive: false });
+            }
+        } else if (remoteFile !== undefined) {
+            const remote = await this.airCode.readFile(remoteUri);
+            this.setBase(project, name, { hash: hash(remote), mtime: remoteFile.mtime });
+            await vscode.workspace.fs.writeFile(localUri, remote);
+            await this.recordLocal(project, name);
+        } else {
+            this.setBase(project, name, undefined);
+            await vscode.workspace.fs.delete(localUri, { useTrash: true });
         }
     }
 
@@ -300,9 +404,17 @@ export class LinkSync {
 
         try {
             await this.airCode.ensureResponsive(projectUri);
-            const entries = await this.airCode.readDirectory(projectUri);
             const files = new Map<string, RemoteFile>();
-            for (const [name, type] of entries) {
+
+            if (this.airCode.listsFileVersions) {
+                for (const version of await this.airCode.listFileVersions(projectUri)) {
+                    files.set(version.name, { mtime: version.mtime });
+                }
+                return files;
+            }
+
+            // Older versions of Codea are asked about each file in turn
+            for (const [name, type] of await this.airCode.readDirectory(projectUri)) {
                 if (isSynced(name, type)) {
                     const stat = await this.airCode.stat(vscode.Uri.joinPath(projectUri, name));
                     files.set(name, { mtime: stat.mtime });
@@ -321,6 +433,24 @@ export class LinkSync {
             return entries.filter(([name, type]) => isSynced(name, type)).map(([name]) => name);
         } catch {
             return [];
+        }
+    }
+
+    private async statLocal(uri: vscode.Uri): Promise<LocalStat | undefined> {
+        try {
+            const stat = await vscode.workspace.fs.stat(uri);
+            return stat.type === vscode.FileType.File ? { mtime: stat.mtime, size: stat.size } : undefined;
+        } catch {
+            return undefined;
+        }
+    }
+
+    // Remembers the local file as it is now, once its base is set
+    private async recordLocal(project: LinkedProject, name: string) {
+        const base = this.bases(project)[name];
+        const stat = await this.statLocal(vscode.Uri.joinPath(project.localUri, name));
+        if (base !== undefined && stat !== undefined) {
+            this.setBase(project, name, { ...base, localMtime: stat.mtime, localSize: stat.size });
         }
     }
 

@@ -26,6 +26,41 @@ export async function listCodeaProjects(airCode: AirCode, host: string): Promise
     return projects;
 }
 
+// Projects of one collection, as paths under /Codea
+export async function listCollectionProjects(airCode: AirCode, host: string, collection: string): Promise<string[]> {
+    return (await listFolders(airCode, host, collection)).map(project => `${collection}/${project}`);
+}
+
+// Collections that ship with Codea hold examples, which getting every project leaves out
+export function isBuiltInCollection(airCode: AirCode, remotePath: string): boolean {
+    return airCode.builtInCollections.includes(remotePath.split('/')[0]);
+}
+
+// Where a folder keeps a Codea project, the way Codea itself keeps it: Documents' projects at
+// the top as "Project.codea", the others in their collection's folder
+export function localProjectUri(folder: vscode.Uri, remotePath: string): vscode.Uri {
+    const parts = remotePath.split('/');
+    const name = parts.pop()!;
+    const parent = parts.join('/') === "Documents" ? folder : vscode.Uri.joinPath(folder, ...parts);
+    return vscode.Uri.joinPath(parent, `${name}.codea`);
+}
+
+// The Codea project a folder would hold, by the same layout; undefined for other folders
+export function remoteProjectPath(folder: vscode.Uri, localUri: vscode.Uri): string | undefined {
+    const relative = localUri.path.slice(folder.path.replace(/\/$/, '').length + 1);
+    if (!relative.endsWith(".codea")) {
+        return undefined;
+    }
+    const parts = relative.slice(0, -".codea".length).split('/');
+    if (parts.length === 1) {
+        return `Documents/${parts[0]}`;
+    }
+    if (parts.length === 2 || (parts.length === 3 && parts[0] === "iCloud")) {
+        return parts.join('/');
+    }
+    return undefined;
+}
+
 async function listFolders(airCode: AirCode, host: string, path: string): Promise<string[]> {
     const uri = vscode.Uri.from({ scheme: 'codea', authority: host, path: `/${AirCode.rootFolder}${path ? `/${path}` : ''}` });
     return (await airCode.readDirectory(uri))
@@ -76,7 +111,7 @@ export class ProjectsViewProvider implements vscode.TreeDataProvider<ProjectNode
             const state = hasLinked ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
             const item = new vscode.TreeItem(isCloud ? `${node.name} (iCloud)` : node.name, state);
             item.iconPath = new vscode.ThemeIcon(isCloud ? "cloud" : "folder");
-            item.contextValue = "collection";
+            item.contextValue = isBuiltInCollection(this.airCode, node.remotePath) ? "builtInCollection" : "collection";
             return item;
         }
 

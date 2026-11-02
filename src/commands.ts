@@ -37,7 +37,8 @@ export namespace Command {
         | "probeGetFunctionDetails"
         | "probeFindReference"
         | "findInFiles"
-        | "watchFiles";
+        | "watchFiles"
+        | "listFileVersions";
 
     export interface GetInformation extends Command {
         command: 'getInformation';
@@ -192,6 +193,11 @@ export namespace Command {
     export interface WatchFiles extends Command {
         command: 'watchFiles';
         paths: string[];
+    }
+
+    export interface ListFileVersions extends Command {
+        command: 'listFileVersions';
+        path: string;
     }
 
     // Convenience Initializers
@@ -373,6 +379,12 @@ export namespace Command {
     export namespace WatchFiles {
         export function from(paths: string[]): WatchFiles {
             return { command: 'watchFiles', paths };
+        }
+    }
+
+    export namespace ListFileVersions {
+        export function from(path: string): ListFileVersions {
+            return { command: 'listFileVersions', path };
         }
     }
 }

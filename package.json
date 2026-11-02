@@ -162,6 +162,20 @@
       {
         "command": "codea-air-code.showWalkthrough",
         "title": "Codea: Get Started with Codea Projects"
+      },
+      {
+        "command": "codea-air-code.getAllProjects",
+        "title": "Codea: Get All Projects",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "codea-air-code.linkAllFolders",
+        "title": "Codea: Link All Matching Folders..."
+      },
+      {
+        "command": "codea-air-code.getCollectionProjects",
+        "title": "Get All Projects in Collection",
+        "icon": "$(cloud-download)"
       }
     ],
     "keybindings": [
@@ -321,6 +335,18 @@
         {
           "command": "codea-air-code.revealProject",
           "when": "false"
+        },
+        {
+          "command": "codea-air-code.getAllProjects",
+          "when": "codea-air-code.hasLocalHost"
+        },
+        {
+          "command": "codea-air-code.linkAllFolders",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "codea-air-code.getCollectionProjects",
+          "when": "false"
         }
       ],
       "explorer/context": [
@@ -332,6 +358,11 @@
       ],
       "view/title": [
         {
+          "command": "codea-air-code.getAllProjects",
+          "when": "view == codea-projects && codea-air-code.hasLocalHost",
+          "group": "navigation"
+        },
+        {
           "command": "codea-air-code.syncLinkedFolders",
           "when": "view == workbench.explorer.fileView && codea-air-code.isLinked",
           "group": "navigation"
@@ -340,6 +371,11 @@
           "command": "codea-air-code.refreshProjects",
           "when": "view == codea-projects",
           "group": "navigation"
+        },
+        {
+          "command": "codea-air-code.linkAllFolders",
+          "when": "view == codea-projects",
+          "group": "links"
         }
       ],
       "view/item/context": [
@@ -356,6 +392,11 @@
         {
           "command": "codea-air-code.revealProject",
           "when": "view == codea-projects && viewItem == linkedProject",
+          "group": "inline"
+        },
+        {
+          "command": "codea-air-code.getCollectionProjects",
+          "when": "view == codea-projects && viewItem == collection",
           "group": "inline"
         }
       ]

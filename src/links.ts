@@ -189,11 +189,20 @@ export class Links {
     }
 
     async addLink(folder: vscode.WorkspaceFolder, localUri: vscode.Uri, remotePath: string, host: string) {
+        await this.addLinks(folder, [{ localUri, remotePath }], host);
+    }
+
+    // Saves the links together, so linking many projects writes the settings once
+    async addLinks(folder: vscode.WorkspaceFolder, entries: { localUri: vscode.Uri, remotePath: string }[], host: string) {
         const config = vscode.workspace.getConfiguration(section, folder);
         const links = { ...(config.get<{ [local: string]: string }>('links') ?? {}) };
-        const relative = localUri.path.slice(folder.uri.path.replace(/\/$/, '').length + 1);
-        links[relative] = remotePath;
-        await config.update('host', host, vscode.ConfigurationTarget.WorkspaceFolder);
+        const root = folder.uri.path.replace(/\/$/, '');
+        for (const { localUri, remotePath } of entries) {
+            links[localUri.path.slice(root.length + 1)] = remotePath;
+        }
+        if (config.get<string>('host') !== host) {
+            await config.update('host', host, vscode.ConfigurationTarget.WorkspaceFolder);
+        }
         await config.update('links', links, vscode.ConfigurationTarget.WorkspaceFolder);
     }
 
