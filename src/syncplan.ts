@@ -41,3 +41,24 @@ export function planSync(local: string | undefined, remote: string | undefined, 
     }
     return 'conflict';
 }
+
+// What started a sync, which decides whether it may delete:
+// - 'local': a change on disk the file watcher saw happen
+// - 'remote': a change Codea reported
+// - 'full': comparing everything, on connecting, reloading or linking
+export type SyncSource = 'local' | 'remote' | 'full';
+
+// A deletion is only passed on when it was seen happening on the side it came from. Otherwise
+// a full sync brings the file back from the other side: a folder emptied while VS Code was
+// closed, or a project not yet downloaded, must never empty the other side. A change reported
+// by Codea leaves a file missing here alone: the local deletion may simply not have been seen
+// yet, and is passed on when it is.
+export function guardDeletion(action: SyncAction, source: SyncSource): SyncAction {
+    if (action === 'deleteRemote' && source !== 'local') {
+        return source === 'remote' ? 'none' : 'pull';
+    }
+    if (action === 'deleteLocal' && source !== 'remote') {
+        return 'push';
+    }
+    return action;
+}

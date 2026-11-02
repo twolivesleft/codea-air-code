@@ -1,3 +1,4 @@
+import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
@@ -72,12 +73,31 @@ export function activate(context: vscode.ExtensionContext) {
 		context.extension.packageJSON.version);
 	airCode.links = linkedFolders;
 
+	// Disconnecting lasts until connecting again, across reloads and restarts. It is kept in a
+	// file written at once: workspaceState is saved later and is lost if VS Code is killed.
+	const disconnectedFile = context.storageUri && path.join(context.storageUri.fsPath, 'disconnected');
+	airCode.disconnected = disconnectedFile !== undefined && fs.existsSync(disconnectedFile);
+	function setDisconnected(disconnected: boolean) {
+		airCode.disconnected = disconnected;
+		if (disconnectedFile === undefined) {
+			return;
+		}
+		if (disconnected) {
+			fs.mkdirSync(path.dirname(disconnectedFile), { recursive: true });
+			fs.writeFileSync(disconnectedFile, '');
+		} else if (fs.existsSync(disconnectedFile)) {
+			fs.unlinkSync(disconnectedFile);
+		}
+	}
+
 
 	const status = new CodeaStatus(context);
 	airCode.status = status;
 	status.setVisible(isCodeaWorkspace);
 
-	const sync = new LinkSync(linkedFolders, airCode, context.workspaceState, outputChannel);
+	const storage = context.storageUri?.fsPath ?? context.globalStorageUri.fsPath;
+	const sync = new LinkSync(linkedFolders, airCode, LinkSync.storeIn(path.join(storage, 'sync')), outputChannel);
+	context.subscriptions.push({ dispose: () => sync.flush() });
 	context.subscriptions.push(sync);
 
 	if (process.env.DEBUG_LSP == "1") {
@@ -203,6 +223,9 @@ export function activate(context: vscode.ExtensionContext) {
 		// A folder with a Codea host is connected like a codea:// workspace, linked projects or not
 		const connectionUri = linkedFolders.connectionUri();
 		status.setVisible(isCodeaWorkspace || connectionUri !== undefined);
+		if (airCode.disconnected && connectionUri !== undefined) {
+			status.setConnection('disconnected', connectionUri.authority);
+		}
 		if (connectionUri !== undefined) {
 			airCode.getSocketForUri(connectionUri, false);
 		}
@@ -321,7 +344,7 @@ export function activate(context: vscode.ExtensionContext) {
 		if (linked) {
 			lastLinkedFile = textEditor.document.uri;
 			if (!linked[1].includes('/')) {
-				sync.syncFiles(linked[0], [linked[1]]);
+				sync.syncFiles(linked[0], [linked[1]], 'full');
 			}
 			status.setProject(linked[0].remotePath.split('/').pop());
 			return;
@@ -351,7 +374,7 @@ export function activate(context: vscode.ExtensionContext) {
     }));
 
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.refreshConnection', async () => {
-		airCode.disconnected = false;
+		setDisconnected(false);
 		lastSync = 0;
 		await airCode.getSocketForUri(getWorkspaceUri(), true);
 	}));
@@ -363,7 +386,7 @@ export function activate(context: vscode.ExtensionContext) {
 		if (connectionUri === undefined) {
 			return;
 		}
-		airCode.disconnected = true;
+		setDisconnected(true);
 		await airCode.closeConnection(connectionUri);
 		status.setConnection('disconnected');
 	}));
@@ -649,7 +672,7 @@ export function activate(context: vscode.ExtensionContext) {
 		if (host === undefined) {
 			return;
 		}
-		airCode.disconnected = false;
+		setDisconnected(false);
 		await vscode.workspace.getConfiguration('codea-air-code', folder).update('host', host, vscode.ConfigurationTarget.WorkspaceFolder);
 
 		// Choosing the device already saved changes no setting, so the connection is opened here

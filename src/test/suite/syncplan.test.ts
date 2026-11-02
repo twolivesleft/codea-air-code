@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 
-import { planSync } from '../../syncplan';
+import { guardDeletion, planSync } from '../../syncplan';
 
 suite('planSync', () => {
 	test('first sync copies a file that exists on one side only', () => {
@@ -40,5 +40,36 @@ suite('planSync', () => {
 	test('a file gone on both sides is forgotten', () => {
 		assert.strictEqual(planSync(undefined, undefined, 'base'), 'forget');
 		assert.strictEqual(planSync(undefined, undefined, undefined), 'none');
+	});
+});
+
+suite('guardDeletion', () => {
+	test('a local deletion seen happening is passed on to Codea', () => {
+		assert.strictEqual(guardDeletion('deleteRemote', 'local'), 'deleteRemote');
+	});
+
+	test('a full sync brings back a file missing locally', () => {
+		assert.strictEqual(guardDeletion('deleteRemote', 'full'), 'pull');
+	});
+
+	test('a change reported by Codea leaves a file missing locally alone', () => {
+		assert.strictEqual(guardDeletion('deleteRemote', 'remote'), 'none');
+	});
+
+	test('a deletion Codea reported is passed on locally', () => {
+		assert.strictEqual(guardDeletion('deleteLocal', 'remote'), 'deleteLocal');
+	});
+
+	test('a file missing in Codea is sent back unless Codea reported its deletion', () => {
+		assert.strictEqual(guardDeletion('deleteLocal', 'full'), 'push');
+		assert.strictEqual(guardDeletion('deleteLocal', 'local'), 'push');
+	});
+
+	test('other actions are left alone', () => {
+		for (const action of ['none', 'record', 'forget', 'push', 'pull', 'conflict'] as const) {
+			for (const source of ['local', 'remote', 'full'] as const) {
+				assert.strictEqual(guardDeletion(action, source), action);
+			}
+		}
 	});
 });

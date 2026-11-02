@@ -32,6 +32,26 @@ Codea runs commands in id order and answers only its newest connection. Do not u
 `getInformation` to check a connection: on Codea versions before the fix it resets
 the expected id and can stall every later command. `ensureResponsive` sends a stat.
 
+### Deletions (read before changing the sync)
+
+On 2026-11-01 the sync deleted 369 files on a user's device: their linked folders were
+emptied while disconnected, Disconnect did not survive the reload, and the first sync took
+every remembered-but-missing file as a deletion. Codea deletes outright and its iCloud
+folder keeps no recoverable copy, so most were restored from git and some were lost,
+including files in iCloud projects shared with other people. The rules that prevent it:
+
+- A deletion is only passed on when it was seen happening: a local delete seen by the file
+  watcher, or a deletion Codea reported (`guardDeletion` in `src/syncplan.ts`, unit
+  tested). A full sync (connect, reload, linking) never deletes; it brings files back.
+- More than 5 local deletions at once ask first; anything but an explicit yes restores.
+- A linked project folder missing on either side is never synced; the user is asked to
+  get it again or unlink it.
+- Disconnect is kept in a file in the workspace storage, and the sync records in files
+  saved within half a second (`BaseStore`): VS Code's own state is lost when it is killed.
+
+The end-to-end checks for these (three runs on one profile, as reloads) are described in
+the linked-folders handoff; run them after any change to `src/sync.ts`.
+
 ## Search
 
 Linked folders are local and use the built-in search. The Search view below only

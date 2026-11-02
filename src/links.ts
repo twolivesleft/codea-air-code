@@ -206,6 +206,25 @@ export class Links {
         await config.update('links', links, vscode.ConfigurationTarget.WorkspaceFolder);
     }
 
+    // Removes the links of these projects, leaving their folders and Codea alone
+    async removeLinks(projects: LinkedProject[]) {
+        for (const folder of this.fileFolders()) {
+            const config = vscode.workspace.getConfiguration(section, folder);
+            const links = { ...(config.get<{ [local: string]: string }>('links') ?? {}) };
+            let changed = false;
+            for (const [local, remote] of Object.entries(links)) {
+                const localUri = vscode.Uri.joinPath(folder.uri, local);
+                if (projects.some(project => project.localUri.path === localUri.path && project.remotePath === remote)) {
+                    delete links[local];
+                    changed = true;
+                }
+            }
+            if (changed) {
+                await config.update('links', links, vscode.ConfigurationTarget.WorkspaceFolder);
+            }
+        }
+    }
+
     private fileFolders(): readonly vscode.WorkspaceFolder[] {
         return (vscode.workspace.workspaceFolders ?? []).filter(folder => folder.uri.scheme === 'file');
     }

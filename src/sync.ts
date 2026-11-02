@@ -1,9 +1,11 @@
 import * as crypto from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
 import * as vscode from 'vscode';
 
 import { AirCode } from './aircode';
 import { LinkedProject, Links } from './links';
-import { planSync } from './syncplan';
+import { guardDeletion, planSync, SyncSource } from './syncplan';
 
 // When both sides last agreed on a file: its content hash, Codea's modification time for it,
 // and the local file's modification time and size, which spare reading it again when unchanged
@@ -14,6 +16,57 @@ type RemoteFile = { mtime: number };
 type LocalStat = { mtime: number; size: number };
 
 type Conflict = { project: LinkedProject; name: string };
+
+// Deleting more files than this at once asks before they are deleted in Codea
+const deletionsWithoutAsking = 5;
+
+// What each linked project's files were when both sides last agreed, kept in a file per project
+// and saved within moments of each change: VS Code's own state is saved later, and lost if VS
+// Code is killed, which would make every file edited since look like a conflict.
+class BaseStore {
+    private cache = new Map<string, Bases>();
+    private dirty = new Set<string>();
+    private timer: NodeJS.Timeout | undefined;
+
+    constructor(private readonly folder: string) { }
+
+    get(key: string): Bases {
+        let bases = this.cache.get(key);
+        if (bases === undefined) {
+            try {
+                bases = JSON.parse(fs.readFileSync(this.file(key), 'utf8')) as Bases;
+            } catch {
+                bases = {};
+            }
+            this.cache.set(key, bases);
+        }
+        return bases;
+    }
+
+    set(key: string, bases: Bases | undefined) {
+        this.cache.set(key, bases ?? {});
+        this.dirty.add(key);
+        clearTimeout(this.timer);
+        this.timer = setTimeout(() => this.save(), 500);
+    }
+
+    save() {
+        fs.mkdirSync(this.folder, { recursive: true });
+        for (const key of this.dirty) {
+            const bases = this.cache.get(key) ?? {};
+            if (Object.keys(bases).length === 0) {
+                fs.rmSync(this.file(key), { force: true });
+            } else {
+                fs.writeFileSync(this.file(key), JSON.stringify(bases));
+            }
+        }
+        this.dirty.clear();
+    }
+
+    private file(key: string): string {
+        return path.join(this.folder, crypto.createHash('sha1').update(key).digest('hex') + '.json');
+    }
+}
 
 function hash(content: Uint8Array): string {
     return crypto.createHash('sha1').update(content).digest('hex');
@@ -34,14 +87,35 @@ export class LinkSync {
     // While syncing many projects at once, conflicts are gathered and asked about together
     private gatheredConflicts: Conflict[] | undefined;
 
+    // Local deletions seen in the last moment, passed on together once they settle
+    private pendingDeletions = new Map<string, { project: LinkedProject, name: string }>();
+    private deletionTimer: NodeJS.Timeout | undefined;
+
+    // Linked projects found missing on one side, which are not synced until asked about
+    private missingLocally = new Map<string, LinkedProject>();
+    private missingInCodea = new Map<string, LinkedProject>();
+    private askingAboutMissing = false;
+
+    // Files a full sync brought back to the side missing them, reported once it is done
+    private broughtBack: string[] = [];
+
     private _onDidChangeBusy = new vscode.EventEmitter<boolean>();
     onDidChangeBusy = this._onDidChangeBusy.event;
 
     constructor(
         private readonly links: Links,
         private readonly airCode: AirCode,
-        private readonly state: vscode.Memento,
+        private readonly store: BaseStore,
         private readonly log: vscode.OutputChannel) { }
+
+    static storeIn(folder: string): BaseStore {
+        return new BaseStore(folder);
+    }
+
+    // Saves the sync records now, as when the extension is deactivated
+    flush() {
+        this.store.save();
+    }
 
     dispose() {
         this.watchers.forEach(watcher => watcher.dispose());
@@ -67,7 +141,7 @@ export class LinkSync {
             };
             watcher.onDidCreate(onEvent);
             watcher.onDidChange(onEvent);
-            watcher.onDidDelete(onEvent);
+            watcher.onDidDelete(uri => this.deleted(uri));
             this.watchers.push(watcher);
         }
     }
@@ -76,6 +150,7 @@ export class LinkSync {
         for (const project of this.links.projects()) {
             await this.sync(project);
         }
+        await this.reportFullSync();
     }
 
     // Syncs projects one after the other with a progress notification, then asks about all the
@@ -102,6 +177,7 @@ export class LinkSync {
             const conflicts = this.gatheredConflicts;
             this.gatheredConflicts = undefined;
             await this.resolveConflicts(conflicts);
+            await this.reportFullSync();
         }
     }
 
@@ -110,10 +186,27 @@ export class LinkSync {
         await this.queues.get(project.localUri.toString());
     }
 
-    // Brings both sides of a project up to date, asking about files changed on both
+    // Brings both sides of a project up to date, asking about files changed on both. It never
+    // deletes: a file missing on one side is brought back, and a project missing on one side is
+    // left alone until asked about.
     sync(project: LinkedProject): Promise<void> {
         return this.enqueue(project, async () => {
+            if (this.airCode.disconnected) {
+                return;
+            }
+            const key = project.localUri.toString();
+            if (!await this.localFolderExists(project)) {
+                this.missingLocally.set(key, project);
+                return;
+            }
+            this.missingLocally.delete(key);
+
             const remoteFiles = await this.listRemote(project);
+            if (remoteFiles === 'missing') {
+                this.missingInCodea.set(key, project);
+                return;
+            }
+            this.missingInCodea.delete(key);
             if (remoteFiles === undefined) {
                 return;
             }
@@ -123,7 +216,7 @@ export class LinkSync {
             const names = new Set([...localNames, ...remoteFiles.keys(), ...Object.keys(bases)]);
 
             for (const name of [...names].sort()) {
-                await this.syncFile(project, name, remoteFiles);
+                await this.syncFile(project, name, remoteFiles, 'full');
             }
         });
     }
@@ -140,32 +233,175 @@ export class LinkSync {
         this.pendingFiles.set(key, setTimeout(() => {
             this.pendingFiles.delete(key);
             this.enqueue(project, async () => {
+                // Deletions are passed on by deleted() only
                 const local = await this.readLocal(project, name);
-                const base = this.bases(project)[name];
-                if (local !== undefined && base?.hash === hash(local)) {
+                if (local === undefined || this.bases(project)[name]?.hash === hash(local)) {
                     return;
                 }
 
-                await this.syncNamed(project, [name]);
+                await this.syncNamed(project, [name], 'local');
             });
         }, 150));
     }
 
-    // Brings the named files of a project up to date, for changes Codea reported or a file opened here
-    syncFiles(project: LinkedProject, names: string[]): Promise<void> {
-        return this.enqueue(project, () => this.syncNamed(project, names));
+    // A file or folder deleted on disk. Files are passed on together once deletions settle; a
+    // linked project's folder, or a folder holding some, counts as those projects going missing.
+    private deleted(uri: vscode.Uri) {
+        const folderPath = uri.path.replace(/\/$/, '');
+        const projects = this.links.projects().filter(project =>
+            project.localUri.path === folderPath || project.localUri.path.startsWith(folderPath + '/'));
+        if (projects.length > 0) {
+            for (const project of projects) {
+                this.missingLocally.set(project.localUri.toString(), project);
+            }
+            this.askAboutMissingProjects();
+            return;
+        }
+
+        const found = this.links.find(uri);
+        if (found === undefined || found[1].includes('/') || found[1].startsWith('.')) {
+            return;
+        }
+        this.pendingDeletions.set(uri.toString(), { project: found[0], name: found[1] });
+        clearTimeout(this.deletionTimer);
+        this.deletionTimer = setTimeout(() => this.passOnDeletions(), 1500);
+    }
+
+    private async passOnDeletions() {
+        const deletions = [...this.pendingDeletions.values()];
+        this.pendingDeletions.clear();
+
+        // Files of a project whose whole folder went are not deletions of those files
+        const files: typeof deletions = [];
+        for (const deletion of deletions) {
+            if (await this.localFolderExists(deletion.project)) {
+                files.push(deletion);
+            } else {
+                this.missingLocally.set(deletion.project.localUri.toString(), deletion.project);
+            }
+        }
+        if (this.missingLocally.size > 0) {
+            this.askAboutMissingProjects();
+        }
+        if (files.length === 0) {
+            return;
+        }
+
+        let source: SyncSource = 'local';
+        if (files.length > deletionsWithoutAsking) {
+            const deleteInCodea = 'Delete in Codea';
+            const choice = await vscode.window.showWarningMessage(
+                `${files.length} files were deleted from linked projects. Delete them in Codea too?`,
+                { modal: true, detail: files.map(({ project, name }) => this.describe(project, name)).join('\n') },
+                deleteInCodea, 'Restore Them Here');
+            // Anything but an explicit yes brings the files back
+            source = choice === deleteInCodea ? 'local' : 'full';
+        }
+
+        const byProject = new Map<string, { project: LinkedProject, names: string[] }>();
+        for (const { project, name } of files) {
+            const key = project.localUri.toString();
+            const entry = byProject.get(key) ?? { project, names: [] };
+            entry.names.push(name);
+            byProject.set(key, entry);
+        }
+        for (const { project, names } of byProject.values()) {
+            await this.syncFiles(project, names, source);
+        }
+    }
+
+    // Asks once what to do with linked projects missing on one side. Until then they are not synced.
+    private async askAboutMissingProjects() {
+        if (this.askingAboutMissing) {
+            return;
+        }
+        this.askingAboutMissing = true;
+        try {
+            // Let a folder deletion finish before asking about it
+            await new Promise(resolve => setTimeout(resolve, 1500));
+
+            if (this.missingLocally.size > 0) {
+                const projects = [...this.missingLocally.values()];
+                const getAgain = 'Get Them Again';
+                const unlink = 'Unlink Them';
+                const choice = await vscode.window.showWarningMessage(
+                    projects.length === 1
+                        ? `The linked project ${projects[0].remotePath} is missing from this folder. Nothing was changed in Codea.`
+                        : `${projects.length} linked projects are missing from this folder. Nothing was changed in Codea.`,
+                    { modal: true, detail: projects.map(project => project.remotePath).join('\n') },
+                    getAgain, unlink);
+                this.missingLocally.clear();
+                if (choice === getAgain) {
+                    for (const project of projects) {
+                        await vscode.workspace.fs.createDirectory(project.localUri);
+                        await this.sync(project);
+                    }
+                    await this.reportFullSync();
+                } else if (choice === unlink) {
+                    await this.unlink(projects);
+                }
+            }
+
+            if (this.missingInCodea.size > 0) {
+                const projects = [...this.missingInCodea.values()];
+                const unlink = 'Unlink Them';
+                const choice = await vscode.window.showWarningMessage(
+                    projects.length === 1
+                        ? `The linked project ${projects[0].remotePath} is missing in Codea. Its folder here was left as it is.`
+                        : `${projects.length} linked projects are missing in Codea. Their folders here were left as they are.`,
+                    { modal: true, detail: projects.map(project => project.remotePath).join('\n') },
+                    unlink);
+                this.missingInCodea.clear();
+                if (choice === unlink) {
+                    await this.unlink(projects);
+                }
+            }
+        } finally {
+            this.askingAboutMissing = false;
+        }
+    }
+
+    private async unlink(projects: LinkedProject[]) {
+        for (const project of projects) {
+            this.store.set(this.stateKey(project), undefined);
+        }
+        await this.links.removeLinks(projects);
+        this.log.appendLine(`Unlinked ${projects.map(project => project.remotePath).join(', ')}`);
+    }
+
+    // After comparing everything: says what was brought back, and asks about missing projects
+    private async reportFullSync() {
+        if (this.broughtBack.length > 0) {
+            const files = this.broughtBack;
+            this.broughtBack = [];
+            vscode.window.showInformationMessage(
+                `${files.length} ${files.length === 1 ? "file was" : "files were"} missing on one side and brought back from the other. Deletions are only passed on when they happen while connected.`,
+                "Show Output").then(choice => {
+                    if (choice) {
+                        this.log.show();
+                    }
+                });
+        }
+        if (this.missingLocally.size > 0 || this.missingInCodea.size > 0) {
+            await this.askAboutMissingProjects();
+        }
+    }
+
+    // Brings the named files of a project up to date; the source decides what may be deleted
+    syncFiles(project: LinkedProject, names: string[], source: SyncSource): Promise<void> {
+        return this.enqueue(project, () => this.syncNamed(project, names, source));
     }
 
     // Projects of filesChanged paths, e.g. "/Codea/Documents/Project"
     remoteFilesChanged(path: string, files: string[]) {
         for (const project of this.links.projects()) {
             if (path === `/${AirCode.rootFolder}/${project.remotePath}`) {
-                this.syncFiles(project, files.filter(name => !name.startsWith('.')));
+                this.syncFiles(project, files.filter(name => !name.startsWith('.')), 'remote');
             }
         }
     }
 
-    private async syncNamed(project: LinkedProject, names: string[]) {
+    private async syncNamed(project: LinkedProject, names: string[], source: SyncSource) {
         const projectUri = this.links.remoteProjectUri(project);
         if (projectUri === undefined || this.airCode.disconnected) {
             return;
@@ -193,11 +429,11 @@ export class LinkSync {
         }
 
         for (const name of names) {
-            await this.syncFile(project, name, remoteFiles);
+            await this.syncFile(project, name, remoteFiles, source);
         }
     }
 
-    private async syncFile(project: LinkedProject, name: string, remoteFiles: Map<string, RemoteFile>) {
+    private async syncFile(project: LinkedProject, name: string, remoteFiles: Map<string, RemoteFile>, source: SyncSource) {
         const localUri = vscode.Uri.joinPath(project.localUri, name);
         const remoteUri = this.remoteUri(project, name);
         const base = this.bases(project)[name];
@@ -226,7 +462,17 @@ export class LinkSync {
             }
         }
 
-        const action = planSync(localHash, remoteHash, base?.hash);
+        const planned = planSync(localHash, remoteHash, base?.hash);
+        const action = guardDeletion(planned, source);
+        // A local deletion waiting to be passed on decides for this file, not another sync
+        // that happens to see it first
+        if (action !== planned && this.pendingDeletions.has(localUri.toString())) {
+            return;
+        }
+        if (action !== planned && action !== 'none') {
+            this.broughtBack.push(this.describe(project, name));
+            this.log.appendLine(`${this.describe(project, name)} was missing ${planned === 'deleteRemote' ? "here" : "in Codea"}; bringing it back`);
+        }
         switch (action) {
             case 'none':
                 if (remoteFile !== undefined && base !== undefined && base.mtime !== remoteFile.mtime) {
@@ -395,8 +641,9 @@ export class LinkSync {
         return next;
     }
 
-    // Undefined when Codea cannot be reached, so a lost connection never reads as deleted files
-    private async listRemote(project: LinkedProject): Promise<Map<string, RemoteFile> | undefined> {
+    // Undefined when Codea cannot be reached, so a lost connection never reads as deleted files,
+    // and 'missing' when Codea has no such project
+    private async listRemote(project: LinkedProject): Promise<Map<string, RemoteFile> | 'missing' | undefined> {
         const projectUri = this.links.remoteProjectUri(project);
         if (projectUri === undefined || this.airCode.disconnected) {
             return undefined;
@@ -410,6 +657,10 @@ export class LinkSync {
                 for (const version of await this.airCode.listFileVersions(projectUri)) {
                     files.set(version.name, { mtime: version.mtime });
                 }
+                // An empty listing may be a project that is gone
+                if (files.size === 0 && !await this.remoteProjectExists(projectUri)) {
+                    return 'missing';
+                }
                 return files;
             }
 
@@ -422,8 +673,28 @@ export class LinkSync {
             }
             return files;
         } catch (error) {
+            if (error instanceof vscode.FileSystemError && error.code === 'FileNotFound') {
+                return 'missing';
+            }
             this.log.appendLine(`Could not list ${project.remotePath} in Codea: ${error}`);
             return undefined;
+        }
+    }
+
+    private async remoteProjectExists(projectUri: vscode.Uri): Promise<boolean> {
+        try {
+            await this.airCode.stat(projectUri);
+            return true;
+        } catch (error) {
+            return !(error instanceof vscode.FileSystemError && error.code === 'FileNotFound');
+        }
+    }
+
+    private async localFolderExists(project: LinkedProject): Promise<boolean> {
+        try {
+            return (await vscode.workspace.fs.stat(project.localUri)).type === vscode.FileType.Directory;
+        } catch {
+            return false;
         }
     }
 
@@ -475,7 +746,7 @@ export class LinkSync {
     }
 
     private bases(project: LinkedProject): Bases {
-        return this.state.get<Bases>(this.stateKey(project)) ?? {};
+        return this.store.get(this.stateKey(project));
     }
 
     private setBase(project: LinkedProject, name: string, base: Base | undefined) {
@@ -485,6 +756,6 @@ export class LinkSync {
         } else {
             bases[name] = base;
         }
-        this.state.update(this.stateKey(project), bases);
+        this.store.set(this.stateKey(project), bases);
     }
 }
