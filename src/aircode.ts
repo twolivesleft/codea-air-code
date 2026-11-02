@@ -416,7 +416,7 @@ export class AirCode implements vscode.FileSystemProvider {
         let airCode = this;
 
         ws.onopen = async function () {
-            let information = await airCode.getInformation(uri);
+            let information = await airCode.askInformation(ws);
 
             let version = information.version;
             let versionComparison = airCode.compareVersions(version);
@@ -691,7 +691,7 @@ export class AirCode implements vscode.FileSystemProvider {
 
     // Sending Commands
 
-    send<T>(ws: WebSocket, command: Command, promise: (response: Response<T>) => void) {
+    send<T>(ws: WebSocket, command: Command, promise: (response: Response<T>) => void): number {
         this.commandId++;
         const id = this.commandId;
         command.id = id;
@@ -712,6 +712,33 @@ export class AirCode implements vscode.FileSystemProvider {
             pending({ id, error: "connectionLost" } as any);
             this.dropConnection(ws);
         }, timeout);
+        return id;
+    }
+
+    // Codea before 3.20 can miss what is sent as a connection opens, so a connection's first
+    // getInformation is sent again until one is answered
+    private askInformation(ws: WebSocket): Promise<GetInformationResponse> {
+        return new Promise((resolve, reject) => {
+            const asked: number[] = [];
+            let answered = false;
+            const ask = () => {
+                asked.push(this.send<GetInformationResponse>(ws, Command.GetInformation.from(), response => {
+                    answered = true;
+                    asked.forEach(id => this.promises.delete(id));
+                    if (response.error !== null && response.error !== undefined) {
+                        reject(Response.from(response.error));
+                    } else {
+                        resolve(response.data as GetInformationResponse);
+                    }
+                }));
+                setTimeout(() => {
+                    if (!answered && asked.length < 5 && ws.readyState === OPEN) {
+                        ask();
+                    }
+                }, 3000);
+            };
+            ask();
+        });
     }
 
     private static readonly slowCommands: Command.Type[] = ["readFile", "writeFile", "startHost", "findInFiles"];
