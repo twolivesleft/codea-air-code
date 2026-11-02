@@ -79,6 +79,8 @@ The Codea Sidebar gives access to the Projects, Reference and Parameters section
 
 The Projects section lists the collections and projects in Codea. Click the download button next to a project to get a copy in your folder, linked to Codea (see [Linked Folders](#linked-folders)). Linked projects can be played from the list, or revealed in the Explorer.
 
+To get all your projects at once, click the download button at the top of the section, or the one next to a collection to get all of its projects. Codea's built-in collections, such as Examples, are left out of the first, but each of their projects can still be got on its own.
+
 <img width="420" alt="Projects" src="images/projects.png">
 
 #### Reference
@@ -149,8 +151,8 @@ The `Codea: Get Started with Codea Projects` command opens a walkthrough of thes
 
 1. Open a folder for your projects with `File > Open Folder...`: an empty folder to start, or one you already have, such as a git repository of Codea projects.
 2. In the Codea Sidebar, open the Projects section and click `Connect to Codea` (see [Connection](#connection)).
-3. Click the download button next to a project to get it. The project is copied into your folder, the same way Codea organizes its files (`Project.codea` for Documents, `Collection/Project.codea` for other collections), and opened.
-4. If your folder already holds a project's files, right-click its folder in the Explorer and choose `Codea: Link Folder to Project...` instead.
+3. Click the download button next to a project to get it, or the one at the top of the section to get all your projects. Projects are copied into your folder the same way Codea organizes its files (`Project.codea` for Documents, `Collection/Project.codea` for other collections).
+4. If your folder already holds your projects, laid out the same way, run `Codea: Link All Matching Folders...` to link them all to the projects of the same name in Codea, or right-click one project's folder in the Explorer and choose `Codea: Link Folder to Project...`.
 5. Edit the project, then play it with the play button in the status bar.
 
 ### Linked Folders
@@ -172,7 +174,7 @@ Changes are kept in sync both ways:
 
 - Files saved here, created, deleted, or changed by any other tool are sent to Codea right away.
 - Changes made in Codea, or by another app on the device, come back within a second. With older versions of Codea, linked folders are checked every 10 seconds instead.
-- If a file changed on both sides, you will be asked whether to keep the local version or Codea's, and you can compare them first. Nothing is overwritten until you choose.
+- If a file changed on both sides, you will be asked whether to keep the local version or Codea's, and you can compare them first. Nothing is overwritten until you choose. When many projects are linked at once, the files that differ are listed together, to keep one side for all of them or review each.
 
 The Codea items in the status bar show the connection and play the project you are working on. Clicking the Codea item shows a menu to sync, reconnect or link a folder. Syncing can also be started with the button at the top of the Explorer.
 
@@ -245,6 +247,8 @@ All commands included with this extension are prefixed with `Codea:`.
 |------------------------|-----------------------------------------------------------------------|
 | `Get Started with Codea Projects` | Open the walkthrough of working with Codea projects.       |
 | `Connect to Codea...`  | Connect the open folder to Codea, to get and link its projects.       |
+| `Get All Projects`     | Get every project from Codea into the open folder, linked.            |
+| `Link All Matching Folders...` | Link the folder's projects to the projects of the same name in Codea. |
 | `Link Folder to Project...` | Keep a local folder in sync with a project in Codea.             |
 | `Sync Linked Folders`  | Sync all linked folders with Codea now.                               |
 | `Connect to Host...`   | Open Codea's files directly, without a local folder.                  |
