@@ -18,10 +18,20 @@
     var modernIsNative = false;
 
     const modernFrame = modernContent.innerHTML;
+    modernContent.style.display = 'none';
 
     // Each reference draws into its own tab
     function contentFor(modern) {
         return (modern ? modernContent : legacyContent).querySelector('.reference-content');
+    }
+
+    // Carbide chapters are named after their source files, such as math_types
+    function chapterTitle(title, modern) {
+        if (!modern) {
+            return title;
+        }
+        const words = title.replace(/_/g, ' ');
+        return words.charAt(0).toUpperCase() + words.slice(1);
     }
 
     function imageId(chapter, modern) {
@@ -129,9 +139,11 @@
         if (content) {
             content.textContent = '';
 
-            for (const chapter of chapters) {
+            const sorted = modern ? [...chapters].sort((a, b) => a['title'].localeCompare(b['title'])) : chapters;
+
+            for (const chapter of sorted) {
                 const chapterNameValue = chapter['name'];
-                const chapterTitleValue = chapter['title'];
+                const chapterTitleValue = chapterTitle(chapter['title'], modern);
                 const chapterSubtitleValue = chapter['subtitle'];
                 const chapterImageValue = chapter['image'];
                 
@@ -142,35 +154,38 @@
                 }
                 content.appendChild(chapterDiv)
 
+                // A chapter without an icon shows its initial
                 const chapterImageDiv = document.createElement('div');
                 chapterImageDiv.className = 'chapter-image-container';
+                chapterImageDiv.dataset.initial = chapterTitleValue.charAt(0).toUpperCase();
                 chapterDiv.appendChild(chapterImageDiv);
 
                 const chapterImage = document.createElement('img');
                 chapterImage.id = imageId(chapterNameValue, modern);
-                if (chapterImageValue) {
-                    chapterImage.src = `data:image/png;base64,${chapterImageValue}`;
-                }
-                else {
-                    chapterImage.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
-                    vscode.postMessage({ type: 'getChapterImage', chapter: chapterNameValue, modern });
-                }
                 chapterImage.className = 'chapter-image';
                 chapterImageDiv.appendChild(chapterImage);
+                if (chapterImageValue) {
+                    showImage(chapterImage, chapterImageValue);
+                }
+                else {
+                    vscode.postMessage({ type: 'getChapterImage', chapter: chapterNameValue, modern });
+                }
 
                 const chapterText = document.createElement('div');
                 chapterText.className = 'chapter-text-container';
                 chapterDiv.appendChild(chapterText);
 
-                const chapterTitle = document.createElement('div');
-                chapterTitle.className = 'chapter-title';
-                chapterTitle.textContent = chapterTitleValue;
-                chapterText.appendChild(chapterTitle);
+                const chapterTitleElement = document.createElement('div');
+                chapterTitleElement.className = 'chapter-title';
+                chapterTitleElement.textContent = chapterTitleValue;
+                chapterText.appendChild(chapterTitleElement);
 
-                const chapterSubtitle = document.createElement('div');
-                chapterSubtitle.className = 'chapter-subtitle';
-                chapterSubtitle.textContent = chapterSubtitleValue;
-                chapterText.appendChild(chapterSubtitle);
+                if (chapterSubtitleValue) {
+                    const chapterSubtitle = document.createElement('div');
+                    chapterSubtitle.className = 'chapter-subtitle';
+                    chapterSubtitle.textContent = chapterSubtitleValue;
+                    chapterText.appendChild(chapterSubtitle);
+                }
             }
 
             window.scrollTo(0, 0);
@@ -179,14 +194,20 @@
         }
     }
 
+    function showImage(img, image) {
+        img.src = `data:image/png;base64,${image}`;
+        img.classList.add('loaded');
+        img.parentElement?.classList.add('has-image');
+    }
+
     function setChapterImage(chapter, image, modern) {
         const img = document.getElementById(imageId(chapter, modern));
         if (img instanceof HTMLImageElement) {
-            img.src = `data:image/png;base64,${image}`;
+            showImage(img, image);
         }
     }
 
-    function setFunctions(chapter, chapterTitle, chapterImage, groups, localGroups, functions, categoryImages, modern) {
+    function setFunctions(chapter, chapterTitleValue, chapterImage, groups, localGroups, functions, categoryImages, modern) {
         const content = contentFor(modern);
         var missingCategories = []
 
@@ -198,7 +219,8 @@
             content.appendChild(topBar);
 
             const backButton = document.createElement('a');
-            backButton.textContent = "◀";
+            backButton.textContent = "‹";
+            backButton.title = "Back";
             backButton.className = "back-button";
             backButton.onclick = function() {
                 vscode.postMessage({ type: 'getChapters', modern });
@@ -207,19 +229,18 @@
 
             const chapterImageElement = document.createElement('img');
             chapterImageElement.id = imageId(chapter, modern);
+            chapterImageElement.className = 'top-image-small';
+            topBar.appendChild(chapterImageElement);
             if (chapterImage) {
-                chapterImageElement.src = `data:image/png;base64,${chapterImage}`;
+                showImage(chapterImageElement, chapterImage);
             }
             else {
-                chapterImageElement.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
                 vscode.postMessage({ type: 'getChapterImage', chapter: chapter, modern });
             }
-            chapterImageElement.className = 'top-image-small';
-            topBar.appendChild(chapterImageElement);            
 
             const chapterTitleDiv = document.createElement('div');
             chapterTitleDiv.className = 'title-top';
-            chapterTitleDiv.textContent = chapterTitle;
+            chapterTitleDiv.textContent = chapterTitle(chapterTitleValue, modern);
             topBar.appendChild(chapterTitleDiv);
 
             for (const group of groups) {
@@ -260,10 +281,7 @@
                     else {
                         functionImage.style.backgroundImage = "url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=')";
                     }
-                    functionImage.style.width = "32px";
-                    functionImage.style.height = "32px";
-                    functionImage.style.backgroundSize = "cover";
-                    functionImage.style.borderRadius = "5px";
+                    functionImage.classList.add('category-icon');
                     functionImageDiv.appendChild(functionImage);
 
                     const functionText = document.createElement('div');
@@ -313,8 +331,9 @@
                 })
             );
               
+            // The legacy reference breaks lines where it means to; the Carbide one wraps its source text
             markedInstance.use({
-                breaks: true
+                breaks: !modern
             });              
 
             const funcCategoryValue = details['category'];
@@ -329,7 +348,8 @@
             content.appendChild(topBar);
 
             const backButton = document.createElement('a');
-            backButton.textContent = "◀";
+            backButton.textContent = "‹";
+            backButton.title = "Back";
             backButton.className = "back-button";
             backButton.onclick = function() {
                 vscode.postMessage({ type: 'getFunctions', chapter: chapter, modern });
@@ -344,10 +364,7 @@
             else {
                 categoryImageElement.style.backgroundImage = "url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=')";
             }
-            categoryImageElement.style.width = "32px";
-            categoryImageElement.style.height = "32px";
-            categoryImageElement.style.backgroundSize = "cover";
-            categoryImageElement.style.borderRadius = "5px";
+            categoryImageElement.classList.add('category-icon');
             topBar.appendChild(categoryImageElement);            
 
             const detailsTitle = document.createElement('div');
@@ -392,7 +409,15 @@
 
                 const parameterName = document.createElement('div');
                 parameterName.className = 'details-parameter-name';
-                parameterName.textContent = parameters[i].name;
+                // "size: number" shows the type apart from the name
+                const [name, ...type] = parameters[i].name.split(': ');
+                parameterName.textContent = name;
+                if (type.length > 0) {
+                    const parameterType = document.createElement('span');
+                    parameterType.className = 'details-parameter-type';
+                    parameterType.textContent = type.join(': ');
+                    parameterName.appendChild(parameterType);
+                }
                 parameterDiv.appendChild(parameterName);
 
                 const parameterDescription = document.createElement('div');
@@ -409,7 +434,7 @@
 
                     const exampleHeader = document.createElement('div');
                     exampleHeader.className = 'details-example-header';
-                    exampleHeader.textContent = `Example ${i+1}`;
+                    exampleHeader.textContent = example['title'] || `Example ${i+1}`;
                     content.appendChild(exampleHeader);
 
                     const exampleCode = document.createElement('div');
