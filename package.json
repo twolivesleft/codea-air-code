@@ -54,6 +54,11 @@
           "when": "!codea-air-code.hasWorkspaceUri && workspaceFolderCount > 0"
         },
         {
+          "id": "codea-assets",
+          "name": "Assets",
+          "when": "!codea-air-code.hasWorkspaceUri && codea-air-code.hasLocalHost"
+        },
+        {
           "type": "webview",
           "id": "codea-reference",
           "name": "Reference",
@@ -178,6 +183,21 @@
         "command": "codea-air-code.deleteProject",
         "title": "Codea: Delete Project in Codea...",
         "icon": "$(trash)"
+      },
+      {
+        "command": "codea-air-code.removeDependency",
+        "title": "Remove Dependency",
+        "icon": "$(close)"
+      },
+      {
+        "command": "codea-air-code.refreshAssets",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "codea-air-code.addAssetFiles",
+        "title": "Add Files...",
+        "icon": "$(add)"
       },
       {
         "command": "codea-air-code.disconnect",
@@ -365,6 +385,18 @@
         {
           "command": "codea-air-code.deleteProject",
           "when": "false"
+        },
+        {
+          "command": "codea-air-code.removeDependency",
+          "when": "false"
+        },
+        {
+          "command": "codea-air-code.refreshAssets",
+          "when": "false"
+        },
+        {
+          "command": "codea-air-code.addAssetFiles",
+          "when": "false"
         }
       ],
       "explorer/context": [
@@ -414,6 +446,11 @@
           "command": "codea-air-code.newProject",
           "when": "view == codea-projects && codea-air-code.hasLocalHost",
           "group": "navigation"
+        },
+        {
+          "command": "codea-air-code.refreshAssets",
+          "when": "view == codea-assets",
+          "group": "navigation"
         }
       ],
       "view/item/context": [
@@ -446,6 +483,21 @@
           "command": "codea-air-code.deleteProject",
           "when": "view == codea-projects && viewItem =~ /^(project|linkedProject)$/",
           "group": "z_delete"
+        },
+        {
+          "command": "codea-air-code.removeDependency",
+          "when": "view == codea-projects && viewItem == dependency",
+          "group": "inline"
+        },
+        {
+          "command": "codea-air-code.addDependency",
+          "when": "view == codea-projects && viewItem == linkedProject",
+          "group": "dependencies"
+        },
+        {
+          "command": "codea-air-code.addAssetFiles",
+          "when": "view == codea-assets && viewItem == assetPack",
+          "group": "inline"
         }
       ]
     },

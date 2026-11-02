@@ -15,6 +15,14 @@ export class ProjectNode {
     }
 }
 
+// A dependency of a linked project, as its Info.plist lists it
+export class DependencyNode {
+    constructor(
+        readonly dependent: ProjectNode,
+        readonly collection: string | undefined,
+        readonly project: string) { }
+}
+
 // Projects in Codea as paths under /Codea, e.g. "iPad Projects/EmuTests" or "iCloud/Collection/Project"
 export async function listCodeaProjects(airCode: AirCode, host: string): Promise<string[]> {
     const projects: string[] = [];
@@ -87,10 +95,10 @@ export async function listCollections(airCode: AirCode, host: string): Promise<s
 }
 
 // The Projects view of the Codea sidebar
-export class ProjectsViewProvider implements vscode.TreeDataProvider<ProjectNode> {
+export class ProjectsViewProvider implements vscode.TreeDataProvider<ProjectNode | DependencyNode> {
     public static readonly viewType = 'codea-projects';
 
-    private _onDidChangeTreeData = new vscode.EventEmitter<ProjectNode | undefined>();
+    private _onDidChangeTreeData = new vscode.EventEmitter<ProjectNode | DependencyNode | undefined>();
     onDidChangeTreeData = this._onDidChangeTreeData.event;
 
     constructor(private readonly airCode: AirCode, private readonly links: Links) { }
@@ -103,7 +111,15 @@ export class ProjectsViewProvider implements vscode.TreeDataProvider<ProjectNode
         return this.links.projects().find(project => project.remotePath === node.remotePath);
     }
 
-    getTreeItem(node: ProjectNode): vscode.TreeItem {
+    getTreeItem(node: ProjectNode | DependencyNode): vscode.TreeItem {
+        if (node instanceof DependencyNode) {
+            const item = new vscode.TreeItem(node.project, vscode.TreeItemCollapsibleState.None);
+            item.iconPath = new vscode.ThemeIcon("package");
+            item.description = node.collection;
+            item.tooltip = `${node.dependent.name} depends on ${node.project}`;
+            item.contextValue = "dependency";
+            return item;
+        }
         if (!node.isProject) {
             const isCloud = node.remotePath.startsWith("iCloud/");
             // Collections with linked projects start open, so those projects are in view
@@ -116,7 +132,8 @@ export class ProjectsViewProvider implements vscode.TreeDataProvider<ProjectNode
         }
 
         const linked = this.linkedProject(node);
-        const item = new vscode.TreeItem(node.name, vscode.TreeItemCollapsibleState.None);
+        const hasDependencies = linked !== undefined && this.links.dependencies(linked).length > 0;
+        const item = new vscode.TreeItem(node.name, hasDependencies ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
         item.iconPath = new vscode.ThemeIcon(linked ? "link" : "codea-logo");
         item.contextValue = linked ? "linkedProject" : "project";
         if (linked) {
@@ -133,10 +150,14 @@ export class ProjectsViewProvider implements vscode.TreeDataProvider<ProjectNode
         return item;
     }
 
-    async getChildren(node?: ProjectNode): Promise<ProjectNode[]> {
+    async getChildren(node?: ProjectNode | DependencyNode): Promise<(ProjectNode | DependencyNode)[]> {
         const host = this.links.host();
-        if (host === undefined) {
+        if (host === undefined || node instanceof DependencyNode) {
             return [];
+        }
+        if (node?.isProject) {
+            const linked = this.linkedProject(node);
+            return linked ? this.links.dependencies(linked).map(entry => new DependencyNode(node, entry.collection, entry.project)) : [];
         }
 
         try {

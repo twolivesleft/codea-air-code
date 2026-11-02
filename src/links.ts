@@ -1,6 +1,8 @@
+import * as fs from 'fs';
 import * as vscode from 'vscode';
 
 import { AirCode } from './aircode';
+import { dependenciesIn, dependencyFile } from './dependencies';
 
 // A local folder kept in sync with a project in Codea
 export interface LinkedProject {
@@ -104,12 +106,46 @@ export class Links {
             return undefined;
         }
         const remotePath = match[1];
+        const ofDependency = dependencyFile(path);
+        if (ofDependency !== undefined) {
+            const dependency = this.dependencyProject(ofDependency.dependent, ofDependency.dependency);
+            return dependency && vscode.Uri.joinPath(dependency.localUri, ofDependency.file);
+        }
         for (const project of this.projects()) {
             if (remotePath.startsWith(project.remotePath + '/')) {
                 return vscode.Uri.joinPath(project.localUri, remotePath.slice(project.remotePath.length + 1));
             }
         }
         return undefined;
+    }
+
+    // The linked project a project depends on by name: the one its Info.plist names, else one in
+    // its collection, else any of that name
+    private dependencyProject(dependentPath: string, name: string): LinkedProject | undefined {
+        const named = this.projects().filter(project => project.remotePath.split('/').pop() === name);
+        const dependent = this.projects().find(project => project.remotePath === dependentPath);
+        const listed = dependent && this.dependencies(dependent).find(entry => entry.project === name);
+        const collection = (project: LinkedProject) => project.remotePath.split('/').slice(-2, -1)[0];
+        return named.find(project => listed?.collection !== undefined && collection(project) === listed.collection)
+            ?? named.find(project => collection(project) === dependentPath.split('/').slice(-2, -1)[0])
+            ?? named[0];
+    }
+
+    // A linked project's dependencies, as its Info.plist here lists them
+    dependencies(project: LinkedProject): { collection: string | undefined, project: string }[] {
+        try {
+            return dependenciesIn(fs.readFileSync(vscode.Uri.joinPath(project.localUri, 'Info.plist').fsPath, 'utf8'));
+        } catch {
+            return [];
+        }
+    }
+
+    // Linked projects that depend on this one, by their Info.plist here
+    dependents(project: LinkedProject): LinkedProject[] {
+        const name = project.remotePath.split('/').pop();
+        const collection = project.remotePath.split('/').slice(-2, -1)[0];
+        return this.projects().filter(other => other !== project && this.dependencies(other)
+            .some(entry => entry.project === name && (entry.collection === undefined || entry.collection === collection)));
     }
 
     // Codea uri for a local file of a linked project, any other uri unchanged
