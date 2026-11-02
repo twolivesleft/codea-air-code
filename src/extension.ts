@@ -678,6 +678,10 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 		await vscode.workspace.getConfiguration('codea-air-code', folder).update('host', host, vscode.ConfigurationTarget.WorkspaceFolder);
 		projectsView.refresh();
+
+		// Choosing the device already saved changes nothing, so say it worked and show the projects
+		await vscode.commands.executeCommand(`${ProjectsViewProvider.viewType}.focus`);
+		vscode.window.showInformationMessage(`Connected to Codea at ${host}.`);
 	}));
 
 	// Downloads a project into the workspace, where Codea itself would keep it, and links it

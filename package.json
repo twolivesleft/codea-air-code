@@ -464,7 +464,8 @@
             },
             "completionEvents": [
               "onContext:codea-air-code.walkthroughConnected",
-              "onSettingChanged:codea-air-code.host"
+              "onSettingChanged:codea-air-code.host",
+              "onCommand:codea-air-code.connect"
             ]
           },
           {
