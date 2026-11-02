@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import * as vscode from 'vscode';
 
 import { AirCode } from './aircode';
@@ -326,8 +327,9 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.moveToFolder', () => codeaFolder && moveToFolder(codeaFolder)));
 
 	async function moveToFolder(codeaFolder: vscode.WorkspaceFolder) {
-		const folder = (await vscode.window.showOpenDialog({ canSelectFolders: true, canSelectFiles: false, canSelectMany: false, openLabel: "Use This Folder" }))?.[0];
-		if (folder === undefined) {
+		// The dialog browses the window's file system, codea:// here, unless it starts on a local one
+		const folder = (await vscode.window.showOpenDialog({ canSelectFolders: true, canSelectFiles: false, canSelectMany: false, openLabel: "Use This Folder", defaultUri: vscode.Uri.file(os.homedir()) }))?.[0];
+		if (folder === undefined || folder.scheme !== "file") {
 			return;
 		}
 		const projects = new Set<string>();
