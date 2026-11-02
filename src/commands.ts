@@ -150,18 +150,22 @@ export namespace Command {
         content: string;
     }
 
+    // modern asks for the Carbide reference; Codea before 3.20 ignores it and answers with the legacy one
     export interface GetChapters extends Command {
         command: 'probeGetChapters';
+        modern: boolean;
     }
 
     export interface GetChapterImage extends Command {
         command: 'probeGetChapterImage';
         chapter: string;
+        modern: boolean;
     }
 
     export interface GetFunctions extends Command {
         command: 'probeGetFunctions';
         chapter: string;
+        modern: boolean;
     }
 
     export interface GetCategoryImage extends Command {
@@ -173,11 +177,13 @@ export namespace Command {
         command: 'probeGetFunctionDetails';
         chapter: string;
         function: string;
+        modern: boolean;
     }
 
     export interface FindReference extends Command {
         command: 'probeFindReference';
         text: string;
+        modern: boolean;
     }    
 
     export interface WatchFiles extends Command {
@@ -325,20 +331,20 @@ export namespace Command {
     }
 
     export namespace GetChapters {
-        export function from(): GetChapters {
-            return { command: 'probeGetChapters' };
+        export function from(modern: boolean): GetChapters {
+            return { command: 'probeGetChapters', modern };
         }
     }
 
     export namespace GetChapterImage {
-        export function from(chapter: string): GetChapterImage {
-            return { command: 'probeGetChapterImage', chapter };
+        export function from(chapter: string, modern: boolean): GetChapterImage {
+            return { command: 'probeGetChapterImage', chapter, modern };
         }
     }
 
     export namespace GetFunctions {
-        export function from(chapter: string): GetFunctions {
-            return { command: 'probeGetFunctions', chapter };
+        export function from(chapter: string, modern: boolean): GetFunctions {
+            return { command: 'probeGetFunctions', chapter, modern };
         }
     }
 
@@ -349,14 +355,14 @@ export namespace Command {
     }
 
     export namespace GetFunctionDetails {
-        export function from(chapter: string, functionId: string): GetFunctionDetails {
-            return { command: 'probeGetFunctionDetails', chapter, function: functionId };
+        export function from(chapter: string, functionId: string, modern: boolean): GetFunctionDetails {
+            return { command: 'probeGetFunctionDetails', chapter, function: functionId, modern };
         }
     }
 
     export namespace FindReference {
-        export function from(text: string): FindReference {
-            return { command: 'probeFindReference', text };
+        export function from(text: string, modern: boolean): FindReference {
+            return { command: 'probeFindReference', text, modern };
         }
     }
 

@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { AirCode } from './aircode';
 import { getWorkspaceUri } from './extension';
-import { FindReferenceResponse } from './responses';
+import { Reference } from './responses';
 
 export class ReferenceViewProvider implements vscode.WebviewViewProvider {
 
@@ -9,12 +9,12 @@ export class ReferenceViewProvider implements vscode.WebviewViewProvider {
 
 	private _view?: vscode.WebviewView;
 
-	private chapters: any[] = [];
+	private chapters: { legacy: any[], modern: any[] } = { legacy: [], modern: [] };
 	private categoryImages: { [category: string]: string } = {}
 	private isReady = false
 
 	public airCode?: AirCode;
-	public referenceToLoad?: FindReferenceResponse;
+	private referenceToLoad?: Reference;
 
 	constructor(
 		private readonly _extensionUri: vscode.Uri
@@ -30,6 +30,7 @@ export class ReferenceViewProvider implements vscode.WebviewViewProvider {
 		_token: vscode.CancellationToken,
 	) {
 		this._view = webviewView;
+		this.isReady = false;
 
 		webviewView.webview.options = {
 			enableScripts: true,
@@ -40,20 +41,17 @@ export class ReferenceViewProvider implements vscode.WebviewViewProvider {
 
 		webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
+		webviewView.onDidChangeVisibility(() => this.showPendingReference());
+
 		webviewView.webview.onDidReceiveMessage(data => {
 			(async () => {
 				switch (data.type) {
 					case 'webViewReady':
 						{
-							await this.getChapters(this.referenceToLoad !== undefined);
-
-							if (this.referenceToLoad) {
-								await this.getFunctionDetails(this.referenceToLoad.chapter, this.referenceToLoad.function);
-
-								this.referenceToLoad = undefined;
-							}
+							await this.refresh();
 
 							this.isReady = true;
+							await this.showPendingReference();
 
 							break;
 						}
@@ -64,21 +62,19 @@ export class ReferenceViewProvider implements vscode.WebviewViewProvider {
 						}
 					case 'getChapters':
 						{
-							this.getChapters(false);
+							this.getChapters(data.modern === true);
 
 							break;
 						}
 					case 'getChapterImage':
 						{
-							const chapter = data.chapter;
-							this.getChapterImage(chapter);
+							this.getChapterImage(data.chapter, data.modern === true);
 
 							break;
 						}
 					case 'getFunctions':
 						{
-							const chapter = data.chapter;
-							this.getFunctions(chapter);
+							this.getFunctions(data.chapter, data.modern === true);
 							break;
 						}
 					case 'getCategoryImage':
@@ -90,7 +86,7 @@ export class ReferenceViewProvider implements vscode.WebviewViewProvider {
 						}	
 					case 'getFunctionDetails':
 						{
-							this.getFunctionDetails(data.chapter, data.functionId);
+							this.getFunctionDetails(data.chapter, data.functionId, data.modern === true);
 							break;
 						}
 				}
@@ -98,43 +94,95 @@ export class ReferenceViewProvider implements vscode.WebviewViewProvider {
 		});
 	}
 
-	public sendChapters() {
-		if (this._view) {
-			this._view.webview.postMessage({ type: 'setChapters', data: this.chapters });
+	// Loads both references again, for a new connection, which may be to a Codea without the modern one
+	public async refresh() {
+		this.chapters = { legacy: [], modern: [] };
+
+		const modernIsNative = this.airCode?.hasModernReference === true;
+		this._view?.webview.postMessage({ type: 'setModernIsNative', data: modernIsNative });
+
+		await this.getChapters(false);
+		if (modernIsNative) {
+			await this.getChapters(true);
+		}
+
+		const modern = this.activeProjectIsModern();
+		if (modern !== undefined) {
+			this.showTab(modern);
 		}
 	}
 
-	public async getChapters(loadOnly: boolean) {
-		if (this.chapters.length > 0) {
-			this.sendChapters();
-			return;
+	// The runtime of the project the active editor's file is in, if it is in a linked one
+	public activeProjectIsModern(): boolean | undefined {
+		const uri = vscode.window.activeTextEditor?.document.uri;
+		const found = uri && this.airCode?.links?.find(uri);
+		return found ? this.airCode?.links?.isModern(found[0]) : undefined;
+	}
+
+	// Shows an entry, once the view has loaded if it has not
+	public async show(reference: Reference) {
+		this.referenceToLoad = reference;
+		if (this.isReadyAndVisible()) {
+			await this.showPendingReference();
 		}
-	
-		let chapters = await this.airCode?.getChapters(getWorkspaceUri());
+		else {
+			await vscode.commands.executeCommand("codea-reference.focus");
+		}
+	}
 
-		if (chapters) {
-			this.chapters = chapters;
+	private async showPendingReference() {
+		const reference = this.referenceToLoad;
+		if (reference && this.isReadyAndVisible()) {
+			this.referenceToLoad = undefined;
+			await this.getFunctionDetails(reference.chapter, reference.function, reference.modern);
+		}
+	}
 
-			if (!loadOnly) {
-				this.sendChapters();
+	public showTab(modern: boolean) {
+		this._view?.webview.postMessage({ type: 'showReference', data: modern });
+	}
+
+	private sendChapters(modern: boolean) {
+		if (this._view) {
+			this._view.webview.postMessage({ type: 'setChapters', modern, data: this.chapterList(modern) });
+		}
+	}
+
+	private chapterList(modern: boolean): any[] {
+		return modern ? this.chapters.modern : this.chapters.legacy;
+	}
+
+	public async getChapters(modern: boolean) {
+		if (this.chapterList(modern).length === 0) {
+			const chapters = await this.airCode?.getChapters(getWorkspaceUri(), modern);
+
+			if (!chapters) {
+				return;
+			}
+
+			if (modern) {
+				this.chapters.modern = chapters;
+			}
+			else {
+				this.chapters.legacy = chapters;
 			}
 		}
+
+		this.sendChapters(modern);
 	}
 
-	public async getChapterImage(chapterName: string) {
-		let chapterImage = await this.airCode?.getChapterImage(getWorkspaceUri(), chapterName);
+	public async getChapterImage(chapterName: string, modern: boolean) {
+		let chapterImage = await this.airCode?.getChapterImage(getWorkspaceUri(), chapterName, modern);
 
 		if (chapterImage) {
-			let chapter = this.chapters.findIndex(function(chapter) {
-				return chapter["name"] == chapterName;
-			})
+			const chapter = this.chapterList(modern).find(chapter => chapter["name"] == chapterName);
 
-			if (chapter != -1) {
-				this.chapters[chapter]["image"] = chapterImage;
+			if (chapter) {
+				chapter["image"] = chapterImage;
 			}
 
 			if (this._view) {
-				this._view.webview.postMessage({ type: 'setChapterImage', data: {
+				this._view.webview.postMessage({ type: 'setChapterImage', modern, data: {
 					chapter: chapterName,
 					image: chapterImage}
 				});
@@ -142,29 +190,31 @@ export class ReferenceViewProvider implements vscode.WebviewViewProvider {
 		}
 	}
 
-	public async getFunctions(chapterName: string) {
-		let chapter = this.chapters.findIndex(function(chapter) {
-			return chapter["name"] == chapterName;
-		})
+	public async getFunctions(chapterName: string, modern: boolean) {
+		const chapter = this.chapterList(modern).find(chapter => chapter["name"] == chapterName);
 
-		if (!this.chapters[chapter]["functions"]) {
-			let response = await this.airCode?.getFunctions(getWorkspaceUri(), chapterName);
+		if (!chapter) {
+			return;
+		}
+
+		if (!chapter["functions"]) {
+			let response = await this.airCode?.getFunctions(getWorkspaceUri(), chapterName, modern);
 
 			if (response) {
-				this.chapters[chapter]["groups"] = response.groups;
-				this.chapters[chapter]["localGroups"] = response.localGroups;
-				this.chapters[chapter]["functions"] = response.functions;
+				chapter["groups"] = response.groups;
+				chapter["localGroups"] = response.localGroups;
+				chapter["functions"] = response.functions;
 			}
 		}
 
 		if (this._view) {
-			this._view.webview.postMessage({ type: 'setFunctions', data: {
+			this._view.webview.postMessage({ type: 'setFunctions', modern, data: {
 				chapter: chapterName,
-				chapterTitle: this.chapters[chapter]["title"],
-				chapterImage: this.chapters[chapter]["image"],
-				groups: this.chapters[chapter]["groups"],
-				localGroups: this.chapters[chapter]["localGroups"],
-				functions: this.chapters[chapter]["functions"],
+				chapterTitle: chapter["title"],
+				chapterImage: chapter["image"],
+				groups: chapter["groups"],
+				localGroups: chapter["localGroups"],
+				functions: chapter["functions"],
 				images: this.categoryImages
 			} });
 		}
@@ -185,11 +235,11 @@ export class ReferenceViewProvider implements vscode.WebviewViewProvider {
 		}
 	}
 
-	public async getFunctionDetails(chapter: string, functionId: string) {
+	public async getFunctionDetails(chapter: string, functionId: string, modern: boolean) {
 		if (this._view) {
-			let response = await this.airCode?.getFunctionDetails(getWorkspaceUri(), chapter, functionId);
+			let response = await this.airCode?.getFunctionDetails(getWorkspaceUri(), chapter, functionId, modern);
 
-			this._view.webview.postMessage({ type: 'setFunctionDetails', data: {
+			this._view.webview.postMessage({ type: 'setFunctionDetails', modern, data: {
 				chapter: chapter,
 				details: response,
 				categoryImages: this.categoryImages

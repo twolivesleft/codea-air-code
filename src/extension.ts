@@ -460,19 +460,30 @@ export function activate(context: vscode.ExtensionContext) {
 		airCode.loadString(linkedFolders.airCodeUri(activeEditor.document.uri), text);
 	}));
 
+	// Looks in the reference of the active project's runtime first, then in the other one
 	async function findReference(uri: vscode.Uri, text: string) {
-		let response = await airCode.findReference(uri, text);
+		const modernFirst = airCode.referenceView.activeProjectIsModern() ?? true;
+		const references = airCode.hasModernReference ? [modernFirst, !modernFirst] : [false];
 
-		if (response) {
-			if (airCode.referenceView.isReadyAndVisible()) {
-				airCode.referenceView.getFunctionDetails(response.chapter, response.function);
+		for (const modern of references) {
+			// Codea answers a name it doesn't know with no data, which arrives as an error
+			const response = await Promise.resolve(airCode.findReference(uri, text, modern)).catch(() => undefined);
+
+			if (!response) {
+				continue;
 			}
-			else {
-				await vscode.commands.executeCommand("codea-reference.focus");
-				airCode.referenceView.referenceToLoad = response;
-			}
+
+			await airCode.referenceView.show({ ...response, modern });
+			return;
 		}
 	}
+
+	context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(() => {
+		const modern = airCode.referenceView.activeProjectIsModern();
+		if (modern !== undefined && airCode.hasModernReference) {
+			airCode.referenceView.showTab(modern);
+		}
+	}));
 
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.selectionReference', async () => {
 		let activeEditor = vscode.window.activeTextEditor;
