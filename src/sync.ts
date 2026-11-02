@@ -250,6 +250,10 @@ export class LinkSync {
     // A file or folder deleted on disk. Files are passed on together once deletions settle; a
     // linked project's folder, or a folder holding some, counts as those projects going missing.
     private deleted(uri: vscode.Uri) {
+        // Connect compares everything and asks then
+        if (this.airCode.disconnected) {
+            return;
+        }
         const folderPath = uri.path.replace(/\/$/, '');
         const projects = this.links.projects().filter(project =>
             project.localUri.path === folderPath || project.localUri.path.startsWith(folderPath + '/'));
@@ -293,8 +297,10 @@ export class LinkSync {
         let source: SyncSource = 'local';
         if (files.length > deletionsWithoutAsking) {
             const deleteInCodea = 'Delete in Codea';
+            const question = `${files.length} files were deleted from linked projects. Delete them in Codea too?`;
+            this.log.appendLine(question);
             const choice = await vscode.window.showWarningMessage(
-                `${files.length} files were deleted from linked projects. Delete them in Codea too?`,
+                question,
                 { modal: true, detail: this.listForDialog('Deleted locally:', files.map(({ project, name }) => this.describe(project, name))) },
                 deleteInCodea, 'Restore Them Here');
             // Anything but an explicit yes brings the files back
@@ -327,10 +333,12 @@ export class LinkSync {
                 const projects = [...this.missingLocally.values()];
                 const getAgain = 'Get Them Again';
                 const unlink = 'Unlink Them';
+                const question = projects.length === 1
+                    ? `The linked project ${projects[0].remotePath} is missing from this folder. Nothing was changed in Codea.`
+                    : `${projects.length} linked projects are missing from this folder. Nothing was changed in Codea.`;
+                this.log.appendLine(question);
                 const choice = await vscode.window.showWarningMessage(
-                    projects.length === 1
-                        ? `The linked project ${projects[0].remotePath} is missing from this folder. Nothing was changed in Codea.`
-                        : `${projects.length} linked projects are missing from this folder. Nothing was changed in Codea.`,
+                    question,
                     { modal: true, detail: this.listForDialog('Missing from this folder:', projects.map(project => project.remotePath)) },
                     getAgain, unlink);
                 this.missingLocally.clear();
@@ -348,10 +356,12 @@ export class LinkSync {
             if (this.missingInCodea.size > 0) {
                 const projects = [...this.missingInCodea.values()];
                 const unlink = 'Unlink Them';
+                const question = projects.length === 1
+                    ? `The linked project ${projects[0].remotePath} is missing in Codea. Its folder here was left as it is.`
+                    : `${projects.length} linked projects are missing in Codea. Their folders here were left as they are.`;
+                this.log.appendLine(question);
                 const choice = await vscode.window.showWarningMessage(
-                    projects.length === 1
-                        ? `The linked project ${projects[0].remotePath} is missing in Codea. Its folder here was left as it is.`
-                        : `${projects.length} linked projects are missing in Codea. Their folders here were left as they are.`,
+                    question,
                     { modal: true, detail: this.listForDialog('Missing in Codea:', projects.map(project => project.remotePath)) },
                     unlink);
                 this.missingInCodea.clear();
