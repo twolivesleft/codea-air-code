@@ -20,6 +20,7 @@ export type GetInformationResponse = {
     textExtensions: string[];
     watchesFiles?: boolean;
     listsFileVersions?: boolean;
+    listsSubfolders?: boolean;
     builtInCollections?: string[];
 }
 

@@ -739,6 +739,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 		let collections: string[];
 		try {
+			await airCode.ensureResponsive(codeaUri(''));
 			collections = (await listCollections(airCode, host)).filter(collection => !isBuiltInCollection(airCode, collection));
 		} catch (error) {
 			vscode.window.showErrorMessage(`Could not list the collections in Codea: ${error}`);
@@ -821,6 +822,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 		let files: number;
 		try {
+			await airCode.ensureResponsive(projectUri);
 			files = (await airCode.readDirectory(projectUri)).filter(([, type]) => type === vscode.FileType.File).length;
 		} catch (error) {
 			vscode.window.showErrorMessage(`Could not read ${remotePath} in Codea: ${error}`);
@@ -871,17 +873,31 @@ export function activate(context: vscode.ExtensionContext) {
 	// A linked project's folder renamed in VS Code renames the project in Codea when only its name
 	// changed and it still names the project; moved anywhere else, it stays linked to the project.
 	// Renames made outside VS Code are only seen as the folder going missing.
+	// Main.lua renamed is renamed back. A renamed tab is synced as a new file and a deletion.
+	const mainRenames = new Set<string>();
 	context.subscriptions.push(vscode.workspace.onWillRenameFiles(event => {
-		for (const { oldUri } of event.files) {
-			sync.renameStarting(oldUri);
+		for (const { oldUri, newUri } of event.files) {
+			if (sync.isFolderRename(oldUri)) {
+				sync.renameStarting(oldUri);
+			}
+			if (sync.isMainRename(oldUri)) {
+				sync.renameStarting(oldUri);
+				mainRenames.add(oldUri.toString());
+				sync.renameStarting(newUri);
+			}
 		}
 	}));
 	context.subscriptions.push(vscode.workspace.onDidRenameFiles(async event => {
 		for (const { oldUri, newUri } of event.files) {
 			try {
-				await followRename(oldUri, newUri);
+				if (mainRenames.delete(oldUri.toString())) {
+					await sync.renameBack(oldUri, newUri);
+				} else {
+					await followRename(oldUri, newUri);
+				}
 			} finally {
 				sync.renameDone(oldUri);
+				sync.renameDone(newUri);
 			}
 		}
 	}));
@@ -926,6 +942,7 @@ export function activate(context: vscode.ExtensionContext) {
 		const collection = renamed.split('/').slice(0, -1).join('/');
 		const newName = renamed.split('/').pop()!;
 		try {
+			await airCode.ensureResponsive(codeaUri(collection));
 			const existing = (await airCode.readDirectory(codeaUri(collection))).map(([name]) => name.toLowerCase());
 			if (existing.includes(newName.toLowerCase()) && newName.toLowerCase() !== remotePath.split('/').pop()!.toLowerCase()) {
 				return `${collection} already has a project named ${newName}, so ${remotePath} was not renamed in Codea.`;
