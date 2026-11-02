@@ -14,7 +14,6 @@ This extension connects Visual Studio Code to the [Codea](https://codea.io/) iOS
   - [Getting Started](#getting-started)
   - [Linked Folders](#linked-folders)
   - [Connection](#connection)
-  - [Working Directly in Codea](#working-directly-in-codea)
   - [USB Connection](#usb-connection)
   - [Files and Dependencies](#files-and-dependencies)
   - [Assets](#assets)
@@ -35,7 +34,7 @@ A folder can hold many projects, the same way Codea organizes them, so a git rep
 
 ### Editor
 
-The editor knows Codea's API and your project: auto-completion, color pickers, font and sprite lists, snippets and documentation work much like in Codea, in linked folders as well as when working directly in Codea.
+The editor knows Codea's API and your project: auto-completion, color pickers, font and sprite lists, snippets and documentation work much like in Codea.
 
 #### Auto-Completion
 
@@ -97,13 +96,9 @@ It is also possible to select and right click a word in a project's code to find
 
 #### Search
 
-In [linked folders](#linked-folders), the files are on your computer and Visual Studio Code's own search works as usual, across all your projects.
+The files are on your computer, so Visual Studio Code's own search works as usual, across all your projects.
 
 <img width="851" alt="Searching linked projects" src="images/local_search.png">
-
-When [working directly in Codea](#working-directly-in-codea), Visual Studio Code cannot search the files yet (see [this issue](https://github.com/microsoft/vscode/issues/59921)), so the Codea Sidebar shows a Search section instead, which searches all files of the currently active project.
-
-<img width="383" alt="Search" src="images/search.png">
 
 #### Parameters
 
@@ -192,19 +187,13 @@ To connect your folder to Codea, click `Connect to Codea` in the Projects sectio
 
 To find the device's IP to connect to if the device is not in the list, use the Air Code icon on the project selection screen in Codea. The default port is `18513`. The address is saved with the folder's settings, so the folder reconnects on its own the next time it is opened.
 
+Clicking the Codea item in the status bar shows a menu to disconnect, reconnect, or connect to another device. While disconnected, changes stay where they are made, and are synced when the folder connects again.
+
 #### Fun Fact
 
 > The idea for this extension started as a proof-of-concept of a browser based "Remote Console". The idea was to see a Codea project's logs and execute commands directly from a web browser.
 >
 > Air Code's default port 18513 is actually based on the letters R (18) E (5) M (13), for REMote console.
-
-### Working Directly in Codea
-
-The `Codea: Connect to Host...` command opens Codea's files directly, without a local folder. Visual Studio Code then lists all the projects available in Codea with their files and dependencies, and assets under the Assets folder. This is handy for a quick change, but other tools cannot see these files, and Visual Studio Code cannot search them (the Codea Sidebar provides its own [Search](#search) instead).
-
-<img width="605" alt="Command Palette" src="images/palette.png">
-
-<img width="851" alt="Screenshot of the editor" src="images/editor_2.png">
 
 ### USB Connection
 
@@ -214,9 +203,7 @@ For Mac and Linux platforms, libusbmuxd can be installed through Homebrew using 
 
 Windows executables including iproxy.exe are also available (look for `libimobiledevice windows binaries`). Make sure iTunes is installed on your Windows system and that the directory of iproxy.exe is included in your PATH environment variable.
 
-Once iproxy is available, use the `Connect over USB...` command and provide the ports to use for the connection (local port to open on your host machine, and the port used in Codea for AirCode). If you are not using custom values, simply use the default values provided.
-
-To use USB with linked folders, enter the ports as the address when connecting, for example `18513:18514`.
+Once iproxy is available, connect to Codea and, instead of an address, enter the port used in Codea for Air Code followed by a local port to open on your computer, for example `18513:18514`.
 
 #### Multi-window
 
@@ -224,14 +211,14 @@ Air Code does not currently support multiple Codea windows or running projects. 
 
 ### Files and Dependencies
 
-In a linked folder, files added, removed or renamed in the project's folder, from Visual Studio Code or any other tool, are added, removed or renamed in Codea as well. When working directly in Codea, the same operations in Visual Studio Code apply to Codea's files.
+Files added, removed or renamed in a project's folder, from Visual Studio Code or any other tool, are added, removed or renamed in Codea as well.
 
-Dependencies can be added to the active project (based on the current file being edited) using the `Add dependency...` command. They are stored in the project's `Info.plist`, which is updated in the linked folder too. When working directly in Codea, a dependency can be removed by deleting its folder in the Explorer.
+Dependencies can be added to the active project (based on the current file being edited) using the `Add dependency...` command. They are stored in the project's `Info.plist`, which is updated in the folder too.
 
 
 ### Assets
 
-Assets kept in a project, such as images, sounds and models, are part of its folder and are synced like any other file, so new assets can be added by copying them into the project's folder. When working directly in Codea, all assets can be found under the Assets folder, and new ones can be added by dragging them into a project folder, the Documents folder under Assets, or an External Folder referenced in Codea.
+Assets kept in a project, such as images, sounds and models, are part of its folder and are synced like any other file, so new assets can be added by copying them into the project's folder.
 
 To reference an asset in a project, drag-and-drop the asset from the Explorer view **while holding the Shift key** into a Lua file and the Asset Key will automatically be added.
 
@@ -251,8 +238,7 @@ All commands included with this extension are prefixed with `Codea:`.
 | `Link All Matching Folders...` | Link the folder's projects to the projects of the same name in Codea. |
 | `Link Folder to Project...` | Keep a local folder in sync with a project in Codea.             |
 | `Sync Linked Folders`  | Sync all linked folders with Codea now.                               |
-| `Connect to Host...`   | Open Codea's files directly, without a local folder.                  |
-| `Connect over USB...`  | Enter the local port and Codea port to connect over USB using iproxy. |
+| `Disconnect`           | Disconnect the folder from Codea until you connect again.             |
 | `Execute current line` | Executes the Lua code on the active line.                             |
 | `Execute selection`    | Executes the select Lua code in Codea.                                |
 | `Execute command...`   | Enter a Lua command to execute in Codea.                              |

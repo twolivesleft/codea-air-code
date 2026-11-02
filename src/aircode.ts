@@ -84,6 +84,8 @@ export class AirCode implements vscode.FileSystemProvider {
     // Collections that ship with Codea, which getting every project skips
     builtInCollections: string[] = ["Examples", "Craft"];
     private lastAnswer = 0;
+    // Set when disconnected from the Codea menu, so nothing reconnects until asked to
+    disconnected = false;
     private _onDidConnect = new vscode.EventEmitter<void>();
     onDidConnect = this._onDidConnect.event;
     private watchedPaths: string[] = [];
@@ -373,6 +375,10 @@ export class AirCode implements vscode.FileSystemProvider {
     }
 
     async getSocketForUri(uri: vscode.Uri, showError: boolean = true): Promise<WebSocket | undefined> {
+        if (this.disconnected) {
+            return undefined;
+        }
+
         var host = uri.authority;
         if (host === undefined) {
             return undefined;

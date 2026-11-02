@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-export type ConnectionState = 'notConnected' | 'connecting' | 'connected' | 'lost' | 'failed';
+export type ConnectionState = 'notConnected' | 'connecting' | 'connected' | 'lost' | 'failed' | 'disconnected';
 
 // The Codea items of the status bar: the connection, and Play or Stop for the project in focus
 export class CodeaStatus {
@@ -80,6 +80,10 @@ export class CodeaStatus {
             case 'connecting':
                 connection.text = "$(sync~spin) Codea";
                 connection.tooltip = "Connecting to Codea...";
+                break;
+            case 'disconnected':
+                connection.text = "$(debug-disconnect) Codea";
+                connection.tooltip = `Disconnected from Codea${this.host ? ` at ${this.host}` : ""}. Click to connect.`;
                 break;
             default:
                 connection.text = "$(debug-disconnect) Codea";

@@ -167,7 +167,7 @@ export class LinkSync {
 
     private async syncNamed(project: LinkedProject, names: string[]) {
         const projectUri = this.links.remoteProjectUri(project);
-        if (projectUri === undefined) {
+        if (projectUri === undefined || this.airCode.disconnected) {
             return;
         }
 
@@ -398,7 +398,7 @@ export class LinkSync {
     // Undefined when Codea cannot be reached, so a lost connection never reads as deleted files
     private async listRemote(project: LinkedProject): Promise<Map<string, RemoteFile> | undefined> {
         const projectUri = this.links.remoteProjectUri(project);
-        if (projectUri === undefined) {
+        if (projectUri === undefined || this.airCode.disconnected) {
             return undefined;
         }
 

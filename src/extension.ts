@@ -250,11 +250,22 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.showMenu', async () => {
 		const items: (vscode.QuickPickItem & { command: string })[] = [];
-		if (linkedFolders.isLinked()) {
-			items.push({ label: "$(sync) Sync Linked Folders", command: "codea-air-code.syncLinkedFolders" });
+		const host = linkedFolders.host();
+		if (airCode.disconnected) {
+			items.push({ label: "$(plug) Connect", description: host, command: "codea-air-code.refreshConnection" });
+		} else {
+			if (linkedFolders.isLinked()) {
+				items.push({ label: "$(sync) Sync Linked Folders", command: "codea-air-code.syncLinkedFolders" });
+			}
+			items.push({ label: "$(debug-restart) Reconnect", description: host, command: "codea-air-code.refreshConnection" });
+			if (host !== undefined) {
+				items.push({ label: "$(debug-disconnect) Disconnect", command: "codea-air-code.disconnect" });
+			}
+		}
+		if (host !== undefined) {
+			items.push({ label: "$(device-mobile) Connect to Another Device...", command: "codea-air-code.connect" });
 		}
 		items.push(
-			{ label: "$(debug-restart) Reconnect", command: "codea-air-code.refreshConnection" },
 			{ label: "$(link) Link Folder to Project...", command: "codea-air-code.linkFolder" },
 			{ label: "$(output) Show Output", command: "codea-air-code.showOutput" },
 			{ label: "$(book) Get Started with Codea Projects", command: "codea-air-code.showWalkthrough" });
@@ -340,65 +351,22 @@ export function activate(context: vscode.ExtensionContext) {
     }));
 
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.refreshConnection', async () => {
+		airCode.disconnected = false;
+		lastSync = 0;
 		await airCode.getSocketForUri(getWorkspaceUri(), true);
 	}));
 
-	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.connectToHost', async () => {
-		let defaultPort = "18513";
-		let defaultHost = `127.0.0.1:${defaultPort}`;
-
-		await service.pickService().then(async host => {
-			if (host === undefined) {
-				return;
-			}
-
-			if (host == "") {
-				host = defaultHost;
-			}
-
-			if (!host.includes(":")) {
-				host += `:${defaultPort}`;
-			}
-
-			let uri = vscode.Uri.parse(`codea://${host}/${AirCode.rootFolder}/`);
-			await vscode.commands.executeCommand("vscode.openFolder", uri);
-		});
+	// Stays disconnected until connected again from the Codea menu; edits made meanwhile are
+	// compared and synced when it reconnects
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.disconnect', async () => {
+		const connectionUri = linkedFolders.connectionUri();
+		if (connectionUri === undefined) {
+			return;
+		}
+		airCode.disconnected = true;
+		await airCode.closeConnection(connectionUri);
+		status.setConnection('disconnected');
 	}));
-
-	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.connectOverUSB', async () => {
-		let defaultCodeaPort = "18513";
-		let defaultLocalPort = "18514";
-
-		// Ask for "codeaPort:localPort" instead of two separate inputs.
-		let host = await vscode.window.showInputBox({
-			placeHolder: `${defaultCodeaPort}:${defaultLocalPort}`,
-			prompt: "Enter codeaPort:localPort, for example: '18513:18514'."
-		});
-		if (host === undefined) {
-			vscode.window.showWarningMessage("Connection to Codea was cancelled.");
-			return;
-		}
-		else if (host === "") {
-			host = `${defaultCodeaPort}:${defaultLocalPort}`;
-		}
-
-		let [codeaPort, localPort] = host.split(":");
-		if (localPort === undefined || codeaPort === undefined) {
-			vscode.window.showWarningMessage("Invalid input. Connection to Codea was cancelled.");
-			return;
-		}
-
-		// Make sure the ports are digits only
-		if (!/^\d+$/.test(localPort) || !/^\d+$/.test(codeaPort)) {
-			vscode.window.showWarningMessage("Invalid input. Connection to Codea was cancelled.");
-			return;
-		}
-
-		// We're using a special format here so we can tell when USB is used.
-		// e.g. codea://18513:18514/ (codeaPort = 18513, localPort = 18514)
-		let uri = vscode.Uri.parse(`codea://${host}/${AirCode.rootFolder}/`);
-		await vscode.commands.executeCommand("vscode.openFolder", uri);
-	}));	
 
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.executeLine', async () => {
 		let activeEditor = vscode.window.activeTextEditor;
@@ -681,6 +649,7 @@ export function activate(context: vscode.ExtensionContext) {
 		if (host === undefined) {
 			return;
 		}
+		airCode.disconnected = false;
 		await vscode.workspace.getConfiguration('codea-air-code', folder).update('host', host, vscode.ConfigurationTarget.WorkspaceFolder);
 
 		// Choosing the device already saved changes no setting, so the connection is opened here

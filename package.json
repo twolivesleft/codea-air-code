@@ -75,14 +75,6 @@
     },
     "commands": [
       {
-        "command": "codea-air-code.connectToHost",
-        "title": "Codea: Connect to Host..."
-      },
-      {
-        "command": "codea-air-code.connectOverUSB",
-        "title": "Codea: Connect over USB..."
-      },
-      {
         "command": "codea-air-code.executeLine",
         "title": "Codea: Execute current line"
       },
@@ -176,6 +168,10 @@
         "command": "codea-air-code.getCollectionProjects",
         "title": "Get All Projects in Collection",
         "icon": "$(cloud-download)"
+      },
+      {
+        "command": "codea-air-code.disconnect",
+        "title": "Codea: Disconnect"
       }
     ],
     "keybindings": [
@@ -347,6 +343,10 @@
         {
           "command": "codea-air-code.getCollectionProjects",
           "when": "false"
+        },
+        {
+          "command": "codea-air-code.disconnect",
+          "when": "codea-air-code.hasLocalHost"
         }
       ],
       "explorer/context": [

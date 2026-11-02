@@ -1,9 +1,12 @@
 # Codea Air Code (VS Code extension)
 
-Remote editor and debugger for Codea projects. Files are served by Codea over
-Air Code and appear in VS Code under the `codea://` scheme
-(`registerFileSystemProvider` in `src/extension.ts`). The Codea side lives in
-codea-super (`AirCode/`, `Core/Codea/Air Code/`).
+Editor and debugger for Codea projects. Projects are kept in local folders, linked
+to Codea and synced over Air Code (see Linked folders). Codea's files are also
+served under the `codea://` scheme (`registerFileSystemProvider` in
+`src/extension.ts`), which the sync and the debugger use. Opening a `codea://`
+workspace is no longer offered (Connect to Host was removed), but windows already
+opened that way still work. The Codea side lives in codea-super (`AirCode/`,
+`Core/Codea/Air Code/`).
 
 ## Building
 
@@ -31,8 +34,8 @@ the expected id and can stall every later command. `ensureResponsive` sends a st
 
 ## Search
 
-VS Code's Find in Files cannot search `codea://` files (linked folders are local and
-use the built-in search). It needs a
+Linked folders are local and use the built-in search. The Search view below only
+serves `codea://` windows: VS Code's Find in Files cannot search them. It needs a
 `TextSearchProvider`/`FileSearchProvider`, and both are still proposed APIs
 (microsoft/vscode#59921, #73524), which Marketplace extensions cannot use. So
 search is our own webview view (`src/search.ts`, `media/search/`), which asks
