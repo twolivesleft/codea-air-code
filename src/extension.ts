@@ -882,8 +882,9 @@ export function activate(context: vscode.ExtensionContext) {
 	}));
 
 	// A linked project's folder renamed in VS Code renames the project in Codea when only its name
-	// changed and it still names the project; moved anywhere else, it stays linked to the project.
-	// Renames made outside VS Code are only seen as the folder going missing.
+	// changed and it still names the project, or is renamed back when Codea does not; moved anywhere
+	// else, it stays linked to the project. Renames made outside VS Code are only seen as the folder
+	// going missing.
 	// Main.lua renamed is renamed back. A renamed tab is synced as a new file and a deletion.
 	const mainRenames = new Set<string>();
 	context.subscriptions.push(vscode.workspace.onWillRenameFiles(event => {
@@ -934,11 +935,13 @@ export function activate(context: vscode.ExtensionContext) {
 				&& oldName === `${projectName}.codea` && newName.endsWith('.codea') && newName !== oldName) {
 				const renamed = `${parent(remotePath)}/${newName.slice(0, -'.codea'.length)}`;
 				const problem = await renameInCodea(host, remotePath, renamed);
-				if (problem === undefined) {
-					remotePath = renamed;
-				} else {
-					vscode.window.showWarningMessage(`${problem} ${vscode.workspace.asRelativePath(localUri)} stays linked to ${remotePath}.`);
+				if (problem !== undefined) {
+					// The folder keeps the project's name, so it goes back to it
+					await vscode.workspace.fs.rename(newUri, oldUri);
+					vscode.window.showWarningMessage(`${problem} The folder was renamed back.`);
+					return;
 				}
+				remotePath = renamed;
 			}
 			await sync.moveLink(project, folder, localUri, remotePath);
 		}
