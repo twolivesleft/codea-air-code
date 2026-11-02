@@ -506,6 +506,14 @@ export class LinkSync {
         return from !== undefined && from[1] === 'Main.lua';
     }
 
+    // A project linked anew compares both sides from scratch: a record left by an earlier link
+    // at the same place would make files missing here look deleted while disconnected
+    startAfresh(projects: LinkedProject[]) {
+        for (const project of projects) {
+            this.store.set(this.stateKey(project), undefined);
+        }
+    }
+
     async unlink(projects: LinkedProject[]) {
         for (const project of projects) {
             this.store.set(this.stateKey(project), undefined);

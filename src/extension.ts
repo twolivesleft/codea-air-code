@@ -631,6 +631,7 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
+		sync.startAfresh([{ localUri, remotePath: choice.label }]);
 		await linkedFolders.addLink(folder, localUri, choice.label, host);
 		vscode.window.showInformationMessage(`${vscode.workspace.asRelativePath(localUri)} is linked to ${choice.label} in Codea.`);
 	}));
@@ -723,6 +724,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 
 		await vscode.workspace.fs.createDirectory(localUri);
+		sync.startAfresh([{ localUri, remotePath }]);
 		await linkedFolders.addLink(folder, localUri, remotePath, host);
 
 		const project = linkedFolders.projects().find(linked => linked.remotePath === remotePath);
@@ -997,6 +999,7 @@ export function activate(context: vscode.ExtensionContext) {
 			for (const entry of entries) {
 				await vscode.workspace.fs.createDirectory(entry.localUri);
 			}
+			sync.startAfresh(entries);
 			await linkedFolders.addLinks(folder, entries, host);
 		} finally {
 			linkingMany = false;
