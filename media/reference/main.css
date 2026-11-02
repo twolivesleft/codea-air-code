@@ -282,6 +282,20 @@ body {
 	border-radius: 3px;
 }
 
+.details-description pre {
+	margin: 8px 0;
+}
+
+.details-description pre code {
+	display: block;
+	background-color: var(--vscode-textCodeBlock-background);
+	color: var(--vscode-foreground);
+	line-height: 18px;
+	padding: 8px;
+	border-radius: 4px;
+	white-space: pre-wrap;
+}
+
 .details-description a {
 	color: var(--vscode-textLink-foreground);
 }
