@@ -1,5 +1,16 @@
 # Change Log
 
+## 1.3.8 (2026/11/02)
+- Projects are kept in local folders linked to Codea and synced both ways, so search, source control and AI coding assistants work with them
+- Projects view: get, link and play Codea's projects; New Project and Delete Project in Codea; renaming a project folder renames it in Codea
+- Folders inside projects (Codea 3.20); renamed tabs keep their place
+- Dependencies shown and edited per project, with modern projects' `require` (Codea 3.20); breakpoints in a linked dependency's files
+- Assets view: browse packs, drag keys into code, add, rename and delete files; link an asset pack to a folder
+- Safeguards against passing on deletions: missing projects and many deletions ask first, nothing is deleted while disconnected
+- A window opened on codea://, the old way to connect, offers to move to a local folder; the Codea Search view is removed, as VS Code's search works on the local files
+- Reference view: the Modern tab browses the Carbide reference, and Find Reference looks in the reference of the file's project first (Codea 3.20)
+- Completion lists each name once with its signatures and description, and signature help covers the Carbide API (Codea 3.20); files in folders get completion too
+- When Codea misses the first command of a new connection, it is sent again instead of waiting 15 seconds
 ## 1.3.7 (2026/11/01)
 - Cmd+Shift+F (Ctrl+Shift+F) opens the Codea search, filled in with the selection or the word under the cursor
 - The Codea search no longer needs a code file to be focused
