@@ -927,6 +927,14 @@ export function activate(context: vscode.ExtensionContext) {
 		const parent = (path: string) => path.split('/').slice(0, -1).join('/');
 		const oldName = oldPath.split('/').pop()!;
 		const newName = newUri.path.split('/').pop()!;
+		// A project's folder keeps its .codea extension, which Codea and the layout rely on
+		if (moved.some(project => project.localUri.path === oldPath) && parent(oldPath) === parent(newUri.path)
+			&& oldName.endsWith('.codea') && !newName.endsWith('.codea')) {
+			await vscode.workspace.fs.rename(newUri, oldUri);
+			vscode.window.showWarningMessage(`A project's folder keeps its .codea extension, so ${newName} was renamed back to ${oldName}.`);
+			return;
+		}
+
 		for (const project of moved) {
 			const localUri = newUri.with({ path: newUri.path + project.localUri.path.slice(oldPath.length) });
 			let remotePath = project.remotePath;
