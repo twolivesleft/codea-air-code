@@ -728,8 +728,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Creates a project in Codea and gets it. From a folder in the Explorer or a collection in the
 	// Projects view, the project goes in that collection; otherwise the collection is asked for.
-	// The name is asked for unless given.
-	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.newProject', async (target?: vscode.Uri | ProjectNode, givenName?: string) => {
+	// The name is asked for unless given; from the Explorer the second argument is the selection.
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.newProject', async (target?: vscode.Uri | ProjectNode, nameOrSelection?: unknown) => {
+		const givenName = typeof nameOrSelection === 'string' ? nameOrSelection : undefined;
 		const folder = await requireFolder();
 		const host = folder && await requireHost();
 		if (folder === undefined || host === undefined) {
