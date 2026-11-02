@@ -638,12 +638,42 @@ export function activate(context: vscode.ExtensionContext) {
 		return vscode.workspace.workspaceFolders?.find(folder => folder.uri.scheme === "file");
 	}
 
+	// Projects are kept in a local folder, so commands that get or link them say when none is open
+	async function requireFolder(): Promise<vscode.WorkspaceFolder | undefined> {
+		const folder = fileFolder();
+		if (folder === undefined) {
+			const open = "Open Folder";
+			const choice = await vscode.window.showInformationMessage(
+				"Codea projects are kept in a folder on your computer. Open a folder to work in first, such as an empty one or a repository of Codea projects.",
+				open);
+			if (choice === open) {
+				await vscode.commands.executeCommand('workbench.action.files.openFolder');
+			}
+		}
+		return folder;
+	}
+
+	async function requireHost(): Promise<string | undefined> {
+		const host = linkedFolders.host();
+		if (host === undefined) {
+			const connect = "Connect to Codea";
+			const choice = await vscode.window.showInformationMessage("Connect this folder to Codea first.", connect);
+			if (choice === connect) {
+				await vscode.commands.executeCommand('codea-air-code.connect');
+			}
+		}
+		return host;
+	}
+
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.refreshProjects', () => projectsView.refresh()));
 
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.connect', async () => {
-		const folder = fileFolder();
+		const folder = await requireFolder();
+		if (folder === undefined) {
+			return;
+		}
 		const host = await pickHost();
-		if (folder === undefined || host === undefined) {
+		if (host === undefined) {
 			return;
 		}
 		await vscode.workspace.getConfiguration('codea-air-code', folder).update('host', host, vscode.ConfigurationTarget.WorkspaceFolder);
@@ -652,8 +682,8 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Downloads a project into the workspace, where Codea itself would keep it, and links it
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.getProject', async (node: ProjectNode) => {
-		const folder = fileFolder();
-		const host = linkedFolders.host();
+		const folder = await requireFolder();
+		const host = folder && await requireHost();
 		if (folder === undefined || host === undefined) {
 			return;
 		}
@@ -708,8 +738,8 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Gets every project of Codea, or of one collection, that the folder does not have yet
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.getAllProjects', async (collection?: ProjectNode) => {
-		const folder = fileFolder();
-		const host = linkedFolders.host();
+		const folder = await requireFolder();
+		const host = folder && await requireHost();
 		if (folder === undefined || host === undefined) {
 			return;
 		}
@@ -754,8 +784,8 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Links the folder's projects, kept the way Codea keeps them, to the same projects in Codea
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.linkAllFolders', async () => {
-		const folder = fileFolder();
-		const host = linkedFolders.host() ?? await pickHost();
+		const folder = await requireFolder();
+		const host = folder && (linkedFolders.host() ?? await pickHost());
 		if (folder === undefined || host === undefined) {
 			return;
 		}
