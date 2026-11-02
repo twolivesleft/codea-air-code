@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Builds codea-logo.woff, the font behind the $(codea-logo) icon, from Codea's app icon:
+# Builds codea-icons.woff, the font behind the $(codea-logo) and $(codea-new) icons, from Codea's app icon:
 # the "Co" mark of AppIcon.icon (CoThick.svg in the Codea app's sources), placed on the
 # icon's canvas as Icon Composer places it. Run it from this folder with fontTools
 # installed (pip install fonttools). VS Code caches icon fonts by path, so a changed
@@ -93,8 +93,12 @@ def draw(pen, points, filled):
     pen.closePath()
 
 
-def logo(style):
-    pen = TTGlyphPen(None)
+def logo(style, pen=None, size=EM, corner=(0, 0)):
+    pen = pen or TTGlyphPen(None)
+    k = size / EM
+
+    def place(points):
+        return [(corner[0] + x * k, corner[1] + y * k) for x, y in points]
 
     if style == "mark":
         # The mark alone, as large as the em allows
@@ -105,34 +109,61 @@ def logo(style):
         origin = (((CANVAS - MARK_SIZE[0]) / 2 + MARK_OFFSET[0]) * scale,
                   EM - ((CANVAS - MARK_SIZE[1]) / 2 + MARK_OFFSET[1]) * scale)
 
-    outer, hole = mark_contours(scale, origin)
+    outer, hole = (place(contour) for contour in mark_contours(scale, origin))
     if style == "knockout":
-        draw(pen, rounded_rect(0, 0, EM, EM, 225), filled=True)
+        draw(pen, place(rounded_rect(0, 0, EM, EM, 225)), filled=True)
         draw(pen, outer, filled=False)
         draw(pen, hole, filled=True)
     else:
         if style == "outline":
-            draw(pen, rounded_rect(0, 0, EM, EM, 225), filled=True)
-            draw(pen, rounded_rect(55, 55, EM - 55, EM - 55, 175), filled=False)
+            draw(pen, place(rounded_rect(0, 0, EM, EM, 225)), filled=True)
+            draw(pen, place(rounded_rect(55, 55, EM - 55, EM - 55, 175)), filled=False)
         draw(pen, outer, filled=True)
         draw(pen, hole, filled=False)
 
-    return pen.glyph()
+    return pen
+
+
+def notched_rect(x0, y0, x1, y1, r, nx, ny):
+    """A rounded rectangle whose top right corner, right of nx and above ny, is cut away square"""
+    def arc(cx, cy, start):
+        return [(cx + r * math.cos(math.radians(start + 90 * k / 8)), cy + r * math.sin(math.radians(start + 90 * k / 8)))
+                for k in range(9)]
+    return (arc(x1 - r, y0 + r, -90) + [(x1, ny), (nx, ny), (nx, y1)] +
+            arc(x0 + r, y1 - r, 90) + arc(x0 + r, y0 + r, 180))
+
+
+# The logo with a plus in its top right corner, where the C opens, cut out of the frame
+def new_project(style):
+    size, gap = 880, 40
+    arm, bar, (cx, cy) = 160, 58, (EM - 160, EM - 160)
+    nx, ny = cx - arm - gap, cy - arm - gap
+
+    pen = TTGlyphPen(None)
+    frame = 55 * size / EM
+    draw(pen, notched_rect(0, 0, size, size, 225 * size / EM, nx, ny), filled=True)
+    draw(pen, notched_rect(frame, frame, size - frame, size - frame, 175 * size / EM, nx - frame, ny - frame), filled=False)
+    logo("mark on canvas", pen=pen, size=size, corner=(0, 0))
+    draw(pen, [(cx - bar, cy + arm), (cx + bar, cy + arm), (cx + bar, cy + bar), (cx + arm, cy + bar),
+               (cx + arm, cy - bar), (cx + bar, cy - bar), (cx + bar, cy - arm), (cx - bar, cy - arm),
+               (cx - bar, cy - bar), (cx - arm, cy - bar), (cx - arm, cy + bar), (cx - bar, cy + bar)], filled=True)
+    return pen
 
 
 def main():
     style = sys.argv[1] if len(sys.argv) > 1 else "outline"
     builder = FontBuilder(EM, isTTF=True)
-    builder.setupGlyphOrder([".notdef", "codea-logo"])
-    builder.setupCharacterMap({0xE000: "codea-logo"})
-    builder.setupGlyf({".notdef": TTGlyphPen(None).glyph(), "codea-logo": logo(style)})
-    builder.setupHorizontalMetrics({".notdef": (EM, 0), "codea-logo": (EM, 0)})
+    builder.setupGlyphOrder([".notdef", "codea-logo", "codea-new"])
+    builder.setupCharacterMap({0xE000: "codea-logo", 0xE001: "codea-new"})
+    builder.setupGlyf({".notdef": TTGlyphPen(None).glyph(), "codea-logo": logo(style).glyph(),
+                       "codea-new": new_project(style).glyph()})
+    builder.setupHorizontalMetrics({".notdef": (EM, 0), "codea-logo": (EM, 0), "codea-new": (EM, 0)})
     builder.setupHorizontalHeader(ascent=EM, descent=0)
     builder.setupNameTable({"familyName": "Codea Icons", "styleName": "Regular"})
     builder.setupOS2(sTypoAscender=EM, sTypoDescender=0, usWinAscent=EM, usWinDescent=0)
     builder.setupPost()
     builder.font.flavor = "woff"
-    builder.save("codea-logo.woff")
+    builder.save("codea-icons.woff")
 
 
 if __name__ == "__main__":
