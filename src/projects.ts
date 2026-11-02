@@ -20,7 +20,10 @@ export class DependencyNode {
     constructor(
         readonly dependent: ProjectNode,
         readonly collection: string | undefined,
-        readonly project: string) { }
+        readonly project: string,
+        // The asset key of a modern dependency's require
+        readonly key?: string[],
+        readonly bundled = false) { }
 }
 
 // Projects in Codea as paths under /Codea, e.g. "iPad Projects/EmuTests" or "iCloud/Collection/Project"
@@ -115,7 +118,7 @@ export class ProjectsViewProvider implements vscode.TreeDataProvider<ProjectNode
         if (node instanceof DependencyNode) {
             const item = new vscode.TreeItem(node.project, vscode.TreeItemCollapsibleState.None);
             item.iconPath = new vscode.ThemeIcon("package");
-            item.description = node.collection;
+            item.description = node.bundled ? "bundled" : node.collection;
             item.tooltip = `${node.dependent.name} depends on ${node.project}`;
             item.contextValue = "dependency";
             return item;
@@ -157,7 +160,7 @@ export class ProjectsViewProvider implements vscode.TreeDataProvider<ProjectNode
         }
         if (node?.isProject) {
             const linked = this.linkedProject(node);
-            return linked ? this.links.dependencies(linked).map(entry => new DependencyNode(node, entry.collection, entry.project)) : [];
+            return linked ? this.links.dependencies(linked).map(entry => new DependencyNode(node, entry.collection, entry.project, entry.key, entry.bundled)) : [];
         }
 
         try {

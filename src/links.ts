@@ -1,8 +1,26 @@
 import * as fs from 'fs';
+import * as path from 'path';
 import * as vscode from 'vscode';
 
 import { AirCode } from './aircode';
-import { dependenciesIn, dependencyFile } from './dependencies';
+import { dependenciesIn, dependencyFile, requiredAssets } from './dependencies';
+
+// A project another depends on. A modern one carries the asset key its require names.
+export type Dependency = { collection: string | undefined, project: string, key?: string[], bundled?: boolean };
+
+// The Lua files of a project folder, with those in its folders
+function luaFiles(folder: string): string[] {
+    let entries: fs.Dirent[];
+    try {
+        entries = fs.readdirSync(folder, { withFileTypes: true });
+    } catch {
+        return [];
+    }
+    return entries.filter(entry => !entry.name.startsWith('.')).flatMap(entry => {
+        const full = path.join(folder, entry.name);
+        return entry.isDirectory() ? luaFiles(full) : entry.name.endsWith('.lua') ? [full] : [];
+    });
+}
 
 // A local folder kept in sync with a project in Codea
 export interface LinkedProject {
@@ -131,20 +149,59 @@ export class Links {
             ?? named[0];
     }
 
-    // A linked project's dependencies, as its Info.plist here lists them
-    dependencies(project: LinkedProject): { collection: string | undefined, project: string }[] {
+    // Whether a linked project runs on the modern runtime, by its Info.plist here
+    isModern(project: LinkedProject): boolean {
         try {
-            return dependenciesIn(fs.readFileSync(vscode.Uri.joinPath(project.localUri, 'Info.plist').fsPath, 'utf8'));
+            return /<key>Runtime Type<\/key>\s*<string>modern<\/string>/.test(fs.readFileSync(vscode.Uri.joinPath(project.localUri, 'Info.plist').fsPath, 'utf8'));
         } catch {
-            return [];
+            return false;
         }
     }
 
-    // Linked projects that depend on this one, by their Info.plist here
+    // A linked project's dependencies, as its files here list them: the projects its code requires
+    // on the modern runtime, its Info.plist's Dependencies on the legacy one. A modern dependency
+    // carries its asset key; one bundled in the project's own Dependencies folder has no collection.
+    dependencies(project: LinkedProject): Dependency[] {
+        if (!this.isModern(project)) {
+            try {
+                return dependenciesIn(fs.readFileSync(vscode.Uri.joinPath(project.localUri, 'Info.plist').fsPath, 'utf8'));
+            } catch {
+                return [];
+            }
+        }
+        const found: Dependency[] = [];
+        for (const key of luaFiles(project.localUri.fsPath).flatMap(file => requiredAssets(fs.readFileSync(file, 'utf8')))) {
+            const dependency = this.requiredProject(key);
+            if (dependency && !found.some(other => JSON.stringify(other.key) === JSON.stringify(key))) {
+                found.push(dependency);
+            }
+        }
+        return found;
+    }
+
+    // The project an asset key names: asset.documents.Name is a Documents project, unless a
+    // linked project says Name is a collection; asset.Dependencies.Name is bundled in the project
+    private requiredProject(key: string[]): Dependency | undefined {
+        const [root, first, second] = key;
+        if (root === 'Dependencies' && first) {
+            return { collection: undefined, project: first, key, bundled: true };
+        }
+        if (root === 'icloud' && first && second) {
+            return { collection: first, project: second, key };
+        }
+        if (root !== 'documents' || !first) {
+            return undefined;
+        }
+        const isProject = this.projects().some(project => project.remotePath === `Documents/${first}`);
+        return second && !isProject ? { collection: first, project: second, key } : { collection: 'Documents', project: first, key };
+    }
+
+    // Linked projects on the legacy runtime that depend on this one, by their Info.plist here.
+    // Codea runs a dependency's files under each of them; modern ones require it under its own path.
     dependents(project: LinkedProject): LinkedProject[] {
         const name = project.remotePath.split('/').pop();
         const collection = project.remotePath.split('/').slice(-2, -1)[0];
-        return this.projects().filter(other => other !== project && this.dependencies(other)
+        return this.projects().filter(other => other !== project && !this.isModern(other) && this.dependencies(other)
             .some(entry => entry.project === name && (entry.collection === undefined || entry.collection === collection)));
     }
 

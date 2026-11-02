@@ -5,6 +5,7 @@ import * as vscode from 'vscode';
 import { AirCode } from './aircode';
 import { AirCodePath } from './aircodepath';
 import { AssetNode, AssetsViewProvider } from './assets';
+import { requireOf, withoutDependency, withoutRequire } from './dependencies';
 import { ParametersViewProvider } from './parameters';
 import { ReferenceViewProvider } from './reference';
 import { SearchViewProvider } from './search';
@@ -537,6 +538,24 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 		const airCodePath = new AirCodePath(uri.path);
 
+		// A modern project requires its dependencies in its code, as Codea writes it: at the top of Main.lua
+		const linked = linkedFolders.projects().find(project => uri.path === `/${AirCode.rootFolder}/${project.remotePath}`
+			|| uri.path.startsWith(`/${AirCode.rootFolder}/${project.remotePath}/`));
+		if (linked && linkedFolders.isModern(linked) && host !== undefined) {
+			const others = (await listCodeaProjects(airCode, host))
+				.filter(path => path !== linked.remotePath && !isBuiltInCollection(airCode, path));
+			const picked = await vscode.window.showQuickPick(others.map(path => ({ label: path.split('/').pop()!, description: path.split('/').slice(0, -1).join('/'), path })), {
+				title: `Add a dependency to ${airCodePath.project}` });
+			if (picked === undefined) {
+				return;
+			}
+			const main = vscode.Uri.joinPath(linked.localUri, 'Main.lua');
+			const source = new TextDecoder().decode(await vscode.workspace.fs.readFile(main));
+			await vscode.workspace.fs.writeFile(main, new TextEncoder().encode(`${requireOf(picked.path)}\n${source}`));
+			projectsView.refresh();
+			return;
+		}
+
 		const projects = await airCode.listUnimportedProjects(uri);
 		const choice = await vscode.window.showQuickPick(projects.map(label => ({ label })), {
 			title: `Add a dependency to ${airCodePath.project}`,
@@ -555,19 +574,43 @@ export function activate(context: vscode.ExtensionContext) {
 	}));
 
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.removeDependency', async (node: DependencyNode) => {
-		const host = linkedFolders.host();
-		if (host === undefined) {
+		// A dependency is a require on the modern runtime, an Info.plist entry on the legacy one;
+		// either is removed here and synced like any edit
+		const linked = linkedFolders.projects().find(project => project.remotePath === node.dependent.remotePath);
+		if (linked === undefined) {
 			return;
 		}
-		const projectUri = vscode.Uri.from({ scheme: 'codea', authority: host, path: `/${AirCode.rootFolder}/${node.dependent.remotePath}` });
-		try {
-			await airCode.delete(vscode.Uri.joinPath(projectUri, 'Dependencies', node.project), { recursive: false });
-		} catch (error) {
-			vscode.window.showErrorMessage(`Could not remove ${node.project} from ${node.dependent.name}: ${error}`);
-			return;
+		if (node.key) {
+			for (const file of await luaFilesIn(linked.localUri)) {
+				const source = new TextDecoder().decode(await vscode.workspace.fs.readFile(file));
+				const removed = withoutRequire(source, node.key);
+				if (removed !== source) {
+					await vscode.workspace.fs.writeFile(file, new TextEncoder().encode(removed));
+				}
+			}
+		} else {
+			const plistUri = vscode.Uri.joinPath(linked.localUri, 'Info.plist');
+			const plist = new TextDecoder().decode(await vscode.workspace.fs.readFile(plistUri));
+			await vscode.workspace.fs.writeFile(plistUri, new TextEncoder().encode(withoutDependency(plist, node.collection, node.project)));
 		}
-		await syncInfoPlist(projectUri);
+		projectsView.refresh();
 	}));
+
+	async function luaFilesIn(folder: vscode.Uri): Promise<vscode.Uri[]> {
+		const files: vscode.Uri[] = [];
+		for (const [name, type] of await vscode.workspace.fs.readDirectory(folder)) {
+			const uri = vscode.Uri.joinPath(folder, name);
+			if (name.startsWith('.')) {
+				continue;
+			}
+			if (type === vscode.FileType.Directory) {
+				files.push(...await luaFilesIn(uri));
+			} else if (name.endsWith('.lua')) {
+				files.push(uri);
+			}
+		}
+		return files;
+	}
 
 	// Codea changes Info.plist when dependencies change, which is brought here at once
 	async function syncInfoPlist(remoteUri: vscode.Uri) {
