@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 
-import { dependenciesIn, dependencyFile, requiredAssets, requireOf, withoutDependency, withoutRequire } from '../../dependencies';
+import { dependenciesIn, dependencyFile } from '../../dependencies';
 
 suite('dependenciesIn', () => {
 	test('lists a project\'s dependencies as collection and project', () => {
@@ -46,51 +46,3 @@ suite('dependencyFile', () => {
 	});
 });
 
-suite('requiredAssets', () => {
-	test('reads the asset keys of require calls', () => {
-		const source = `-- Game
-require(asset.documents.Common)
-require(asset.documents["iPad Projects"].Mouse_Support)
-require (asset.icloud.Shared.Lib)
-require(asset.Dependencies.Entity_Plus)
-require("socket")
-local ui = require(asset.documents.Vibe.vibe_ui)`;
-		assert.deepStrictEqual(requiredAssets(source), [
-			['documents', 'Common'],
-			['documents', 'iPad Projects', 'Mouse_Support'],
-			['icloud', 'Shared', 'Lib'],
-			['Dependencies', 'Entity_Plus'],
-			['documents', 'Vibe', 'vibe_ui'],
-		]);
-	});
-});
-
-suite('requireOf', () => {
-	test('writes the asset key Codea writes', () => {
-		assert.strictEqual(requireOf('Documents/Common'), 'require(asset.documents.Common)');
-		assert.strictEqual(requireOf('iPad Projects/Common'), 'require(asset.documents["iPad Projects"].Common)');
-		assert.strictEqual(requireOf('Documents/Mouse Support'), 'require(asset.documents["Mouse Support"])');
-		assert.strictEqual(requireOf('iCloud/Shared/Lib'), 'require(asset.icloud.Shared.Lib)');
-	});
-});
-
-suite('withoutRequire', () => {
-	test('removes the require statements of a dependency, and only those', () => {
-		const source = 'require(asset.documents.Common)\nrequire(asset.documents.CommonExtra)\n-- code\n  require( asset.documents.Common )  \n';
-		assert.strictEqual(withoutRequire(source, ['documents', 'Common']), 'require(asset.documents.CommonExtra)\n-- code\n');
-	});
-});
-
-suite('withoutDependency', () => {
-	const plist = (...entries: string[]) => `<dict>
-	<key>Dependencies</key>
-	<array>
-${entries.map(entry => `		<string>${entry}</string>`).join('\n')}
-	</array>
-</dict>`;
-
-	test('removes a dependency written either way, and only it', () => {
-		assert.strictEqual(withoutDependency(plist('AR', 'iPad Projects:Common'), 'iPad Projects', 'Common'), plist('AR'));
-		assert.strictEqual(withoutDependency(plist('AR', 'Documents:ARX'), undefined, 'AR'), plist('Documents:ARX'));
-	});
-});

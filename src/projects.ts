@@ -8,22 +8,19 @@ export class ProjectNode {
     constructor(
         // Path under /Codea, e.g. "iPad Projects" or "iPad Projects/EmuTests"
         readonly remotePath: string,
-        readonly isProject: boolean) { }
+        readonly isProject: boolean,
+        readonly hasDependencies = false) { }
 
     get name(): string {
         return this.remotePath.split('/').pop()!;
     }
 }
 
-// A dependency of a linked project, as its Info.plist lists it
+// A dependency of a project, as Codea lists it
 export class DependencyNode {
     constructor(
         readonly dependent: ProjectNode,
-        readonly collection: string | undefined,
-        readonly project: string,
-        // The asset key of a modern dependency's require
-        readonly key?: string[],
-        readonly bundled = false) { }
+        readonly project: string) { }
 }
 
 // Projects in Codea as paths under /Codea, e.g. "iPad Projects/EmuTests" or "iCloud/Collection/Project"
@@ -118,7 +115,6 @@ export class ProjectsViewProvider implements vscode.TreeDataProvider<ProjectNode
         if (node instanceof DependencyNode) {
             const item = new vscode.TreeItem(node.project, vscode.TreeItemCollapsibleState.None);
             item.iconPath = new vscode.ThemeIcon("package");
-            item.description = node.bundled ? "bundled" : node.collection;
             item.tooltip = `${node.dependent.name} depends on ${node.project}`;
             item.contextValue = "dependency";
             return item;
@@ -135,8 +131,7 @@ export class ProjectsViewProvider implements vscode.TreeDataProvider<ProjectNode
         }
 
         const linked = this.linkedProject(node);
-        const hasDependencies = linked !== undefined && this.links.dependencies(linked).length > 0;
-        const item = new vscode.TreeItem(node.name, hasDependencies ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
+        const item = new vscode.TreeItem(node.name, node.hasDependencies ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
         item.iconPath = new vscode.ThemeIcon(linked ? "link" : "codea-logo");
         item.contextValue = linked ? "linkedProject" : "project";
         if (linked) {
@@ -158,18 +153,24 @@ export class ProjectsViewProvider implements vscode.TreeDataProvider<ProjectNode
         if (host === undefined || node instanceof DependencyNode) {
             return [];
         }
+        // Codea lists a project's dependencies as its editor knows them: the projects its code
+        // requires on the modern runtime, those in its Info.plist on the legacy one
         if (node?.isProject) {
-            const linked = this.linkedProject(node);
-            return linked ? this.links.dependencies(linked).map(entry => new DependencyNode(node, entry.collection, entry.project, entry.key, entry.bundled)) : [];
+            return (await listFolders(this.airCode, host, `${node.remotePath}/Dependencies`))
+                .map(dependency => new DependencyNode(node, dependency));
         }
 
         try {
             if (node === undefined) {
                 return (await listCollections(this.airCode, host)).map(collection => new ProjectNode(collection, false));
             }
-            return (await listFolders(this.airCode, host, node.remotePath))
-                .sort((a, b) => a.localeCompare(b))
-                .map(project => new ProjectNode(`${node.remotePath}/${project}`, true));
+            const projects = (await listFolders(this.airCode, host, node.remotePath)).sort((a, b) => a.localeCompare(b));
+            // Codea lists a Dependencies folder in a project that has some; only linked projects are asked
+            return Promise.all(projects.map(async project => {
+                const remotePath = `${node.remotePath}/${project}`;
+                const linked = this.links.projects().some(other => other.remotePath === remotePath);
+                return new ProjectNode(remotePath, true, linked && (await listFolders(this.airCode, host, remotePath)).includes('Dependencies'));
+            }));
         } catch {
             return [];
         }
