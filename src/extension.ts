@@ -621,7 +621,6 @@ export function activate(context: vscode.ExtensionContext) {
 		const choice = await vscode.window.showQuickPick(items, {
 			title: `Link ${vscode.workspace.asRelativePath(localUri)} to a Codea project`,
 			placeHolder: "Codea project",
-			ignoreFocusOut: true,
 		});
 		if (choice === undefined) {
 			return;
@@ -824,7 +823,6 @@ export function activate(context: vscode.ExtensionContext) {
 			matches.map(([remotePath, localUri]) => ({ label: remotePath, description: vscode.workspace.asRelativePath(localUri), picked: true })),
 			{
 				canPickMany: true,
-				ignoreFocusOut: true,
 				title: `Link ${matches.length} folders to the same projects in Codea`,
 				placeHolder: unmatched > 0 ? `${unmatched} other project folders have no project of the same name in Codea` : undefined,
 			});

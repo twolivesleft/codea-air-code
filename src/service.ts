@@ -76,9 +76,6 @@ export class AirCodeService {
             return await new Promise<string | undefined>((resolve, reject) => {
                 const input = vscode.window.createQuickPick<CustomServiceItem | FoundServiceItem>();
                 input.placeholder = "Select a device from the list, or enter the IP and port to connect to.";
-                // Opened from a walkthrough button, focus goes back to the walkthrough page,
-                // which would close the picker before anything is chosen
-                input.ignoreFocusOut = true;
                 input.items = [
                     new CustomServiceItem(""),
                     ...this.services.map((service) => new FoundServiceItem(service.name, this.getIPv4(service), service.port))
