@@ -147,7 +147,7 @@ export function activate(context: vscode.ExtensionContext) {
 				return;
 			}
 
-			const linkedFile = (uri && linkedFolders.find(uri)) ? uri : lastLinkedFile;
+			const linkedFile = (uri && linkedFolders.find(uri)) ? uri : lastLinkedFile ?? await pickProjectToPlay();
 			const found = linkedFile && linkedFolders.find(linkedFile);
 			if (linkedFile === undefined || found === undefined) {
 				return;
@@ -156,6 +156,15 @@ export function activate(context: vscode.ExtensionContext) {
 			await syncBeforePlay(found[0]);
 			await airCode.startHost(linkedFolders.airCodeUri(linkedFile));
 		}));
+
+		// With no linked file focused yet: the only linked project, or the one picked
+		async function pickProjectToPlay(): Promise<vscode.Uri | undefined> {
+			const projects = linkedFolders.projects();
+			const picked = projects.length === 1 ? projects[0] : (await vscode.window.showQuickPick(
+				projects.map(project => ({ label: project.remotePath.split('/').pop()!, description: project.remotePath, project })),
+				{ title: "Play which project?" }))?.project;
+			return picked && vscode.Uri.joinPath(picked.localUri, "Main.lua");
+		}
 
 		context.subscriptions.push(vscode.commands.registerCommand('workbench.action.debug.restart', async () => {
 			// The user has clicked the "Restart" button or used the keyboard shortcut
