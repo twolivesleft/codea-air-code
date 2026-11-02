@@ -3,9 +3,11 @@
 Editor and debugger for Codea projects. Projects are kept in local folders, linked
 to Codea and synced over Air Code (see Linked folders). Codea's files are also
 served under the `codea://` scheme (`registerFileSystemProvider` in
-`src/extension.ts`), which the sync and the debugger use. Opening a `codea://`
-workspace is no longer offered (Connect to Host was removed), but windows already
-opened that way still work. The Codea side lives in codea-super (`AirCode/`,
+`src/extension.ts`), which the sync uses, and through which VS Code opens what is
+not linked: a debugger stop in an unlinked project, an Assets view preview. A
+`codea://` workspace is not supported: a window still opened on one is offered to
+move to a local folder, keeping its host and the projects it had open. The Codea
+side lives in codea-super (`AirCode/`,
 `Core/Codea/Air Code/`).
 
 ## Building
@@ -51,17 +53,6 @@ including files in iCloud projects shared with other people. The rules that prev
 
 The end-to-end checks for these (three runs on one profile, as reloads) are described in
 the linked-folders handoff; run them after any change to `src/sync.ts`.
-
-## Search
-
-Linked folders are local and use the built-in search. The Search view below only
-serves `codea://` windows: VS Code's Find in Files cannot search them. It needs a
-`TextSearchProvider`/`FileSearchProvider`, and both are still proposed APIs
-(microsoft/vscode#59921, #73524), which Marketplace extensions cannot use. So
-search is our own webview view (`src/search.ts`, `media/search/`), which asks
-Codea to run it (`AirCode.findInFiles`), and Cmd+Shift+F is rebound to it in
-Codea workspaces. Check those issues before building anything on the built-in
-search.
 
 ## Releasing
 
