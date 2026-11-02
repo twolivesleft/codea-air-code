@@ -563,7 +563,7 @@ export class AirCode implements vscode.FileSystemProvider {
             documentSelector: [
                 { scheme: 'codea', language: 'lua' },
                 ...(this.links?.projects() ?? []).map(project => ({
-                    scheme: 'file', language: 'lua', pattern: `${project.localUri.fsPath}/*.lua`
+                    scheme: 'file', language: 'lua', pattern: `${project.localUri.fsPath}/**/*.lua`
                 }))
             ],
             synchronize: {
