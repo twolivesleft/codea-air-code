@@ -59,7 +59,6 @@ export function activate(context: vscode.ExtensionContext) {
 	const referenceViewProvider = new ReferenceViewProvider(context.extensionUri);
 	const searchViewProvider = new SearchViewProvider(context.extensionUri);
 	const assetKeyOnDropProvider = new AssetKeyOnDropProvider();
-	const decorationProvider = new CodeaDecorationProvider();
 	const outputChannel = vscode.window.createOutputChannel("Codea", "codea-output");
 	const service = new AirCodeService();
 
@@ -1103,7 +1102,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(vscode.languages.registerDocumentDropEditProvider({ language: 'lua' }, assetKeyOnDropProvider));
 
-	context.subscriptions.push(vscode.window.registerFileDecorationProvider(decorationProvider));
+	context.subscriptions.push(vscode.window.registerFileDecorationProvider(new CodeaDecorationProvider(linkedFolders)));
 }
 
 function reapplyBreakpoints(uri: vscode.Uri) {
