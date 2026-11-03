@@ -209,6 +209,7 @@ export function activate(context: vscode.ExtensionContext) {
 		luaDefinitions.update();
 		vscode.commands.executeCommand('setContext', 'codea-air-code.isLinked', linkedFolders.isLinked());
 		vscode.commands.executeCommand('setContext', 'codea-air-code.hasLocalHost', linkedFolders.host() !== undefined);
+		vscode.commands.executeCommand('setContext', 'codea-air-code.linkedFolders', linkedFolders.projects().map(project => project.localUri.fsPath));
 		updateWatchedPaths();
 		airCode.restartLanguageClient();
 		// A folder with a Codea host is connected, linked projects or not
@@ -930,6 +931,24 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Deletes a project in Codea, after asking, then its linked folder here. The link goes first,
 	// so neither the folder going nor Codea's report of the deletion is synced.
+	// Stops keeping a folder in sync; its files stay as they are, here and in Codea
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.unlinkFolder', async (target?: vscode.Uri | ProjectNode) => {
+		let linked = target instanceof ProjectNode
+			? linkedFolders.projects().find(project => project.remotePath === target.remotePath)
+			: target && linkedFolders.projects().find(project => project.localUri.fsPath === target.fsPath);
+		if (target === undefined) {
+			const pick = await vscode.window.showQuickPick(
+				linkedFolders.projects().map(project => ({ label: vscode.workspace.asRelativePath(project.localUri), description: project.remotePath, project })),
+				{ title: "Unlink a folder from Codea" });
+			linked = pick?.project;
+		}
+		if (linked === undefined) {
+			return;
+		}
+		await sync.unlink([linked]);
+		vscode.window.showInformationMessage(`${vscode.workspace.asRelativePath(linked.localUri)} is no longer kept in sync with ${linked.remotePath}. Its files stay here and in Codea.`);
+	}));
+
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.deleteProject', async (target: vscode.Uri | ProjectNode) => {
 		const folder = await requireFolder();
 		const host = folder && await requireHost();

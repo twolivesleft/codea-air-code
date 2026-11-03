@@ -81,7 +81,14 @@ With the [Lua extension](https://marketplace.visualstudio.com/items?itemName=sum
 - modern dependencies required with `require(asset.documents.Lib)`;
 - Codea's API, legacy and modern, with its documentation on hover.
 
-When the Lua extension is installed, Codea Air Code asks once per folder, or run `Codea: Set Up Go to Definition`, which also installs it. Auto-completion and signature help still come from Codea; the Lua extension adds warnings about your code, such as an unused local. Only the linked projects are read, so a folder holding many other projects, such as a git repository of them, does not slow it down or fill the Problems view; dependencies resolve when they are linked too. A name defined in several linked projects lists each of them.
+When the Lua extension is installed, Codea Air Code asks once per folder, or run `Codea: Set Up Go to Definition`, which also installs it. Auto-completion and signature help still come from Codea; the Lua extension adds warnings about your code, such as an unused local. Only the linked projects are read, so a folder holding many other projects, such as a git repository of them, does not slow it down or fill the Problems view; dependencies resolve when they are linked too. A name defined in several linked projects lists each of them, and files open in an editor keep their warnings until they are closed.
+
+A global that may not exist, checked before it is used, is reported as undefined. Tell the Lua extension it is expected on that line:
+
+```lua
+---@diagnostic disable-next-line: undefined-global
+if scratchTrailColor then
+```
 
 ### Sidebar
 
@@ -197,6 +204,8 @@ Deletions are handled carefully, since Codea deletes files for good:
 - `Main.lua` and `Info.plist` are put back if they are deleted, and `Main.lua` is renamed back if it is renamed: Codea projects need them.
 - A linked project whose folder goes missing, here or in Codea, is not synced. You are asked whether to get it again or unlink it, and nothing is changed in Codea.
 
+To stop syncing a folder, right-click it in the Explorer, or its project in the Projects section, and choose `Unlink Folder`. Its files stay as they are, here and in Codea, and it can be linked again later.
+
 The Codea items in the status bar show the connection and play the project you are working on. Clicking the Codea item shows a menu to sync, reconnect or link a folder. Syncing can also be started with the button at the top of the Explorer.
 
 <img width="165" alt="Status bar" src="images/status_bar_idle.png">
@@ -284,6 +293,7 @@ All commands included with this extension are prefixed with `Codea:`.
 | `New Project...`       | Create a project in Codea and get it into the folder, linked.         |
 | `Delete Project in Codea...` | Delete a project in Codea, and move its linked folder to the Trash. |
 | `Sync Linked Folders`  | Sync all linked folders with Codea now.                               |
+| `Unlink Folder`        | Stop syncing a folder with its project; its files stay on both sides. |
 | `Disconnect`           | Disconnect the folder from Codea until you connect again.             |
 | `Execute current line` | Executes the Lua code on the active line.                             |
 | `Execute selection`    | Executes the select Lua code in Codea.                                |

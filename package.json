@@ -218,6 +218,10 @@
       {
         "command": "codea-air-code.setUpGoToDefinition",
         "title": "Codea: Set Up Go to Definition"
+      },
+      {
+        "command": "codea-air-code.unlinkFolder",
+        "title": "Codea: Unlink Folder"
       }
     ],
     "keybindings": [
@@ -435,12 +439,21 @@
         {
           "command": "codea-air-code.revealAssetPack",
           "when": "false"
+        },
+        {
+          "command": "codea-air-code.unlinkFolder",
+          "when": "codea-air-code.isLinked"
         }
       ],
       "explorer/context": [
         {
           "command": "codea-air-code.linkFolder",
-          "when": "explorerResourceIsFolder && resourceScheme == file",
+          "when": "explorerResourceIsFolder && resourceScheme == file && !(resourcePath in codea-air-code.linkedFolders)",
+          "group": "a_codea"
+        },
+        {
+          "command": "codea-air-code.unlinkFolder",
+          "when": "explorerResourceIsFolder && resourcePath in codea-air-code.linkedFolders",
           "group": "a_codea"
         },
         {
@@ -516,6 +529,11 @@
           "command": "codea-air-code.newProject",
           "when": "view == codea-projects && viewItem == collection",
           "group": "inline"
+        },
+        {
+          "command": "codea-air-code.unlinkFolder",
+          "when": "view == codea-projects && viewItem == linkedProject",
+          "group": "y_link"
         },
         {
           "command": "codea-air-code.deleteProject",

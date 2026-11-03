@@ -30,11 +30,12 @@ export class LuaDefinitions {
     // Brings the settings up to date, and asks once per folder when the Lua extension is there
     async update() {
         const folder = this.folder;
-        if (folder === undefined || !this.links.isLinked() || vscode.extensions.getExtension(LUA_EXTENSION) === undefined) {
+        if (folder === undefined || vscode.extensions.getExtension(LUA_EXTENSION) === undefined) {
             return;
         }
+        // Once set up, the folders left out follow the links, down to none
         if (!this.isSetUp(folder)) {
-            if (this.context.workspaceState.get<boolean>(DECLINED)) {
+            if (!this.links.isLinked() || this.context.workspaceState.get<boolean>(DECLINED)) {
                 return;
             }
             const answer = await vscode.window.showInformationMessage(
