@@ -51,30 +51,24 @@
         {
           "id": "codea-projects",
           "name": "Projects",
-          "when": "!codea-air-code.hasWorkspaceUri && workspaceFolderCount > 0"
+          "when": "workspaceFolderCount > 0"
         },
         {
           "id": "codea-assets",
           "name": "Assets",
-          "when": "!codea-air-code.hasWorkspaceUri && codea-air-code.hasLocalHost"
+          "when": "codea-air-code.hasLocalHost"
         },
         {
           "type": "webview",
           "id": "codea-reference",
           "name": "Reference",
-          "when": "codea-air-code.hasWorkspaceUri == true || codea-air-code.hasLocalHost == true"
-        },
-        {
-          "type": "webview",
-          "id": "codea-search",
-          "name": "Search",
-          "when": "codea-air-code.hasWorkspaceUri == true"
+          "when": "codea-air-code.hasLocalHost"
         },
         {
           "type": "webview",
           "id": "codea-parameters",
           "name": "Parameters",
-          "when": "codea-air-code.hasWorkspaceUri == true || codea-air-code.hasLocalHost == true"
+          "when": "codea-air-code.hasLocalHost"
         }
       ]
     },
@@ -112,8 +106,8 @@
         "title": "Codea: Find reference..."
       },
       {
-        "command": "codea-air-code.findInFiles",
-        "title": "Codea: Find in Files"
+        "command": "codea-air-code.moveToFolder",
+        "title": "Codea: Move to a Local Folder..."
       },
       {
         "command": "codea-air-code.linkFolder",
@@ -234,12 +228,6 @@
         "key": "delete",
         "mac": "cmd+backspace",
         "when": "focusedView == codea-assets"
-      },
-      {
-        "command": "codea-air-code.findInFiles",
-        "key": "ctrl+shift+f",
-        "mac": "cmd+shift+f",
-        "when": "codea-air-code.hasWorkspaceUri"
       }
     ],
     "languages": [
@@ -365,8 +353,8 @@
           "when": "false"
         },
         {
-          "command": "codea-air-code.findInFiles",
-          "when": "codea-air-code.hasWorkspaceUri"
+          "command": "codea-air-code.moveToFolder",
+          "when": "codea-air-code.isCodeaWindow"
         },
         {
           "command": "codea-air-code.syncLinkedFolders",

@@ -13,13 +13,11 @@ import {
     DeleteFileResponse, 
     GetFunctionsResponse,
     FindReferenceResponse, 
-    FindInFilesResponse,
     GetAssetKeyResponse,
     FileVersion} from './responses';
 import { Command } from './commands';
 import * as Parameters from './parameters';
 import * as Reference from './reference';
-import * as Search from './search';
 import { getWorkspaceUri } from './extension';
 import { Links } from './links';
 import { CodeaStatus } from './status';
@@ -61,7 +59,6 @@ export class AirCode implements vscode.FileSystemProvider {
     outputChannel: vscode.OutputChannel;
     parametersView: Parameters.ParametersViewProvider;
     referenceView: Reference.ReferenceViewProvider;
-    searchView: Search.SearchViewProvider;
     debugEvents = new vscode.EventEmitter<string>();
     extensionVersion: string; 
 
@@ -96,12 +93,10 @@ export class AirCode implements vscode.FileSystemProvider {
     constructor(outputChannel: vscode.OutputChannel,
                 parametersView: Parameters.ParametersViewProvider,
                 referenceView: Reference.ReferenceViewProvider,
-                searchView: Search.SearchViewProvider,
                 extensionVersion: string) {
         this.outputChannel = outputChannel;
         this.parametersView = parametersView;
         this.referenceView = referenceView;
-        this.searchView = searchView;
         this.extensionVersion = extensionVersion;
         this.messageReader = new LSPMessageReader(this);
         this.messageWriter = new LSPMessageWriter(this);
@@ -119,74 +114,6 @@ export class AirCode implements vscode.FileSystemProvider {
         }
     }
 
-    // Internal Files
-
-    launchContent = `{
-        "version": "0.2.0",
-        "configurations": [
-            {
-                "name": "Play in Codea",
-                "type": "luaInline",
-                "request": "attach",
-                "sourceBasePath": "codea://AUTHORITY/",
-                "listenPublicly": false,
-                "listenPort": 56789,
-                "encoding": "UTF-8"
-            }
-        ]
-    }`;
-
-    settingsContent = `{
-        "debug.showInStatusBar": "never"
-    }`;
-
-    internalFiles: Map<string, [string, vscode.FileStat]> = new Map([
-        [`/${AirCode.rootFolder}`, ["", {
-            type: vscode.FileType.Directory,
-            ctime: Date.now(),
-            mtime: Date.now(),
-            size: 0,
-            permissions: vscode.FilePermission.Readonly
-        }]],
-        [`/${AirCode.rootFolder}/.vscode`, ["", {
-            type: vscode.FileType.Directory,
-            ctime: Date.now(),
-            mtime: Date.now(),
-            size: 0,
-            permissions: vscode.FilePermission.Readonly
-        }]],
-        [`/${AirCode.rootFolder}/.vscode/launch.json`, [this.launchContent, {
-            type: vscode.FileType.File,
-            ctime: Date.now(),
-            mtime: Date.now(),
-            size: 1,
-            permissions: vscode.FilePermission.Readonly
-        }]],
-        [`/${AirCode.rootFolder}/.vscode/settings.json`, [this.settingsContent, {
-            type: vscode.FileType.File,
-            ctime: Date.now(),
-            mtime: Date.now(),
-            size: 1,
-            permissions: vscode.FilePermission.Readonly
-        }]],
-    ]);
-
-    internalDirectoryContents(path: string): [string, vscode.FileType][] {
-        const directoryEntries: [string, vscode.FileType][] = [];
-
-        for (const [key, [content, fileStat]] of this.internalFiles) {
-            if (key.startsWith(path) && key !== path) {
-                const relativePath = key.slice(path.length + 1);
-                if (relativePath.includes('/')) {
-                    continue;
-                }
-                directoryEntries.push([relativePath, fileStat.type]);
-            }
-        }
-
-        return directoryEntries;
-    }
-
     logLsp(message: String) {
         if (this.debugLSP) {
             console.warn(message);
@@ -195,18 +122,12 @@ export class AirCode implements vscode.FileSystemProvider {
 
     startDebugging() {
         const folder = vscode.workspace.workspaceFolders?.[0];
-        
-        if (folder === undefined || vscode.debug.activeDebugSession !== undefined) {
+        const connectionUri = this.links?.connectionUri();
+
+        if (folder === undefined || connectionUri === undefined || vscode.debug.activeDebugSession !== undefined) {
             return;
         }
 
-        const connectionUri = folder.uri.scheme === 'file' ? this.links?.connectionUri() : undefined;
-        if (connectionUri === undefined) {
-            vscode.debug.startDebugging(folder, "Play in Codea");
-            return;
-        }
-
-        // A linked folder has no launch.json of ours, so the configuration is given here
         vscode.debug.startDebugging(folder, {
             name: "Play in Codea",
             type: "luaInline",
@@ -416,7 +337,7 @@ export class AirCode implements vscode.FileSystemProvider {
         let airCode = this;
 
         ws.onopen = async function () {
-            let information = await airCode.getInformation(uri);
+            let information = await airCode.askInformation(ws);
 
             let version = information.version;
             let versionComparison = airCode.compareVersions(version);
@@ -616,7 +537,6 @@ export class AirCode implements vscode.FileSystemProvider {
 
             await vscode.debug.stopDebugging();
             parent.parametersView.clearParameters();
-            vscode.commands.executeCommand("workbench.files.action.refreshFilesExplorer");
 
             airCode.closingSocket = false;
         };
@@ -643,7 +563,7 @@ export class AirCode implements vscode.FileSystemProvider {
             documentSelector: [
                 { scheme: 'codea', language: 'lua' },
                 ...(this.links?.projects() ?? []).map(project => ({
-                    scheme: 'file', language: 'lua', pattern: `${project.localUri.fsPath}/*.lua`
+                    scheme: 'file', language: 'lua', pattern: `${project.localUri.fsPath}/**/*.lua`
                 }))
             ],
             synchronize: {
@@ -691,7 +611,7 @@ export class AirCode implements vscode.FileSystemProvider {
 
     // Sending Commands
 
-    send<T>(ws: WebSocket, command: Command, promise: (response: Response<T>) => void) {
+    send<T>(ws: WebSocket, command: Command, promise: (response: Response<T>) => void): number {
         this.commandId++;
         const id = this.commandId;
         command.id = id;
@@ -712,9 +632,36 @@ export class AirCode implements vscode.FileSystemProvider {
             pending({ id, error: "connectionLost" } as any);
             this.dropConnection(ws);
         }, timeout);
+        return id;
     }
 
-    private static readonly slowCommands: Command.Type[] = ["readFile", "writeFile", "startHost", "findInFiles"];
+    // Codea before 3.20 can miss what is sent as a connection opens, so a connection's first
+    // getInformation is sent again until one is answered
+    private askInformation(ws: WebSocket): Promise<GetInformationResponse> {
+        return new Promise((resolve, reject) => {
+            const asked: number[] = [];
+            let answered = false;
+            const ask = () => {
+                asked.push(this.send<GetInformationResponse>(ws, Command.GetInformation.from(), response => {
+                    answered = true;
+                    asked.forEach(id => this.promises.delete(id));
+                    if (response.error !== null && response.error !== undefined) {
+                        reject(Response.from(response.error));
+                    } else {
+                        resolve(response.data as GetInformationResponse);
+                    }
+                }));
+                setTimeout(() => {
+                    if (!answered && asked.length < 5 && ws.readyState === OPEN) {
+                        ask();
+                    }
+                }, 3000);
+            };
+            ask();
+        });
+    }
+
+    private static readonly slowCommands: Command.Type[] = ["readFile", "writeFile", "startHost"];
 
     // Forgets a connection that stopped answering, so the next command opens a new one
     private dropConnection(ws: WebSocket) {
@@ -932,10 +879,6 @@ export class AirCode implements vscode.FileSystemProvider {
         return this.sendCommand<FileVersion[]>(uri, Command.ListFileVersions.from(uri.path));
     }
 
-    async findInFiles(uri: vscode.Uri, text: string, caseSensitive: boolean, wholeWord: boolean, isRegex: boolean) : Promise<FindInFilesResponse> {
-        return this.sendCommand<FindInFilesResponse>(uri, Command.FindInFiles.from(uri.toString(), text, caseSensitive, wholeWord, isRegex));
-    }
-
     // VS Code FileSystemProvider Implementation
 
     watch(uri: vscode.Uri, options: { readonly recursive: boolean; readonly excludes: readonly string[]; }): vscode.Disposable {
@@ -943,38 +886,11 @@ export class AirCode implements vscode.FileSystemProvider {
     }
 
     stat(uri: vscode.Uri): vscode.FileStat | Thenable<vscode.FileStat> {
-        const path = uri.path;
-        const internal = this.internalFiles.get(path);
-
-        if (internal !== undefined) {
-            return internal[1];
-        }
-
-        return this.sendCommand<vscode.FileStat>(uri, Command.StatFile.from(path));
+        return this.sendCommand<vscode.FileStat>(uri, Command.StatFile.from(uri.path));
     }
 
     readDirectory(uri: vscode.Uri): [string, vscode.FileType][] | Thenable<[string, vscode.FileType][]> {
-        const path = uri.path;
-        const internal = this.internalFiles.get(path);
-
-        if (internal !== undefined && path !== `/${AirCode.rootFolder}`) {
-            const contents = this.internalDirectoryContents(path);
-            return contents;
-        }
-
-        return this.sendCommandMapResponse<[string, vscode.FileType][], [string, vscode.FileType][]>(uri, Command.ListFiles.from(path), response => {
-            if (response instanceof Error) {
-                if (path === `/${AirCode.rootFolder}`) {
-                    return Result.success([[".vscode", vscode.FileType.Directory]]);
-                }
-                return Result.error(response);
-            } else {
-                if (path === `/${AirCode.rootFolder}`) {
-                    response.push([".vscode", vscode.FileType.Directory]);
-                }
-                return Result.success(response);
-            }
-        });
+        return this.sendCommand<[string, vscode.FileType][]>(uri, Command.ListFiles.from(uri.path));
     }
 
     createDirectory(uri: vscode.Uri): void | Thenable<void> {
@@ -982,13 +898,7 @@ export class AirCode implements vscode.FileSystemProvider {
     }
 
     readFile(uri: vscode.Uri): Uint8Array | Thenable<Uint8Array> {
-        const path = uri.path;
-        const internal = this.internalFiles.get(path);
         let enc = new TextEncoder();
-
-        if (internal !== undefined) {
-            return enc.encode(internal[0]);
-        }
 
         return this.sendCommandMapResponse<ReadFileResponse, Uint8Array>(uri, Command.ReadFile.from(uri.path), response => {
             if (response instanceof Error) {
@@ -1018,31 +928,9 @@ export class AirCode implements vscode.FileSystemProvider {
         }
     }
 
-    getDependenciesUri(collectionName: String, projectName: String): vscode.Uri {
-        let path = `codea://${getWorkspaceUri().authority}/${AirCode.rootFolder}/${collectionName}/${projectName}/Dependencies`;
-        return vscode.Uri.parse(path);
-    }
-
-    onDependenciesCreated(collectionName: String, projectName: String) {
-        this.fileCreated(this.getDependenciesUri(collectionName, projectName));
-    }
-
-    onDependenciesDeleted(collectionName: String, projectName: String) {
-        this.fileDeleted(this.getDependenciesUri(collectionName, projectName));
-    }
-
     delete(uri: vscode.Uri, options: { readonly recursive: boolean; }): void | Thenable<void> {
-        return this.sendCommandMapResponse<DeleteFileResponse, void>(uri, Command.DeleteFile.from(uri.path), response => {
-            if (response instanceof Error) {
-                return Result.error(response);
-            } else {
-                if (response.wasLastDependency) {
-                    const airCodePath = new AirCodePath(uri.path);
-                    this.onDependenciesDeleted(airCodePath.collection, airCodePath.project);
-                }
-                return Result.success(undefined);
-            }
-        });
+        return this.sendCommandMapResponse<DeleteFileResponse, void>(uri, Command.DeleteFile.from(uri.path), response =>
+            response instanceof Error ? Result.error(response) : Result.success(undefined));
     }
 
     rename(oldUri: vscode.Uri, newUri: vscode.Uri, options: { readonly overwrite: boolean; }): void | Thenable<void> {
@@ -1058,13 +946,6 @@ export class AirCode implements vscode.FileSystemProvider {
         }
 
         return this.sendCommand(newUri, Command.RenameFile.from(oldUri.path, newUri.path));
-    }
-
-    copy?(source: vscode.Uri, destination: vscode.Uri, options: { readonly overwrite: boolean; }): void | Thenable<void> {
-        const sourcePath = source.path;
-        const destinationPath = destination.path;
-
-        return this.sendCommand(source, Command.CopyFile.from(sourcePath, destinationPath));
     }
 
     fileCreated(uri: vscode.Uri) {

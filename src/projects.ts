@@ -72,7 +72,7 @@ export function remoteProjectPath(folder: vscode.Uri, localUri: vscode.Uri): str
 async function listFolders(airCode: AirCode, host: string, path: string): Promise<string[]> {
     const uri = vscode.Uri.from({ scheme: 'codea', authority: host, path: `/${AirCode.rootFolder}${path ? `/${path}` : ''}` });
     return (await airCode.readDirectory(uri))
-        .filter(([name, type]) => type === vscode.FileType.Directory && name !== ".vscode")
+        .filter(([name, type]) => type === vscode.FileType.Directory)
         .map(([name]) => name);
 }
 
