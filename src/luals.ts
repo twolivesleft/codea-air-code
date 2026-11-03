@@ -81,7 +81,12 @@ export class LuaDefinitions {
             if (answer !== "Install") {
                 return;
             }
-            await vscode.commands.executeCommand('workbench.extensions.installExtension', LUA_EXTENSION);
+            try {
+                await vscode.commands.executeCommand('workbench.extensions.installExtension', LUA_EXTENSION);
+            } catch (error) {
+                vscode.window.showErrorMessage(`The Lua extension was not installed: ${error instanceof Error ? error.message : error}`);
+                return;
+            }
         }
         await this.context.workspaceState.update(DECLINED, undefined);
         await this.apply(folder);
