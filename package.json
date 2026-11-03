@@ -31,7 +31,9 @@
     "debugger"
   ],
   "activationEvents": [
-    "onFileSystem:codea"
+    "onFileSystem:codea",
+    "workspaceContains:.vscode/settings.json",
+    "onView:codea-projects"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -47,10 +49,15 @@
     "views": {
       "codea-sidebar": [
         {
+          "id": "codea-projects",
+          "name": "Projects",
+          "when": "!codea-air-code.hasWorkspaceUri && workspaceFolderCount > 0"
+        },
+        {
           "type": "webview",
           "id": "codea-reference",
           "name": "Reference",
-          "when": "codea-air-code.hasWorkspaceUri == true"
+          "when": "codea-air-code.hasWorkspaceUri == true || codea-air-code.hasLocalHost == true"
         },
         {
           "type": "webview",
@@ -62,19 +69,11 @@
           "type": "webview",
           "id": "codea-parameters",
           "name": "Parameters",
-          "when": "codea-air-code.hasWorkspaceUri == true"
+          "when": "codea-air-code.hasWorkspaceUri == true || codea-air-code.hasLocalHost == true"
         }
       ]
     },
     "commands": [
-      {
-        "command": "codea-air-code.connectToHost",
-        "title": "Codea: Connect to Host..."
-      },
-      {
-        "command": "codea-air-code.connectOverUSB",
-        "title": "Codea: Connect over USB..."
-      },
       {
         "command": "codea-air-code.executeLine",
         "title": "Codea: Execute current line"
@@ -110,6 +109,69 @@
       {
         "command": "codea-air-code.findInFiles",
         "title": "Codea: Find in Files"
+      },
+      {
+        "command": "codea-air-code.linkFolder",
+        "title": "Codea: Link Folder to Project..."
+      },
+      {
+        "command": "codea-air-code.syncLinkedFolders",
+        "title": "Codea: Sync Linked Folders",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "codea-air-code.showMenu",
+        "title": "Codea: Show Menu"
+      },
+      {
+        "command": "codea-air-code.showOutput",
+        "title": "Codea: Show Output"
+      },
+      {
+        "command": "codea-air-code.connect",
+        "title": "Codea: Connect to Codea..."
+      },
+      {
+        "command": "codea-air-code.refreshProjects",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "codea-air-code.getProject",
+        "title": "Get Project",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "codea-air-code.playProject",
+        "title": "Play in Codea",
+        "icon": "$(play)"
+      },
+      {
+        "command": "codea-air-code.revealProject",
+        "title": "Reveal Linked Folder",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "codea-air-code.showWalkthrough",
+        "title": "Codea: Get Started with Codea Projects"
+      },
+      {
+        "command": "codea-air-code.getAllProjects",
+        "title": "Codea: Get All Projects",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "codea-air-code.linkAllFolders",
+        "title": "Codea: Link All Matching Folders..."
+      },
+      {
+        "command": "codea-air-code.getCollectionProjects",
+        "title": "Get All Projects in Collection",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "codea-air-code.disconnect",
+        "title": "Codea: Disconnect"
       }
     ],
     "keybindings": [
@@ -245,9 +307,219 @@
         {
           "command": "codea-air-code.findInFiles",
           "when": "codea-air-code.hasWorkspaceUri"
+        },
+        {
+          "command": "codea-air-code.syncLinkedFolders",
+          "when": "codea-air-code.isLinked"
+        },
+        {
+          "command": "codea-air-code.showMenu",
+          "when": "false"
+        },
+        {
+          "command": "codea-air-code.refreshProjects",
+          "when": "false"
+        },
+        {
+          "command": "codea-air-code.getProject",
+          "when": "false"
+        },
+        {
+          "command": "codea-air-code.playProject",
+          "when": "false"
+        },
+        {
+          "command": "codea-air-code.revealProject",
+          "when": "false"
+        },
+        {
+          "command": "codea-air-code.getAllProjects",
+          "when": "codea-air-code.hasLocalHost"
+        },
+        {
+          "command": "codea-air-code.linkAllFolders",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "codea-air-code.getCollectionProjects",
+          "when": "false"
+        },
+        {
+          "command": "codea-air-code.disconnect",
+          "when": "codea-air-code.hasLocalHost"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "codea-air-code.linkFolder",
+          "when": "explorerResourceIsFolder && resourceScheme == file",
+          "group": "a_codea"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "codea-air-code.getAllProjects",
+          "when": "view == codea-projects && codea-air-code.hasLocalHost",
+          "group": "navigation"
+        },
+        {
+          "command": "codea-air-code.syncLinkedFolders",
+          "when": "view == workbench.explorer.fileView && codea-air-code.isLinked",
+          "group": "navigation"
+        },
+        {
+          "command": "codea-air-code.refreshProjects",
+          "when": "view == codea-projects",
+          "group": "navigation"
+        },
+        {
+          "command": "codea-air-code.linkAllFolders",
+          "when": "view == codea-projects",
+          "group": "links"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "codea-air-code.getProject",
+          "when": "view == codea-projects && viewItem == project",
+          "group": "inline"
+        },
+        {
+          "command": "codea-air-code.playProject",
+          "when": "view == codea-projects && viewItem == linkedProject",
+          "group": "inline"
+        },
+        {
+          "command": "codea-air-code.revealProject",
+          "when": "view == codea-projects && viewItem == linkedProject",
+          "group": "inline"
+        },
+        {
+          "command": "codea-air-code.getCollectionProjects",
+          "when": "view == codea-projects && viewItem == collection",
+          "group": "inline"
         }
       ]
-    }
+    },
+    "configuration": {
+      "title": "Codea Air Code",
+      "properties": {
+        "codea-air-code.host": {
+          "type": "string",
+          "scope": "resource",
+          "description": "Codea's Air Code address (host:port) for linked folders."
+        },
+        "codea-air-code.links": {
+          "type": "object",
+          "scope": "resource",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "description": "Local folders kept in sync with Codea projects, from a path relative to the workspace folder to the project in Codea, e.g. \"iPad Projects/EmuTests\"."
+        }
+      }
+    },
+    "icons": {
+      "codea-logo": {
+        "description": "Codea logo",
+        "default": {
+          "fontPath": "resources/icons/codea-logo.woff",
+          "fontCharacter": "\\E000"
+        }
+      }
+    },
+    "viewsWelcome": [
+      {
+        "view": "codea-projects",
+        "contents": "Connect to Codea to see its projects. A project you get from Codea is kept in a folder here and stays in sync with the device.\n[Connect to Codea](command:codea-air-code.connect)"
+      }
+    ],
+    "walkthroughs": [
+      {
+        "id": "linkedFolders",
+        "title": "Working with Codea Projects",
+        "description": "Keep your Codea projects in a folder on your computer, in sync with Codea.",
+        "steps": [
+          {
+            "id": "openFolder",
+            "title": "Open a folder for your projects",
+            "description": "Codea Air Code now works with folders on your computer. Each project is kept in a local folder that stays in sync with Codea, so search, source control and AI coding assistants work with your projects.\nOpen an empty folder to start, or one you already have, such as a git repository of Codea projects.\n[Open Folder](command:workbench.action.files.openFolder)",
+            "media": {
+              "image": "media/walkthrough/folder.png",
+              "altText": "A folder of Codea projects in the Explorer"
+            },
+            "completionEvents": [
+              "onContext:codea-air-code.walkthroughFolderReady",
+              "onCommand:workbench.action.files.openFolder"
+            ]
+          },
+          {
+            "id": "connect",
+            "title": "Connect to Codea",
+            "description": "In Codea, tap the Air Code button on the projects screen to see its address. Once connected, the Projects section of the Codea sidebar lists the projects on your device.\n[Connect to Codea](command:codea-air-code.connect)",
+            "media": {
+              "image": "media/walkthrough/projects.png",
+              "altText": "The Projects section of the Codea sidebar"
+            },
+            "completionEvents": [
+              "onContext:codea-air-code.walkthroughConnected",
+              "onSettingChanged:codea-air-code.host",
+              "onCommand:codea-air-code.connect"
+            ]
+          },
+          {
+            "id": "getProject",
+            "title": "Get a project",
+            "description": "Click the download button next to a project to copy it into your folder, where it stays in sync with Codea. Projects are kept the way Codea keeps them: Project.codea for Documents, and Collection/Project.codea for other collections.\n[Show Projects](command:codea-projects.focus)",
+            "media": {
+              "image": "media/walkthrough/get.png",
+              "altText": "Getting a project from Codea"
+            },
+            "completionEvents": [
+              "onContext:codea-air-code.walkthroughLinked",
+              "onCommand:codea-air-code.getProject"
+            ]
+          },
+          {
+            "id": "linkFolder",
+            "title": "Already have the files?",
+            "description": "If your folder already holds a project, for example from a git repository, right-click its folder in the Explorer and choose Link Folder to Project. The files on both sides are compared before anything is copied.\n[Link a Folder](command:codea-air-code.linkFolder)",
+            "media": {
+              "markdown": "media/walkthrough/link.md"
+            },
+            "completionEvents": [
+              "onContext:codea-air-code.walkthroughLinked",
+              "onCommand:codea-air-code.linkFolder"
+            ]
+          },
+          {
+            "id": "edit",
+            "title": "Edit with any tool",
+            "description": "Files you save, and files changed by other tools, are sent to Codea right away. Changes made in Codea come back within a second. If a file changes on both sides, you choose which version to keep, and can compare them first.\nYour projects are regular files, so you can [search](command:workbench.action.findInFiles) them, track them with source control, and work on them with AI coding assistants.",
+            "media": {
+              "image": "media/walkthrough/edit.png",
+              "altText": "Searching a linked project"
+            },
+            "completionEvents": [
+              "onCommand:workbench.action.findInFiles"
+            ]
+          },
+          {
+            "id": "play",
+            "title": "Play and debug",
+            "description": "The Codea items in the status bar show the connection and play the project you are working on. Breakpoints set in your files stop the project on the device, and the Parameters section controls it while it runs.\n[Play in Codea](command:workbench.action.debug.start)",
+            "media": {
+              "image": "media/walkthrough/play.png",
+              "altText": "Playing a project from the status bar"
+            },
+            "completionEvents": [
+              "onCommand:workbench.action.debug.start"
+            ]
+          }
+        ]
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

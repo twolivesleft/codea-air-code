@@ -75,7 +75,7 @@ export class AirCodeService {
         try {
             return await new Promise<string | undefined>((resolve, reject) => {
                 const input = vscode.window.createQuickPick<CustomServiceItem | FoundServiceItem>();
-                input.placeholder = "Select a device from the list, or enter the IP and port to connect to.";
+                input.placeholder = "Select a device, or enter its IP and port. For USB, enter Codea's port and a local port, such as 18513:18514.";
                 input.items = [
                     new CustomServiceItem(""),
                     ...this.services.map((service) => new FoundServiceItem(service.name, this.getIPv4(service), service.port))
