@@ -80,6 +80,7 @@ export class AirCode implements vscode.FileSystemProvider {
     listsFileVersions = false;
     // Whether Codea keeps files in folders inside a project, lists them, and creates the folders
     listsSubfolders = false;
+    hasModernReference = false;
     // Collections that ship with Codea, which getting every project skips
     builtInCollections: string[] = ["Examples", "Craft"];
     private lastAnswer = 0;
@@ -371,6 +372,7 @@ export class AirCode implements vscode.FileSystemProvider {
             airCode.watchesFiles = information.watchesFiles === true;
             airCode.listsFileVersions = information.listsFileVersions === true;
             airCode.listsSubfolders = information.listsSubfolders === true;
+            airCode.hasModernReference = information.hasModernReference === true;
             if (information.builtInCollections) {
                 airCode.builtInCollections = information.builtInCollections;
             }
@@ -381,7 +383,7 @@ export class AirCode implements vscode.FileSystemProvider {
             let parameters = await airCode.getParameters(uri);
 
             airCode.parametersView.setParameters(parameters);
-            await airCode.referenceView.getChapters(false);
+            await airCode.referenceView.refresh();
 
             airCode.status?.setRunning(information.hasHost);
             if (information.hasHost) {
@@ -826,8 +828,8 @@ export class AirCode implements vscode.FileSystemProvider {
         this.sendCommand(getWorkspaceUri(), Command.LSPMessage.from(message));
     }
 
-    getChapters(uri: vscode.Uri): any[] | Thenable<any[]> {
-        return this.sendCommandMapResponse<String, any[]>(uri, Command.GetChapters.from(), response => {
+    getChapters(uri: vscode.Uri, modern: boolean): any[] | Thenable<any[]> {
+        return this.sendCommandMapResponse<String, any[]>(uri, Command.GetChapters.from(modern), response => {
             if (response instanceof Error) {
                 return Result.error(response);
             } else {
@@ -836,8 +838,8 @@ export class AirCode implements vscode.FileSystemProvider {
         });
     }    
 
-    getChapterImage(uri: vscode.Uri, chapter: string): string | Thenable<string> {
-        return this.sendCommandMapResponse<String, string>(uri, Command.GetChapterImage.from(chapter), response => {
+    getChapterImage(uri: vscode.Uri, chapter: string, modern: boolean): string | Thenable<string> {
+        return this.sendCommandMapResponse<String, string>(uri, Command.GetChapterImage.from(chapter, modern), response => {
             if (response instanceof Error) {
                 return Result.error(response);
             } else {
@@ -846,8 +848,8 @@ export class AirCode implements vscode.FileSystemProvider {
         });
     }    
 
-    async getFunctions(uri: vscode.Uri, chapter: string) : Promise<GetFunctionsResponse> {
-        return this.sendCommand<GetFunctionsResponse>(uri, Command.GetFunctions.from(chapter));
+    async getFunctions(uri: vscode.Uri, chapter: string, modern: boolean) : Promise<GetFunctionsResponse> {
+        return this.sendCommand<GetFunctionsResponse>(uri, Command.GetFunctions.from(chapter, modern));
     }    
 
     getCategoryImage(uri: vscode.Uri, category: string): string | Thenable<string> {
@@ -860,8 +862,8 @@ export class AirCode implements vscode.FileSystemProvider {
         });
     }
 
-    getFunctionDetails(uri: vscode.Uri, chapter: string, functionId: string): any[] | Thenable<any[]> {
-        return this.sendCommandMapResponse<String, any[]>(uri, Command.GetFunctionDetails.from(chapter, functionId), response => {
+    getFunctionDetails(uri: vscode.Uri, chapter: string, functionId: string, modern: boolean): any[] | Thenable<any[]> {
+        return this.sendCommandMapResponse<String, any[]>(uri, Command.GetFunctionDetails.from(chapter, functionId, modern), response => {
             if (response instanceof Error) {
                 return Result.error(response);
             } else {
@@ -870,8 +872,8 @@ export class AirCode implements vscode.FileSystemProvider {
         });
     }
 
-    async findReference(uri: vscode.Uri, text: string) : Promise<FindReferenceResponse> {
-        return this.sendCommand<FindReferenceResponse>(uri, Command.FindReference.from(text));
+    async findReference(uri: vscode.Uri, text: string, modern: boolean) : Promise<FindReferenceResponse> {
+        return this.sendCommand<FindReferenceResponse>(uri, Command.FindReference.from(text, modern));
     }
     
     // The files of a folder with Codea's modification dates, in one request

@@ -15,20 +15,70 @@
 
     var viewType = ViewType.None;
     var isLegacy = true;
+    var modernIsNative = false;
+
+    const modernFrame = modernContent.innerHTML;
+    modernContent.style.display = 'none';
+
+    // Each reference draws into its own tab
+    function contentFor(modern) {
+        return (modern ? modernContent : legacyContent).querySelector('.reference-content');
+    }
+
+    // Carbide chapters are named after their source files, such as math_types
+    function chapterTitle(title, modern) {
+        if (!modern) {
+            return title;
+        }
+        const words = title.replace(/_/g, ' ');
+        return words.charAt(0).toUpperCase() + words.slice(1);
+    }
+
+    function imageId(chapter, modern) {
+        return `${modern ? 'modern' : 'legacy'}-${chapter}-image`;
+    }
+
+    // Codea from 3.20 serves the Carbide reference; before that, the Modern tab shows the online one
+    function setModernIsNative(native) {
+        modernIsNative = native;
+        if (native) {
+            modernContent.className = '';
+            modernContent.innerHTML = '<div class="reference-content">Loading...</div>';
+        }
+        else {
+            modernContent.className = 'modern-div';
+            modernContent.innerHTML = modernFrame;
+        }
+        if (!isLegacy) {
+            modernContent.style.display = native ? 'block' : 'flex';
+        }
+    }
 
     // Handle messages sent from the extension to the webview
     window.addEventListener('message', event => {
         const message = event.data; // The json data that the extension sent
         switch (message.type) {
+            case 'setModernIsNative':
+                {
+                    setModernIsNative(message.data);
+
+                    break;
+                }
+            case 'showReference':
+                {
+                    (message.data ? modernButton : legacyButton).click();
+
+                    break;
+                }
             case 'setChapters':
                 {
-                    setChapters(message.data);
+                    setChapters(message.data, message.modern);
 
                     break;
                 }
             case 'setChapterImage':
                 {
-                    setChapterImage(message.data.chapter, message.data.image);
+                    setChapterImage(message.data.chapter, message.data.image, message.modern);
 
                     break;
                 }
@@ -41,7 +91,8 @@
                         message.data.groups,
                         message.data.localGroups,
                         message.data.functions,
-                        message.data.categoryImages);
+                        message.data.categoryImages,
+                        message.modern);
 
                     break;
                 }
@@ -53,8 +104,8 @@
                 }
             case 'setFunctionDetails':
                 {
-                    setFunctionDetails(message.data.chapter, message.data.details, message.data.categoryImages);
-                    legacyButton.click();
+                    setFunctionDetails(message.data.chapter, message.data.details, message.data.categoryImages, message.modern);
+                    (message.modern ? modernButton : legacyButton).click();
                     break;
                 }
         }
@@ -78,58 +129,63 @@
             legacyButton.classList.remove('selected');
             modernButton.classList.add('selected');
             legacyContent.style.display = 'none';
-            modernContent.style.display = 'flex';
+            modernContent.style.display = modernIsNative ? 'block' : 'flex';
         }
     });
 
-    function setChapters(chapters) {
-        const content = document.querySelector('.reference-content');
+    function setChapters(chapters, modern) {
+        const content = contentFor(modern);
 
         if (content) {
             content.textContent = '';
 
-            for (const chapter of chapters) {
+            const sorted = modern ? [...chapters].sort((a, b) => a['title'].localeCompare(b['title'])) : chapters;
+
+            for (const chapter of sorted) {
                 const chapterNameValue = chapter['name'];
-                const chapterTitleValue = chapter['title'];
+                const chapterTitleValue = chapterTitle(chapter['title'], modern);
                 const chapterSubtitleValue = chapter['subtitle'];
                 const chapterImageValue = chapter['image'];
                 
                 const chapterDiv = document.createElement('div');
                 chapterDiv.className = 'chapter-button';
                 chapterDiv.onclick = function() {
-                    vscode.postMessage({ type: 'getFunctions', chapter: chapterNameValue });
+                    vscode.postMessage({ type: 'getFunctions', chapter: chapterNameValue, modern });
                 }
                 content.appendChild(chapterDiv)
 
+                // A chapter without an icon shows its initial
                 const chapterImageDiv = document.createElement('div');
                 chapterImageDiv.className = 'chapter-image-container';
+                chapterImageDiv.dataset.initial = chapterTitleValue.charAt(0).toUpperCase();
                 chapterDiv.appendChild(chapterImageDiv);
 
                 const chapterImage = document.createElement('img');
-                chapterImage.id = `${chapterNameValue}-image`;
-                if (chapterImageValue) {
-                    chapterImage.src = `data:image/png;base64,${chapterImageValue}`;
-                }
-                else {
-                    chapterImage.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
-                    vscode.postMessage({ type: 'getChapterImage', chapter: chapterNameValue });
-                }
+                chapterImage.id = imageId(chapterNameValue, modern);
                 chapterImage.className = 'chapter-image';
                 chapterImageDiv.appendChild(chapterImage);
+                if (chapterImageValue) {
+                    showImage(chapterImage, chapterImageValue);
+                }
+                else {
+                    vscode.postMessage({ type: 'getChapterImage', chapter: chapterNameValue, modern });
+                }
 
                 const chapterText = document.createElement('div');
                 chapterText.className = 'chapter-text-container';
                 chapterDiv.appendChild(chapterText);
 
-                const chapterTitle = document.createElement('div');
-                chapterTitle.className = 'chapter-title';
-                chapterTitle.textContent = chapterTitleValue;
-                chapterText.appendChild(chapterTitle);
+                const chapterTitleElement = document.createElement('div');
+                chapterTitleElement.className = 'chapter-title';
+                chapterTitleElement.textContent = chapterTitleValue;
+                chapterText.appendChild(chapterTitleElement);
 
-                const chapterSubtitle = document.createElement('div');
-                chapterSubtitle.className = 'chapter-subtitle';
-                chapterSubtitle.textContent = chapterSubtitleValue;
-                chapterText.appendChild(chapterSubtitle);
+                if (chapterSubtitleValue) {
+                    const chapterSubtitle = document.createElement('div');
+                    chapterSubtitle.className = 'chapter-subtitle';
+                    chapterSubtitle.textContent = chapterSubtitleValue;
+                    chapterText.appendChild(chapterSubtitle);
+                }
             }
 
             window.scrollTo(0, 0);
@@ -138,15 +194,21 @@
         }
     }
 
-    function setChapterImage(chapter, image) {
-        const img = document.getElementById(`${chapter}-image`);
+    function showImage(img, image) {
+        img.src = `data:image/png;base64,${image}`;
+        img.classList.add('loaded');
+        img.parentElement?.classList.add('has-image');
+    }
+
+    function setChapterImage(chapter, image, modern) {
+        const img = document.getElementById(imageId(chapter, modern));
         if (img instanceof HTMLImageElement) {
-            img.src = `data:image/png;base64,${image}`;
+            showImage(img, image);
         }
     }
 
-    function setFunctions(chapter, chapterTitle, chapterImage, groups, localGroups, functions, categoryImages) {
-        const content = document.querySelector('.reference-content');
+    function setFunctions(chapter, chapterTitleValue, chapterImage, groups, localGroups, functions, categoryImages, modern) {
+        const content = contentFor(modern);
         var missingCategories = []
 
         if (content) {
@@ -157,28 +219,28 @@
             content.appendChild(topBar);
 
             const backButton = document.createElement('a');
-            backButton.textContent = "◀";
+            backButton.textContent = "‹";
+            backButton.title = "Back";
             backButton.className = "back-button";
             backButton.onclick = function() {
-                vscode.postMessage({ type: 'getChapters' });
+                vscode.postMessage({ type: 'getChapters', modern });
             }
             topBar.appendChild(backButton);
 
             const chapterImageElement = document.createElement('img');
-            chapterImageElement.id = `${chapter}-image`;
+            chapterImageElement.id = imageId(chapter, modern);
+            chapterImageElement.className = 'top-image-small';
+            topBar.appendChild(chapterImageElement);
             if (chapterImage) {
-                chapterImageElement.src = `data:image/png;base64,${chapterImage}`;
+                showImage(chapterImageElement, chapterImage);
             }
             else {
-                chapterImageElement.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
-                vscode.postMessage({ type: 'getChapterImage', chapter: chapter });
+                vscode.postMessage({ type: 'getChapterImage', chapter: chapter, modern });
             }
-            chapterImageElement.className = 'top-image-small';
-            topBar.appendChild(chapterImageElement);            
 
             const chapterTitleDiv = document.createElement('div');
             chapterTitleDiv.className = 'title-top';
-            chapterTitleDiv.textContent = chapterTitle;
+            chapterTitleDiv.textContent = chapterTitle(chapterTitleValue, modern);
             topBar.appendChild(chapterTitleDiv);
 
             for (const group of groups) {
@@ -199,8 +261,11 @@
 
                     const functionDiv = document.createElement('div');
                     functionDiv.className = 'function-button';
+                    if (func['indentation']) {
+                        functionDiv.style.marginLeft = `${func['indentation'] * 16}px`;
+                    }
                     functionDiv.onclick = function() {
-                        vscode.postMessage({ type: 'getFunctionDetails', chapter: chapter, functionId: funcIdValue });
+                        vscode.postMessage({ type: 'getFunctionDetails', chapter: chapter, functionId: funcIdValue, modern });
                     }
                     content.appendChild(functionDiv);
 
@@ -216,10 +281,7 @@
                     else {
                         functionImage.style.backgroundImage = "url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=')";
                     }
-                    functionImage.style.width = "32px";
-                    functionImage.style.height = "32px";
-                    functionImage.style.backgroundSize = "cover";
-                    functionImage.style.borderRadius = "5px";
+                    functionImage.classList.add('category-icon');
                     functionImageDiv.appendChild(functionImage);
 
                     const functionText = document.createElement('div');
@@ -252,8 +314,8 @@
         }
     }
 
-    function setFunctionDetails(chapter, details, categoryImages) {
-        const content = document.querySelector('.reference-content');
+    function setFunctionDetails(chapter, details, categoryImages, modern) {
+        const content = contentFor(modern);
 
         if (content) {
             content.textContent = '';
@@ -269,8 +331,9 @@
                 })
             );
               
+            // The legacy reference breaks lines where it means to; the Carbide one wraps its source text
             markedInstance.use({
-                breaks: true
+                breaks: !modern
             });              
 
             const funcCategoryValue = details['category'];
@@ -285,10 +348,11 @@
             content.appendChild(topBar);
 
             const backButton = document.createElement('a');
-            backButton.textContent = "◀";
+            backButton.textContent = "‹";
+            backButton.title = "Back";
             backButton.className = "back-button";
             backButton.onclick = function() {
-                vscode.postMessage({ type: 'getFunctions', chapter: chapter });
+                vscode.postMessage({ type: 'getFunctions', chapter: chapter, modern });
             }
             topBar.appendChild(backButton);
 
@@ -300,10 +364,7 @@
             else {
                 categoryImageElement.style.backgroundImage = "url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=')";
             }
-            categoryImageElement.style.width = "32px";
-            categoryImageElement.style.height = "32px";
-            categoryImageElement.style.backgroundSize = "cover";
-            categoryImageElement.style.borderRadius = "5px";
+            categoryImageElement.classList.add('category-icon');
             topBar.appendChild(categoryImageElement);            
 
             const detailsTitle = document.createElement('div');
@@ -325,7 +386,8 @@
     
                 const syntaxValue = document.createElement('div');
                 syntaxValue.className = 'details-syntax-value';
-                syntaxValue.innerHTML = syntax;
+                // The Carbide reference writes its syntax in Markdown
+                syntaxValue.innerHTML = modern ? markedInstance.parseInline(details['syntax']) : syntax;
                 syntaxDiv.appendChild(syntaxValue);
             }
 
@@ -337,7 +399,7 @@
                 content.appendChild(descriptionDiv);
             }
 
-            const parameters = details['parameters'];
+            const parameters = details['parameters'] || [];
             for (let i = 0; i < parameters.length; ++i) {
                 const className = (i % 2 == 0) ? 'details-parameter-odd' : 'details-parameter-even';
 
@@ -347,7 +409,15 @@
 
                 const parameterName = document.createElement('div');
                 parameterName.className = 'details-parameter-name';
-                parameterName.textContent = parameters[i].name;
+                // "size: number" shows the type apart from the name
+                const [name, ...type] = parameters[i].name.split(': ');
+                parameterName.textContent = name;
+                if (type.length > 0) {
+                    const parameterType = document.createElement('span');
+                    parameterType.className = 'details-parameter-type';
+                    parameterType.textContent = type.join(': ');
+                    parameterName.appendChild(parameterType);
+                }
                 parameterDiv.appendChild(parameterName);
 
                 const parameterDescription = document.createElement('div');
@@ -364,7 +434,7 @@
 
                     const exampleHeader = document.createElement('div');
                     exampleHeader.className = 'details-example-header';
-                    exampleHeader.textContent = `Example ${i+1}`;
+                    exampleHeader.textContent = example['title'] || `Example ${i+1}`;
                     content.appendChild(exampleHeader);
 
                     const exampleCode = document.createElement('div');
@@ -407,7 +477,7 @@
                     relatedButton.className = 'details-related-button';
                     relatedButton.textContent = relatedId;
                     relatedButton.onclick = function() {
-                        vscode.postMessage({ type: 'getFunctionDetails', chapter: chapter, functionId: relatedId });
+                        vscode.postMessage({ type: 'getFunctionDetails', chapter: chapter, functionId: relatedId, modern });
                     }
                     relatedButtons.appendChild(relatedButton);    
                 }

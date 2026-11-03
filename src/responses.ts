@@ -21,6 +21,7 @@ export type GetInformationResponse = {
     watchesFiles?: boolean;
     listsFileVersions?: boolean;
     listsSubfolders?: boolean;
+    hasModernReference?: boolean;
     builtInCollections?: string[];
 }
 
@@ -57,6 +58,8 @@ export type FindReferenceResponse = {
     chapter: string;
     function: string;
 }
+
+export type Reference = FindReferenceResponse & { modern: boolean };
 
 export type Response<T> = {
     id: number;
