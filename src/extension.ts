@@ -4,6 +4,7 @@ import * as vscode from 'vscode';
 
 import { AirCode } from './aircode';
 import { AirCodePath } from './aircodepath';
+import { AssetNode, AssetsViewProvider } from './assets';
 import { ParametersViewProvider } from './parameters';
 import { ReferenceViewProvider } from './reference';
 import { SearchViewProvider } from './search';
@@ -17,7 +18,7 @@ import { LinkSync } from './sync';
 import { LinkedProject } from './links';
 import { CodeaStatus } from './status';
 import { collectionOfFolder } from './layout';
-import { isBuiltInCollection, listCodeaProjects, listCollectionProjects, listCollections, localProjectUri, ProjectNode, ProjectsViewProvider, remoteProjectPath } from './projects';
+import { isBuiltInCollection, listCodeaProjects, listCollectionProjects, listCollections, localProjectUri, DependencyNode, ProjectNode, ProjectsViewProvider, remoteProjectPath } from './projects';
 
 // The uri commands are sent to: the codea:// workspace folder, or Codea's root for linked folders
 export function getWorkspaceUri(): vscode.Uri {
@@ -524,40 +525,58 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	}));
 
-	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.addDependency', async () => {
-		let activeEditor = vscode.window.activeTextEditor;
-
-		const editorUri = activeEditor?.document.uri;
-		if (editorUri === undefined) {
+	// Adds a dependency to the project of the focused file, or to a project in the Projects view.
+	// Codea writes it as its editor does: a require on the modern runtime, in Info.plist on the legacy one.
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.addDependency', async (target?: ProjectNode) => {
+		const host = linkedFolders.host();
+		const editorUri = vscode.window.activeTextEditor?.document.uri;
+		const uri = target instanceof ProjectNode && host !== undefined
+			? vscode.Uri.from({ scheme: 'codea', authority: host, path: `/${AirCode.rootFolder}/${target.remotePath}` })
+			: editorUri && linkedFolders.airCodeUri(editorUri);
+		if (uri === undefined) {
 			return;
 		}
-		const uri = linkedFolders.airCodeUri(editorUri);
-
 		const airCodePath = new AirCodePath(uri.path);
 
 		const projects = await airCode.listUnimportedProjects(uri);
-
-		vscode.window.showQuickPick(projects.map(label => ({ label })), { 
+		const choice = await vscode.window.showQuickPick(projects.map(label => ({ label })), {
 			title: `Add a dependency to ${airCodePath.project}`,
-			canPickMany: false }).then(async choice => {
-			if (choice !== undefined) {
-				let response = await airCode.addDependency(uri, choice.label);
-				if (response.isFirstDependency) {
-					airCode.onDependenciesCreated(airCodePath.collection, airCodePath.project);
-				}
-
-				let path = `codea://${uri.authority}/${AirCode.rootFolder}/${airCodePath.project}/Dependencies/${choice}`;
-				let newUri = vscode.Uri.parse(path);
-				airCode.fileCreated(newUri);	
-
-				// Dependencies are stored in Info.plist
-				const linked = linkedFolders.find(editorUri);
-				if (linked) {
-					await sync.sync(linked[0]);
-				}
-			}
-		});
+			canPickMany: false });
+		if (choice === undefined) {
+			return;
+		}
+		const response = await airCode.addDependency(uri, choice.label);
+		if (response.isFirstDependency) {
+			airCode.onDependenciesCreated(airCodePath.collection, airCodePath.project);
+		}
+		airCode.fileCreated(vscode.Uri.parse(`codea://${uri.authority}/${AirCode.rootFolder}/${airCodePath.collection}/${airCodePath.project}/Dependencies/${choice.label}`));
+		await dependenciesChanged(uri);
 	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.removeDependency', async (node: DependencyNode) => {
+		const host = linkedFolders.host();
+		if (host === undefined) {
+			return;
+		}
+		const projectUri = vscode.Uri.from({ scheme: 'codea', authority: host, path: `/${AirCode.rootFolder}/${node.dependent.remotePath}` });
+		try {
+			await airCode.delete(vscode.Uri.joinPath(projectUri, 'Dependencies', node.project), { recursive: false });
+		} catch (error) {
+			vscode.window.showErrorMessage(`Could not remove ${node.project} from ${node.dependent.name}: ${error}`);
+			return;
+		}
+		await dependenciesChanged(projectUri);
+	}));
+
+	// Codea changed the project's code or Info.plist, which is brought here at once
+	async function dependenciesChanged(remoteUri: vscode.Uri) {
+		const linked = linkedFolders.projects().find(project => remoteUri.path === `/${AirCode.rootFolder}/${project.remotePath}`
+			|| remoteUri.path.startsWith(`/${AirCode.rootFolder}/${project.remotePath}/`));
+		if (linked) {
+			await sync.sync(linked);
+		}
+		projectsView.refresh();
+	}
 
 	async function pickHost(): Promise<string | undefined> {
 		const defaultPort = "18513";
@@ -635,6 +654,23 @@ export function activate(context: vscode.ExtensionContext) {
 		await linkedFolders.addLink(folder, localUri, choice.label, host);
 		vscode.window.showInformationMessage(`${vscode.workspace.asRelativePath(localUri)} is linked to ${choice.label} in Codea.`);
 	}));
+
+	const assetsView = new AssetsViewProvider(airCode, linkedFolders);
+	const assetsTree = vscode.window.createTreeView(AssetsViewProvider.viewType, { treeDataProvider: assetsView, dragAndDropController: assetsView });
+	context.subscriptions.push(assetsTree);
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.refreshAssets', () => assetsView.refresh()));
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.addAssetFiles', (node: AssetNode) => assetsView.addFiles(node)));
+	// From a menu the item comes with the command; from a key, it is the one selected
+	const assetTarget = (node?: AssetNode) => node instanceof AssetNode ? node : assetsTree.selection[0];
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.renameAsset', (node?: AssetNode) => {
+		const target = assetTarget(node);
+		return target?.writable && target.depth > 1 ? assetsView.rename(target) : undefined;
+	}));
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.deleteAsset', (node?: AssetNode) => {
+		const target = assetTarget(node);
+		return target?.writable && target.depth > 1 ? assetsView.delete(target) : undefined;
+	}));
+	context.subscriptions.push(linkedFolders.onDidChange(() => assetsView.refresh()));
 
 	const projectsView = new ProjectsViewProvider(airCode, linkedFolders);
 	context.subscriptions.push(vscode.window.createTreeView(ProjectsViewProvider.viewType, { treeDataProvider: projectsView }));

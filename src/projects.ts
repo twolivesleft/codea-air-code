@@ -8,11 +8,19 @@ export class ProjectNode {
     constructor(
         // Path under /Codea, e.g. "iPad Projects" or "iPad Projects/EmuTests"
         readonly remotePath: string,
-        readonly isProject: boolean) { }
+        readonly isProject: boolean,
+        readonly hasDependencies = false) { }
 
     get name(): string {
         return this.remotePath.split('/').pop()!;
     }
+}
+
+// A dependency of a project, as Codea lists it
+export class DependencyNode {
+    constructor(
+        readonly dependent: ProjectNode,
+        readonly project: string) { }
 }
 
 // Projects in Codea as paths under /Codea, e.g. "iPad Projects/EmuTests" or "iCloud/Collection/Project"
@@ -87,10 +95,10 @@ export async function listCollections(airCode: AirCode, host: string): Promise<s
 }
 
 // The Projects view of the Codea sidebar
-export class ProjectsViewProvider implements vscode.TreeDataProvider<ProjectNode> {
+export class ProjectsViewProvider implements vscode.TreeDataProvider<ProjectNode | DependencyNode> {
     public static readonly viewType = 'codea-projects';
 
-    private _onDidChangeTreeData = new vscode.EventEmitter<ProjectNode | undefined>();
+    private _onDidChangeTreeData = new vscode.EventEmitter<ProjectNode | DependencyNode | undefined>();
     onDidChangeTreeData = this._onDidChangeTreeData.event;
 
     constructor(private readonly airCode: AirCode, private readonly links: Links) { }
@@ -103,7 +111,14 @@ export class ProjectsViewProvider implements vscode.TreeDataProvider<ProjectNode
         return this.links.projects().find(project => project.remotePath === node.remotePath);
     }
 
-    getTreeItem(node: ProjectNode): vscode.TreeItem {
+    getTreeItem(node: ProjectNode | DependencyNode): vscode.TreeItem {
+        if (node instanceof DependencyNode) {
+            const item = new vscode.TreeItem(node.project, vscode.TreeItemCollapsibleState.None);
+            item.iconPath = new vscode.ThemeIcon("package");
+            item.tooltip = `${node.dependent.name} depends on ${node.project}`;
+            item.contextValue = "dependency";
+            return item;
+        }
         if (!node.isProject) {
             const isCloud = node.remotePath.startsWith("iCloud/");
             // Collections with linked projects start open, so those projects are in view
@@ -116,7 +131,7 @@ export class ProjectsViewProvider implements vscode.TreeDataProvider<ProjectNode
         }
 
         const linked = this.linkedProject(node);
-        const item = new vscode.TreeItem(node.name, vscode.TreeItemCollapsibleState.None);
+        const item = new vscode.TreeItem(node.name, node.hasDependencies ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
         item.iconPath = new vscode.ThemeIcon(linked ? "link" : "codea-logo");
         item.contextValue = linked ? "linkedProject" : "project";
         if (linked) {
@@ -133,19 +148,29 @@ export class ProjectsViewProvider implements vscode.TreeDataProvider<ProjectNode
         return item;
     }
 
-    async getChildren(node?: ProjectNode): Promise<ProjectNode[]> {
+    async getChildren(node?: ProjectNode | DependencyNode): Promise<(ProjectNode | DependencyNode)[]> {
         const host = this.links.host();
-        if (host === undefined) {
+        if (host === undefined || node instanceof DependencyNode) {
             return [];
+        }
+        // Codea lists a project's dependencies as its editor knows them: the projects its code
+        // requires on the modern runtime, those in its Info.plist on the legacy one
+        if (node?.isProject) {
+            return (await listFolders(this.airCode, host, `${node.remotePath}/Dependencies`))
+                .map(dependency => new DependencyNode(node, dependency));
         }
 
         try {
             if (node === undefined) {
                 return (await listCollections(this.airCode, host)).map(collection => new ProjectNode(collection, false));
             }
-            return (await listFolders(this.airCode, host, node.remotePath))
-                .sort((a, b) => a.localeCompare(b))
-                .map(project => new ProjectNode(`${node.remotePath}/${project}`, true));
+            const projects = (await listFolders(this.airCode, host, node.remotePath)).sort((a, b) => a.localeCompare(b));
+            // Codea lists a Dependencies folder in a project that has some; only linked projects are asked
+            return Promise.all(projects.map(async project => {
+                const remotePath = `${node.remotePath}/${project}`;
+                const linked = this.links.projects().some(other => other.remotePath === remotePath);
+                return new ProjectNode(remotePath, true, linked && (await listFolders(this.airCode, host, remotePath)).includes('Dependencies'));
+            }));
         } catch {
             return [];
         }
