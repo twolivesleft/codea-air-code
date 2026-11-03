@@ -58,7 +58,8 @@ the linked-folders handoff; run them after any change to `src/sync.ts`.
 
 Definitions come from the Lua extension (`sumneko.lua`), which `src/luals.ts` configures in the
 folder's settings: `luals/api/*.lua` as a library (Codea's API) and `luals/plugin.lua`, which makes
-`X = class()` a type and reads `x = require(asset...)` as the globals. The folder counts as set up
+`X = class()` a type, reads `x = require(asset...)` as the globals, and declares the global a
+`parameter.number/integer/boolean/text/color("Name", ...)` call makes. The folder counts as set up
 when `Lua.runtime.plugin` names that plugin; there is no setting of its own, which a window that
 updated the extension without reloading would not know. `Lua.workspace.ignoreDir` lists every
 folder but the linked projects (entries starting with `/`; LuaLS has no `!` to re-include). Its completion and signature

@@ -79,6 +79,7 @@ With the [Lua extension](https://marketplace.visualstudio.com/items?itemName=sum
 - functions and variables in other tabs, in folders inside the project, and in the other linked projects, such as its dependencies;
 - classes made with `class()` and their methods, as in `ship:draw()`;
 - modern dependencies required with `require(asset.documents.Lib)`;
+- the globals made by `parameter.number`, `parameter.integer`, `parameter.boolean`, `parameter.text` and `parameter.color`, which lead to the call that makes them;
 - Codea's API, legacy and modern, with its documentation on hover.
 
 When the Lua extension is installed, Codea Air Code asks once per folder, or run `Codea: Set Up Go to Definition`, which also installs it. Auto-completion and signature help still come from Codea; the Lua extension adds warnings about your code, such as an unused local. Only the linked projects are read, so a folder holding many other projects, such as a git repository of them, does not slow it down or fill the Problems view; dependencies resolve when they are linked too. A name defined in several linked projects lists each of them, and files open in an editor keep their warnings until they are closed.
