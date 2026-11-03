@@ -224,6 +224,10 @@
         "title": "Codea: Unlink Folder"
       },
       {
+        "command": "codea-air-code.resolveConflicts",
+        "title": "Codea: Resolve Sync Conflicts"
+      },
+      {
         "command": "codea-air-code.showLinkedProjectsOnly",
         "title": "Codea: Show Linked Projects Only",
         "icon": "$(filter)"
@@ -452,6 +456,10 @@
         },
         {
           "command": "codea-air-code.unlinkFolder",
+          "when": "codea-air-code.isLinked"
+        },
+        {
+          "command": "codea-air-code.resolveConflicts",
           "when": "codea-air-code.isLinked"
         }
       ],

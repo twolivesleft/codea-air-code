@@ -89,6 +89,9 @@ export class LinkSync {
     private queues = new Map<string, Promise<void>>();
     private pendingFiles = new Map<string, NodeJS.Timeout>();
     private conflicts = new Set<string>();
+    // Every file changed on both sides that has no choice yet, shown in the status bar until it has
+    private unresolved = new Map<string, Conflict>();
+    private conflictItem = vscode.window.createStatusBarItem('codea-air-code.conflicts', vscode.StatusBarAlignment.Left, 98);
     private running = 0;
 
     // While syncing many projects at once, conflicts are gathered and asked about together
@@ -120,7 +123,11 @@ export class LinkSync {
         private readonly links: Links,
         private readonly airCode: AirCode,
         private readonly store: BaseStore,
-        private readonly log: vscode.OutputChannel) { }
+        private readonly log: vscode.OutputChannel) {
+        this.conflictItem.name = "Codea Sync Conflicts";
+        this.conflictItem.command = 'codea-air-code.resolveConflicts';
+        this.conflictItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+    }
 
     static storeIn(folder: string): BaseStore {
         return new BaseStore(folder);
@@ -161,18 +168,19 @@ export class LinkSync {
     }
 
     async syncAll() {
-        for (const project of this.links.projects()) {
-            await this.sync(project);
-        }
+        await this.gatheringConflicts(async () => {
+            for (const project of this.links.projects()) {
+                await this.sync(project);
+            }
+        });
         await this.reportFullSync();
     }
 
     // Syncs projects one after the other with a progress notification, then asks about all the
     // files that differ on both sides at once
     async syncMany(projects: LinkedProject[], title: string) {
-        this.gatheredConflicts = [];
         try {
-            await vscode.window.withProgress(
+            await this.gatheringConflicts(() => vscode.window.withProgress(
                 { location: vscode.ProgressLocation.Notification, title, cancellable: true },
                 async (progress, token) => {
                     for (const [index, project] of projects.entries()) {
@@ -186,12 +194,57 @@ export class LinkSync {
                         });
                         await this.sync(project);
                     }
-                });
+                }));
+        } finally {
+            await this.reportFullSync();
+        }
+    }
+
+    // A folder linked to a project just made in Codea: the folder's files replace the ones Codea
+    // made, and what only Codea has, such as its Info.plist for a folder without one, comes here
+    async pushFolder(project: LinkedProject, title: string) {
+        await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title }, async () => {
+            await this.enqueue(project, async () => {
+                for (const name of await this.listLocal(project)) {
+                    const content = await this.readLocal(project, name);
+                    if (content !== undefined) {
+                        await this.push(project, name, content);
+                    }
+                }
+            });
+            await this.sync(project);
+        });
+    }
+
+    // Files changed on both sides while running are asked about together, once it is done
+    private async gatheringConflicts(run: () => PromiseLike<void>) {
+        if (this.gatheredConflicts !== undefined) {
+            await run();
+            return;
+        }
+        this.gatheredConflicts = [];
+        try {
+            await run();
         } finally {
             const conflicts = this.gatheredConflicts;
             this.gatheredConflicts = undefined;
             await this.resolveConflicts(conflicts);
-            await this.reportFullSync();
+        }
+    }
+
+    // The files changed on both sides that are still waiting for a choice
+    async resolveUnresolved() {
+        await this.resolveConflicts([...this.unresolved.values()]);
+    }
+
+    private updateConflictItem() {
+        const count = this.unresolved.size;
+        this.conflictItem.text = `$(warning) ${count} ${count === 1 ? "Sync Conflict" : "Sync Conflicts"}`;
+        this.conflictItem.tooltip = `${[...this.unresolved.values()].map(({ project, name }) => this.describe(project, name)).join('\n')}\n\nChanged both here and in Codea, and not synced until you choose which to keep. Click to choose.`;
+        if (count > 0) {
+            this.conflictItem.show();
+        } else {
+            this.conflictItem.hide();
         }
     }
 
@@ -529,7 +582,13 @@ export class LinkSync {
     async unlink(projects: LinkedProject[]) {
         for (const project of projects) {
             this.store.set(this.stateKey(project), undefined);
+            for (const [key, conflict] of this.unresolved) {
+                if (conflict.project.localUri.toString() === project.localUri.toString()) {
+                    this.unresolved.delete(key);
+                }
+            }
         }
+        this.updateConflictItem();
         await this.links.removeLinks(projects);
         this.log.appendLine(`Unlinked ${projects.map(project => project.remotePath).join(', ')}`);
     }
@@ -651,6 +710,13 @@ export class LinkSync {
             this.broughtBack.push(this.describe(project, name));
             this.log.appendLine(`${this.describe(project, name)} was missing ${planned === 'deleteRemote' ? "here" : "in Codea"}; bringing it back`);
         }
+        const conflictKey = `${project.localUri.toString()}/${name}`;
+        if (action === 'conflict') {
+            this.unresolved.set(conflictKey, { project, name });
+        } else {
+            this.unresolved.delete(conflictKey);
+        }
+        this.updateConflictItem();
         switch (action) {
             case 'none':
                 if (remoteFile !== undefined && base !== undefined && base.mtime !== remoteFile.mtime) {
@@ -714,22 +780,20 @@ export class LinkSync {
         if (conflicts.length === 0) {
             return;
         }
-        if (conflicts.length === 1) {
-            await this.resolveConflict(conflicts[0].project, conflicts[0].name);
-            return;
-        }
 
-        const keepLocal = 'Keep Local for All';
-        const keepCodea = 'Keep Codea for All';
-        const review = 'Review Each';
+        const one = conflicts.length === 1;
+        const keepLocal = one ? 'Keep Local' : 'Keep Local for All';
+        const keepCodea = one ? 'Keep Codea' : 'Keep Codea for All';
+        const review = one ? 'Compare' : 'Review Each';
+        const files = conflicts.map(({ project, name }) => this.describe(project, name)).join('\n');
         const choice = await vscode.window.showWarningMessage(
-            `${conflicts.length} files differ between this folder and Codea.`,
-            { modal: true, detail: conflicts.map(({ project, name }) => this.describe(project, name)).join('\n') },
+            one ? `${files} differs between this folder and Codea.` : `${conflicts.length} files differ between this folder and Codea.`,
+            { modal: true, detail: `${one ? "" : `${files}\n\n`}Neither side is synced until you choose which to keep in both places.` },
             keepLocal, keepCodea, review);
 
         if (choice === review) {
             for (const { project, name } of conflicts) {
-                this.resolveConflict(project, name);
+                this.resolveConflict(project, name, one);
             }
         } else if (choice !== undefined) {
             for (const { project, name } of conflicts) {
@@ -739,7 +803,7 @@ export class LinkSync {
     }
 
     // Asks which side to keep; leaving the question unanswered leaves both sides as they are
-    private async resolveConflict(project: LinkedProject, name: string) {
+    private async resolveConflict(project: LinkedProject, name: string, compareFirst = false) {
         const key = `${project.localUri.toString()}/${name}`;
         if (this.conflicts.has(key)) {
             return;
@@ -753,14 +817,14 @@ export class LinkSync {
         const compare = 'Compare';
 
         try {
-            let choice: string | undefined = compare;
-            while (choice === compare) {
-                choice = await vscode.window.showWarningMessage(
-                    `${this.describe(project, name)} has changed both here and in Codea.`, keepLocal, keepCodea, compare);
+            let choice: string | undefined = compareFirst ? compare : undefined;
+            do {
                 if (choice === compare) {
                     await vscode.commands.executeCommand('vscode.diff', remoteUri, localUri, `${name} (Codea ↔ Local)`);
                 }
-            }
+                choice = await vscode.window.showWarningMessage(
+                    `${this.describe(project, name)} has changed both here and in Codea.`, keepLocal, keepCodea, compare);
+            } while (choice === compare);
 
             if (choice !== undefined) {
                 await this.enqueue(project, () => this.keep(project, name, choice === keepLocal ? 'local' : 'codea'));
@@ -800,6 +864,8 @@ export class LinkSync {
             this.setBase(project, name, undefined);
             await vscode.workspace.fs.delete(localUri, { useTrash: true });
         }
+        this.unresolved.delete(`${project.localUri.toString()}/${name}`);
+        this.updateConflictItem();
     }
 
     // Runs one task at a time per project, so a save never races a sync of the same files
