@@ -284,7 +284,7 @@ All commands included with this extension are prefixed with `Codea:`.
 
 ## Requirements
 
-Codea 3.10. With versions of Codea that do not report changes made on the device, linked folders are checked for them every 10 seconds.
+Codea 3.10. Folders inside projects and the dependencies of modern projects need Codea 3.20. With versions of Codea that do not report changes made on the device, linked folders are checked for them every 10 seconds.
 
 <a href="http://itunes.apple.com/app/id439571171?mt=8"><img height="40" alt="Screenshot of the editor" src="images/App-Store-Badge.png"></a>
 
