@@ -628,6 +628,34 @@ export function activate(context: vscode.ExtensionContext) {
 		return host;
 	}
 
+	// Makes a project in Codea from a folder holding one, in the collection where the folder is and
+	// named like it unless changed, then links them
+	async function linkToNewProject(folder: vscode.WorkspaceFolder, host: string, localUri: vscode.Uri) {
+		const localName = path.basename(localUri.path).replace(/\.codea$/, '');
+		const remotePath = await createCodeaProject(folder, host, vscode.Uri.joinPath(localUri, '..'), undefined, localName);
+		if (remotePath === undefined) {
+			return;
+		}
+		projectsView.refresh();
+		await linkNewProject(folder, host, localUri, remotePath);
+		vscode.window.showInformationMessage(`${vscode.workspace.asRelativePath(localUri)} is linked to ${remotePath}, a new project in Codea with its files.`);
+	}
+
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.linkFolderToNewProject', async (localUri?: vscode.Uri) => {
+		const folder = localUri && vscode.workspace.getWorkspaceFolder(localUri);
+		if (localUri === undefined || folder === undefined) {
+			return;
+		}
+		if (!isProjectFolder(localUri)) {
+			vscode.window.showErrorMessage(`${vscode.workspace.asRelativePath(localUri)} holds no project: Codea needs a Main.lua to run one.`);
+			return;
+		}
+		const host = await requireHost();
+		if (host !== undefined) {
+			await linkToNewProject(folder, host, localUri);
+		}
+	}));
+
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.resolveConflicts', () => sync.resolveUnresolved()));
 
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.linkFolder', async (target?: vscode.Uri) => {
@@ -699,13 +727,7 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 		if (choice === newProject) {
-			const remotePath = await createCodeaProject(folder, host, vscode.Uri.joinPath(localUri, '..'), undefined, localName);
-			if (remotePath === undefined) {
-				return;
-			}
-			projectsView.refresh();
-			await linkNewProject(folder, host, localUri, remotePath);
-			vscode.window.showInformationMessage(`${vscode.workspace.asRelativePath(localUri)} is linked to ${remotePath}, a new project in Codea with its files.`);
+			await linkToNewProject(folder, host, localUri);
 			return;
 		}
 

@@ -228,6 +228,10 @@
         "title": "Codea: Resolve Sync Conflicts"
       },
       {
+        "command": "codea-air-code.linkFolderToNewProject",
+        "title": "Codea: Link Folder to a New Project..."
+      },
+      {
         "command": "codea-air-code.showLinkedProjectsOnly",
         "title": "Codea: Show Linked Projects Only",
         "icon": "$(filter)"
@@ -461,6 +465,10 @@
         {
           "command": "codea-air-code.resolveConflicts",
           "when": "codea-air-code.isLinked"
+        },
+        {
+          "command": "codea-air-code.linkFolderToNewProject",
+          "when": "false"
         }
       ],
       "explorer/context": [
@@ -470,13 +478,18 @@
           "group": "a_codea"
         },
         {
+          "command": "codea-air-code.linkFolderToNewProject",
+          "when": "explorerResourceIsFolder && resourceScheme == file && resourceFilename =~ /\\.codea$/ && !(resourcePath in codea-air-code.linkedFolders)",
+          "group": "a_codea"
+        },
+        {
           "command": "codea-air-code.unlinkFolder",
           "when": "explorerResourceIsFolder && resourcePath in codea-air-code.linkedFolders",
           "group": "a_codea"
         },
         {
           "command": "codea-air-code.newProject",
-          "when": "explorerResourceIsFolder && resourceScheme == file && codea-air-code.hasLocalHost",
+          "when": "explorerResourceIsFolder && resourceScheme == file && codea-air-code.hasLocalHost && !(resourceFilename =~ /\\.codea$/)",
           "group": "a_codea"
         },
         {
@@ -695,7 +708,7 @@
           {
             "id": "linkFolder",
             "title": "Already have the files?",
-            "description": "If your folder already holds a project, for example from a git repository, right-click its folder in the Explorer and choose Link Folder to Project. The files on both sides are compared before anything is copied.\n[Link a Folder](command:codea-air-code.linkFolder)",
+            "description": "If your folder already holds a project, for example from a git repository, right-click its folder in the Explorer. Choose Link Folder to a New Project if Codea does not have it yet: Codea Air Code makes it there with the folder's files. Choose Link Folder to Project for a project Codea already has: the files on both sides are compared before anything is copied.\n[Link a Folder](command:codea-air-code.linkFolder)",
             "media": {
               "markdown": "media/walkthrough/link.md"
             },

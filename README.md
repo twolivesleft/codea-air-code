@@ -176,7 +176,7 @@ The `Codea: Get Started with Codea Projects` command opens a walkthrough of thes
 1. Open a folder for your projects with `File > Open Folder...`: an empty folder to start, or one you already have, such as a git repository of Codea projects.
 2. In the Codea Sidebar, open the Projects section and click `Connect to Codea` (see [Connection](#connection)).
 3. Click the download button next to a project to get it, or the one at the top of the section to get all your projects. Projects are copied into your folder the same way Codea organizes its files (`Project.codea` for Documents, `Collection/Project.codea` for other collections).
-4. If your folder already holds your projects, laid out the same way, run `Codea: Link All Matching Folders...` to link them all to the projects of the same name in Codea, or right-click one project's folder in the Explorer and choose `Codea: Link Folder to Project...`. A folder holding a project that is not in Codea yet can be linked to a new one, `New Project in Codea...` at the top of the list, which Codea Air Code creates with the folder's files.
+4. If your folder already holds your projects, laid out the same way, run `Codea: Link All Matching Folders...` to link them all to the projects of the same name in Codea, or right-click one project's folder in the Explorer and choose `Codea: Link Folder to Project...`. A project folder that Codea does not have yet is linked with `Codea: Link Folder to a New Project...`, which makes the project in Codea, in the collection the folder is in, with the folder's files; Link Folder to Project offers the same at the top of its list.
 5. Edit the project, then play it with the play button in the status bar.
 
 ### Linked Folders
@@ -293,6 +293,7 @@ All commands included with this extension are prefixed with `Codea:`.
 | `Get All Projects`     | Get every project from Codea into the open folder, linked.            |
 | `Link All Matching Folders...` | Link the folder's projects to the projects of the same name in Codea. |
 | `Link Folder to Project...` | Keep a local folder in sync with a project in Codea.             |
+| `Link Folder to a New Project...` | Make a project in Codea from a local project folder, and keep them in sync. |
 | `New Project...`       | Create a project in Codea and get it into the folder, linked.         |
 | `Delete Project in Codea...` | Delete a project in Codea, and move its linked folder to the Trash. |
 | `Sync Linked Folders`  | Sync all linked folders with Codea now.                               |
