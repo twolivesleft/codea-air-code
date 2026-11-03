@@ -72,6 +72,17 @@ Types can easily be documented using a triple-slash (`---`) comment.
 
 <img width="486" alt="Auto Documentation" src="images/document_1.png">
 
+#### Go to Definition
+
+With the [Lua extension](https://marketplace.visualstudio.com/items?itemName=sumneko.lua) by sumneko installed, Codea Air Code sets it up for your linked projects, so Go to Definition (F12), Find All References and hover work on your code and Codea's API:
+
+- functions and variables in other tabs, in folders inside the project, and in the other linked projects, such as its dependencies;
+- classes made with `class()` and their methods, as in `ship:draw()`;
+- modern dependencies required with `require(asset.documents.Lib)`;
+- Codea's API, legacy and modern, with its documentation on hover.
+
+When the Lua extension is installed, Codea Air Code asks once per folder, or run `Codea: Set Up Go to Definition`, which also installs it. Auto-completion and signature help still come from Codea; the Lua extension adds warnings about your code, such as an unused local. Dependencies only resolve when they are linked in the same folder, and a name defined in several linked projects lists each of them.
+
 ### Sidebar
 
 The Codea Sidebar gives access to the Projects, Assets, Reference and Parameters sections.
@@ -281,6 +292,7 @@ All commands included with this extension are prefixed with `Codea:`.
 | `Add dependency...`    | Add a dependency to a project, as Codea's editor does.                |
 | `Find reference...`    | Look-up the reference for the selected word.                          |
 | `Set runtime...`       | Change the current project's runtime between legacy and modern.       |
+| `Set Up Go to Definition` | Set up the Lua extension for Go to Definition in the linked projects, installing it if needed. |
 
 ## Requirements
 

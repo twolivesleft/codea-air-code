@@ -1,5 +1,7 @@
 # Change Log
 
+## 1.3.9 (2026/11/02)
+- Go to Definition, Find All References and hover in linked projects, through the Lua extension by sumneko, which Codea Air Code sets up with Codea's API and its `class()` and `require(asset...)`
 ## 1.3.8 (2026/11/02)
 - Projects are kept in local folders linked to Codea and synced both ways, so search, source control and AI coding assistants work with them
 - Projects view: get, link and play Codea's projects; New Project and Delete Project in Codea; renaming a project folder renames it in Codea

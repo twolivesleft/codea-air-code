@@ -8,6 +8,7 @@ import { AirCodePath } from './aircodepath';
 import { AssetNode, AssetsViewProvider } from './assets';
 import { ParametersViewProvider } from './parameters';
 import { ReferenceViewProvider } from './reference';
+import { LuaDefinitions } from './luals';
 import { CodeaDecorationProvider } from './decorator';
 import { InlineDebugAdapterFactory } from './debug-adapter/InlineDebugAdapterFactory';
 import { AssetKeyOnDropProvider } from './drop';
@@ -44,6 +45,9 @@ export function deactivate() {
 export function activate(context: vscode.ExtensionContext) {
 	links = new Links(context);
 	const linkedFolders = links;
+	const luaDefinitions = new LuaDefinitions(context.extensionPath, linkedFolders);
+	context.subscriptions.push(vscode.extensions.onDidChange(() => luaDefinitions.update()));
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.setUpGoToDefinition', () => luaDefinitions.setUp()));
 
 	let workspaceUri = getWorkspaceUri();
 	vscode.commands.executeCommand('setContext', 'codea-air-code.isLinked', linkedFolders.isLinked());
@@ -202,6 +206,7 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(sync.onDidChangeBusy(busy => status.setSyncing(busy)));
 
 	function linksChanged() {
+		luaDefinitions.update();
 		vscode.commands.executeCommand('setContext', 'codea-air-code.isLinked', linkedFolders.isLinked());
 		vscode.commands.executeCommand('setContext', 'codea-air-code.hasLocalHost', linkedFolders.host() !== undefined);
 		updateWatchedPaths();

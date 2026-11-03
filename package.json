@@ -2,7 +2,7 @@
   "name": "codea-air-code",
   "displayName": "Codea Air Code",
   "description": "A remote editor and debugger for Codea projects.",
-  "version": "1.3.8",
+  "version": "1.3.9",
   "publisher": "twolivesleft",
   "license": "MIT",
   "homepage": "https://twolivesleft.github.io/codea-air-code/",
@@ -214,6 +214,10 @@
       {
         "command": "codea-air-code.disconnect",
         "title": "Codea: Disconnect"
+      },
+      {
+        "command": "codea-air-code.setUpGoToDefinition",
+        "title": "Codea: Set Up Go to Definition"
       }
     ],
     "keybindings": [
@@ -571,6 +575,19 @@
           },
           "default": {},
           "description": "Local folders kept in sync with Codea projects, from a path relative to the workspace folder to the project in Codea, e.g. \"iPad Projects/EmuTests\"."
+        },
+        "codea-air-code.luaDefinitions": {
+          "type": "string",
+          "scope": "resource",
+          "enum": [
+            "on",
+            "off"
+          ],
+          "enumDescriptions": [
+            "The Lua extension is set up for the Codea projects in this folder",
+            "The Lua extension is left alone in this folder"
+          ],
+          "description": "Whether Codea Air Code sets up the Lua extension (sumneko.lua) for Go to Definition, Find References and hover in the linked projects."
         }
       }
     },
@@ -700,6 +717,14 @@
               "onCommand:codea-assets.focus",
               "onCommand:codea-air-code.linkAssetPack"
             ]
+          },
+          {
+            "id": "goToDefinition",
+            "title": "Go to definitions",
+            "description": "Install the Lua extension to jump to the definition of a function, a class or a Codea API, in your tabs, your linked dependencies and Codea's reference.\n[Set Up Go to Definition](command:codea-air-code.setUpGoToDefinition)",
+            "media": {
+              "markdown": "media/walkthrough/definitions.md"
+            }
           }
         ]
       }
@@ -711,7 +736,8 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js"
+    "test": "node ./out/test/runTest.js",
+    "generate-lua-api": "node scripts/generate-lua-api.js"
   },
   "dependencies": {
     "@types/vscode-webview": "^1.57.1",
@@ -740,6 +766,7 @@
     "@vscode/test-electron": "^2.2.3",
     "eslint": "^8.34.0",
     "glob": "^8.1.0",
+    "js-yaml": "^4.1.0",
     "mocha": "^10.2.0",
     "typescript": "^4.9.5"
   }
