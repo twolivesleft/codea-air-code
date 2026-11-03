@@ -69,7 +69,7 @@ async function listFolders(airCode: AirCode, host: string, path: string): Promis
 }
 
 // Collections as paths under /Codea; iCloud's are "iCloud/Collection". Assets holds no projects.
-async function listCollections(airCode: AirCode, host: string): Promise<string[]> {
+export async function listCollections(airCode: AirCode, host: string): Promise<string[]> {
     const collections: string[] = [];
     for (const collection of await listFolders(airCode, host, "")) {
         if (collection === "Assets") {

@@ -5,6 +5,7 @@ import * as vscode from 'vscode';
 
 import { AirCode } from './aircode';
 import { LinkedProject, Links } from './links';
+import { renameInBufferOrder } from './bufferorder';
 import { guardDeletion, planSync, shortList, SyncSource } from './syncplan';
 
 // When both sides last agreed on a file: its content hash, Codea's modification time for it,
@@ -19,6 +20,9 @@ type Conflict = { project: LinkedProject; name: string };
 
 // Deleting more files than this at once asks before they are deleted in Codea
 const deletionsWithoutAsking = 5;
+
+// Codea refuses to delete these, so deleting them here would only lose them here
+const keptFiles = ['Main.lua', 'Info.plist'];
 
 // A modal dialog taller than the screen hides its buttons, so its detail lists only this many
 const itemsInDialog = 12;
@@ -94,6 +98,13 @@ export class LinkSync {
     private pendingDeletions = new Map<string, { project: LinkedProject, name: string }>();
     private deletionTimer: NodeJS.Timeout | undefined;
 
+    // Folders being renamed in VS Code. Until their links follow, the old folder going is not a
+    // deletion, and the projects in them are not synced.
+    private renaming = new Set<string>();
+
+    // Files pushed in the last moments, by project, to tell a renamed tab from a deleted one
+    private recentPushes = new Map<string, { name: string, hash: string, time: number }[]>();
+
     // Linked projects found missing on one side, which are not synced until asked about
     private missingLocally = new Map<string, LinkedProject>();
     private missingInCodea = new Map<string, LinkedProject>();
@@ -138,8 +149,8 @@ export class LinkSync {
             const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(folder, '**/*'));
             const onEvent = (uri: vscode.Uri) => {
                 const found = this.links.find(uri);
-                if (found && !found[1].includes('/')) {
-                    this.fileChanged(found[0], uri);
+                if (found && this.isSyncedName(found[1]) && !this.isRenaming(uri.path)) {
+                    this.fileChanged(found[0], found[1]);
                 }
             };
             watcher.onDidCreate(onEvent);
@@ -194,7 +205,7 @@ export class LinkSync {
     // left alone until asked about.
     sync(project: LinkedProject): Promise<void> {
         return this.enqueue(project, async () => {
-            if (this.airCode.disconnected) {
+            if (this.airCode.disconnected || this.isRenaming(project.localUri.path)) {
                 return;
             }
             const key = project.localUri.toString();
@@ -219,19 +230,19 @@ export class LinkSync {
             const names = new Set([...localNames, ...remoteFiles.keys(), ...Object.keys(bases)]);
 
             for (const name of [...names].sort()) {
-                await this.syncFile(project, name, remoteFiles, 'full');
+                await this.syncFileOrSay(project, name, remoteFiles, 'full');
             }
         });
     }
 
-    private fileChanged(project: LinkedProject, uri: vscode.Uri) {
-        const name = uri.path.split('/').pop()!;
-        if (name.startsWith('.')) {
-            return;
-        }
+    // Files in folders inside a project only with a Codea that keeps them; hidden ones never
+    private isSyncedName(name: string): boolean {
+        return !name.split('/').some(part => part.startsWith('.')) && (this.airCode.listsSubfolders || !name.includes('/'));
+    }
 
+    private fileChanged(project: LinkedProject, name: string) {
         // Editors save in several steps, so wait for the file to settle
-        const key = uri.toString();
+        const key = vscode.Uri.joinPath(project.localUri, name).toString();
         clearTimeout(this.pendingFiles.get(key));
         this.pendingFiles.set(key, setTimeout(() => {
             this.pendingFiles.delete(key);
@@ -251,7 +262,7 @@ export class LinkSync {
     // linked project's folder, or a folder holding some, counts as those projects going missing.
     private deleted(uri: vscode.Uri) {
         // Connect compares everything and asks then
-        if (this.airCode.disconnected) {
+        if (this.airCode.disconnected || this.isRenaming(uri.path)) {
             return;
         }
         const folderPath = uri.path.replace(/\/$/, '');
@@ -266,10 +277,15 @@ export class LinkSync {
         }
 
         const found = this.links.find(uri);
-        if (found === undefined || found[1].includes('/') || found[1].startsWith('.')) {
+        if (found === undefined || !this.isSyncedName(found[1])) {
             return;
         }
-        this.pendingDeletions.set(uri.toString(), { project: found[0], name: found[1] });
+        // A folder inside a project: its files that were synced are what was deleted
+        const [project, name] = found;
+        const inFolder = Object.keys(this.bases(project)).filter(file => file.startsWith(`${name}/`));
+        for (const file of inFolder.length > 0 ? inFolder : [name]) {
+            this.pendingDeletions.set(vscode.Uri.joinPath(project.localUri, file).toString(), { project, name: file });
+        }
         clearTimeout(this.deletionTimer);
         this.deletionTimer = setTimeout(() => this.passOnDeletions(), 1500);
     }
@@ -279,7 +295,7 @@ export class LinkSync {
         this.pendingDeletions.clear();
 
         // Files of a project whose whole folder went are not deletions of those files
-        const files: typeof deletions = [];
+        let files: typeof deletions = [];
         for (const deletion of deletions) {
             if (await this.localFolderExists(deletion.project)) {
                 files.push(deletion);
@@ -294,6 +310,35 @@ export class LinkSync {
             return;
         }
 
+        const kept = files.filter(({ name }) => keptFiles.includes(name));
+        if (kept.length > 0) {
+            vscode.window.showWarningMessage(
+                `Codea projects need ${kept.map(({ name }) => name).filter((name, i, all) => all.indexOf(name) === i).join(' and ')}, so ${kept.length === 1 ? "it was" : "they were"} put back.`);
+            for (const { project, name } of kept) {
+                await this.syncFiles(project, [name], 'full');
+            }
+            files = files.filter(file => !kept.includes(file));
+            if (files.length === 0) {
+                return;
+            }
+        }
+
+        // A Codea that keeps no folders inside projects would lose a tab moved into one
+        if (!this.airCode.listsSubfolders) {
+            const moved = await this.movedIntoFolders(files);
+            if (moved.length > 0) {
+                vscode.window.showWarningMessage(
+                    `This version of Codea cannot keep folders inside a project, so ${moved.map(({ project, name }) => this.describe(project, name)).join(', ')} ${moved.length === 1 ? "was" : "were"} put back here and left in Codea. Update Codea to sync folders.`);
+                for (const { project, name } of moved) {
+                    await this.syncFiles(project, [name], 'full');
+                }
+                files = files.filter(file => !moved.includes(file));
+                if (files.length === 0) {
+                    return;
+                }
+            }
+        }
+
         let source: SyncSource = 'local';
         if (files.length > deletionsWithoutAsking) {
             const deleteInCodea = 'Delete in Codea';
@@ -305,6 +350,12 @@ export class LinkSync {
                 deleteInCodea, 'Restore Them Here');
             // Anything but an explicit yes brings the files back
             source = choice === deleteInCodea ? 'local' : 'full';
+        }
+
+        if (source === 'local') {
+            for (const { project, name } of files) {
+                await this.keepTabPlaceOfRename(project, name);
+            }
         }
 
         const byProject = new Map<string, { project: LinkedProject, names: string[] }>();
@@ -339,7 +390,7 @@ export class LinkSync {
                 this.log.appendLine(question);
                 const choice = await vscode.window.showWarningMessage(
                     question,
-                    { modal: true, detail: this.listForDialog('Missing from this folder:', projects.map(project => project.remotePath)) },
+                    { modal: true, detail: `${this.listForDialog('Missing from this folder:', projects.map(project => project.remotePath))}\n\nTo delete a project in Codea, use Delete Project in Codea on its folder or in the Projects view.` },
                     getAgain, unlink);
                 this.missingLocally.clear();
                 if (choice === getAgain) {
@@ -386,7 +437,84 @@ export class LinkSync {
         return shortList(items, itemsInDialog);
     }
 
-    private async unlink(projects: LinkedProject[]) {
+    renameStarting(uri: vscode.Uri) {
+        this.renaming.add(uri.path.replace(/\/$/, ''));
+    }
+
+    // The file watcher reports the old folder going a moment after the rename
+    renameDone(uri: vscode.Uri) {
+        setTimeout(() => this.renaming.delete(uri.path.replace(/\/$/, '')), 3000);
+    }
+
+    private isRenaming(path: string): boolean {
+        return [...this.renaming].some(renamed => path === renamed || path.startsWith(`${renamed}/`));
+    }
+
+    async renameBack(oldUri: vscode.Uri, newUri: vscode.Uri) {
+        await vscode.workspace.fs.rename(newUri, oldUri);
+        vscode.window.showWarningMessage("Codea projects need Main.lua, so it was renamed back.");
+    }
+
+    // Moves a project's link, and what was last synced, to its renamed folder or project
+    async moveLink(project: LinkedProject, folder: vscode.WorkspaceFolder, localUri: vscode.Uri, remotePath: string) {
+        this.store.set(this.stateKey({ localUri, remotePath }), this.bases(project));
+        this.store.set(this.stateKey(project), undefined);
+        await this.links.moveLink(project, folder, localUri, remotePath);
+        this.log.appendLine(remotePath === project.remotePath
+            ? `${remotePath} is now linked to ${vscode.workspace.asRelativePath(localUri)}`
+            : `Renamed ${project.remotePath} to ${remotePath} in Codea`);
+    }
+
+    // A renamed tab arrives as a new file and a deletion. When the deleted tab's content was just
+    // pushed under another name, that is a rename, and the tab keeps its place.
+    private async keepTabPlaceOfRename(project: LinkedProject, name: string) {
+        const deleted = this.bases(project)[name];
+        const folder = (path: string) => path.split('/').slice(0, -1).join('/');
+        const renamed = deleted && name.endsWith('.lua') && (this.recentPushes.get(project.localUri.toString()) ?? []).find(push =>
+            push.hash === deleted.hash && push.name !== name && push.name.endsWith('.lua') && folder(push.name) === folder(name));
+        if (renamed) {
+            await this.renameTab(project, name, renamed.name);
+        }
+    }
+
+    // Renames a tab in Info.plist's Buffer Order here; the watcher pushes it like any edit
+    private async renameTab(project: LinkedProject, oldName: string, newName: string) {
+        if (oldName.includes('/')) {
+            return;
+        }
+        const plistUri = vscode.Uri.joinPath(project.localUri, 'Info.plist');
+        try {
+            const plist = new TextDecoder().decode(await vscode.workspace.fs.readFile(plistUri));
+            const renamed = renameInBufferOrder(plist, oldName, newName);
+            if (renamed !== undefined) {
+                await vscode.workspace.fs.writeFile(plistUri, new TextEncoder().encode(renamed));
+            }
+        } catch {
+            // No Info.plist here: Codea keeps its own order
+        }
+    }
+
+    // A rename in VS Code of a linked project's folder, or of a folder holding some
+    isFolderRename(oldUri: vscode.Uri): boolean {
+        const oldPath = oldUri.path.replace(/\/$/, '');
+        return this.links.projects().some(project => project.localUri.path === oldPath || project.localUri.path.startsWith(`${oldPath}/`));
+    }
+
+    // Main.lua renamed in VS Code, which Codea projects cannot do without
+    isMainRename(oldUri: vscode.Uri): boolean {
+        const from = this.links.find(oldUri);
+        return from !== undefined && from[1] === 'Main.lua';
+    }
+
+    // A project linked anew compares both sides from scratch: a record left by an earlier link
+    // at the same place would make files missing here look deleted while disconnected
+    startAfresh(projects: LinkedProject[]) {
+        for (const project of projects) {
+            this.store.set(this.stateKey(project), undefined);
+        }
+    }
+
+    async unlink(projects: LinkedProject[]) {
         for (const project of projects) {
             this.store.set(this.stateKey(project), undefined);
         }
@@ -428,9 +556,10 @@ export class LinkSync {
 
     private async syncNamed(project: LinkedProject, names: string[], source: SyncSource) {
         const projectUri = this.links.remoteProjectUri(project);
-        if (projectUri === undefined || this.airCode.disconnected) {
+        if (projectUri === undefined || this.airCode.disconnected || this.isRenaming(project.localUri.path)) {
             return;
         }
+        names = names.filter(name => !this.isRenaming(vscode.Uri.joinPath(project.localUri, name).path));
 
         try {
             await this.airCode.ensureResponsive(projectUri);
@@ -454,7 +583,19 @@ export class LinkSync {
         }
 
         for (const name of names) {
+            await this.syncFileOrSay(project, name, remoteFiles, source);
+        }
+    }
+
+    // One file that cannot be synced is reported and the others go on
+    private async syncFileOrSay(project: LinkedProject, name: string, remoteFiles: Map<string, RemoteFile>, source: SyncSource) {
+        try {
             await this.syncFile(project, name, remoteFiles, source);
+        } catch (error) {
+            if (error instanceof vscode.FileSystemError && error.code === 'Unavailable') {
+                throw error;
+            }
+            this.log.appendLine(`Could not sync ${this.describe(project, name)}: ${error}`);
         }
     }
 
@@ -549,6 +690,9 @@ export class LinkSync {
         await this.airCode.writeFile(remoteUri, content, { create: true, overwrite: true });
         const stat = await this.airCode.stat(remoteUri);
         this.setBase(project, name, { hash: hash(content), mtime: stat.mtime });
+        const key = project.localUri.toString();
+        this.recentPushes.set(key, [...(this.recentPushes.get(key) ?? []).filter(push => Date.now() - push.time < 10000),
+            { name, hash: hash(content), time: Date.now() }]);
         await this.recordLocal(project, name);
         this.log.appendLine(`Pushed ${this.describe(project, name)}`);
     }
@@ -723,13 +867,36 @@ export class LinkSync {
         }
     }
 
-    private async listLocal(project: LinkedProject): Promise<string[]> {
+    // A project's files, those in its folders as "Folder/File.lua" when Codea keeps them
+    private async listLocal(project: LinkedProject, folder = '', everything = false): Promise<string[]> {
+        let entries: [string, vscode.FileType][];
         try {
-            const entries = await vscode.workspace.fs.readDirectory(project.localUri);
-            return entries.filter(([name, type]) => isSynced(name, type)).map(([name]) => name);
+            entries = await vscode.workspace.fs.readDirectory(folder ? vscode.Uri.joinPath(project.localUri, folder) : project.localUri);
         } catch {
             return [];
         }
+        const names: string[] = [];
+        for (const [name, type] of entries.filter(([name]) => !name.startsWith('.'))) {
+            const path = folder ? `${folder}/${name}` : name;
+            if (type === vscode.FileType.File) {
+                names.push(path);
+            } else if (type === vscode.FileType.Directory && (everything || this.airCode.listsSubfolders)) {
+                names.push(...await this.listLocal(project, path, everything));
+            }
+        }
+        return names;
+    }
+
+    // Deleted top-level files of which a file of the same name is now in one of the project's folders
+    private async movedIntoFolders(files: { project: LinkedProject, name: string }[]) {
+        const moved: typeof files = [];
+        for (const file of files.filter(({ name }) => !name.includes('/'))) {
+            const nested = await this.listLocal(file.project, '', true);
+            if (nested.some(path => path.includes('/') && path.split('/').pop() === file.name)) {
+                moved.push(file);
+            }
+        }
+        return moved;
     }
 
     private async statLocal(uri: vscode.Uri): Promise<LocalStat | undefined> {

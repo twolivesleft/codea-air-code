@@ -81,6 +81,8 @@ export class AirCode implements vscode.FileSystemProvider {
     watchesFiles = false;
     // Whether Codea lists a folder's files with their dates in one request
     listsFileVersions = false;
+    // Whether Codea keeps files in folders inside a project, lists them, and creates the folders
+    listsSubfolders = false;
     // Collections that ship with Codea, which getting every project skips
     builtInCollections: string[] = ["Examples", "Craft"];
     private lastAnswer = 0;
@@ -447,6 +449,7 @@ export class AirCode implements vscode.FileSystemProvider {
 
             airCode.watchesFiles = information.watchesFiles === true;
             airCode.listsFileVersions = information.listsFileVersions === true;
+            airCode.listsSubfolders = information.listsSubfolders === true;
             if (information.builtInCollections) {
                 airCode.builtInCollections = information.builtInCollections;
             }

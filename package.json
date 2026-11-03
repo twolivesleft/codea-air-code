@@ -170,6 +170,16 @@
         "icon": "$(cloud-download)"
       },
       {
+        "command": "codea-air-code.newProject",
+        "title": "Codea: New Project...",
+        "icon": "$(codea-new)"
+      },
+      {
+        "command": "codea-air-code.deleteProject",
+        "title": "Codea: Delete Project in Codea...",
+        "icon": "$(trash)"
+      },
+      {
         "command": "codea-air-code.disconnect",
         "title": "Codea: Disconnect"
       }
@@ -347,12 +357,30 @@
         {
           "command": "codea-air-code.disconnect",
           "when": "codea-air-code.hasLocalHost"
+        },
+        {
+          "command": "codea-air-code.newProject",
+          "when": "codea-air-code.hasLocalHost"
+        },
+        {
+          "command": "codea-air-code.deleteProject",
+          "when": "false"
         }
       ],
       "explorer/context": [
         {
           "command": "codea-air-code.linkFolder",
           "when": "explorerResourceIsFolder && resourceScheme == file",
+          "group": "a_codea"
+        },
+        {
+          "command": "codea-air-code.newProject",
+          "when": "explorerResourceIsFolder && resourceScheme == file && codea-air-code.hasLocalHost",
+          "group": "a_codea"
+        },
+        {
+          "command": "codea-air-code.deleteProject",
+          "when": "explorerResourceIsFolder && resourceScheme == file && resourceFilename =~ /\\.codea$/ && codea-air-code.hasLocalHost",
           "group": "a_codea"
         }
       ],
@@ -376,6 +404,16 @@
           "command": "codea-air-code.linkAllFolders",
           "when": "view == codea-projects",
           "group": "links"
+        },
+        {
+          "command": "codea-air-code.newProject",
+          "when": "view == workbench.explorer.fileView && codea-air-code.hasLocalHost",
+          "group": "navigation"
+        },
+        {
+          "command": "codea-air-code.newProject",
+          "when": "view == codea-projects && codea-air-code.hasLocalHost",
+          "group": "navigation"
         }
       ],
       "view/item/context": [
@@ -398,6 +436,16 @@
           "command": "codea-air-code.getCollectionProjects",
           "when": "view == codea-projects && viewItem == collection",
           "group": "inline"
+        },
+        {
+          "command": "codea-air-code.newProject",
+          "when": "view == codea-projects && viewItem == collection",
+          "group": "inline"
+        },
+        {
+          "command": "codea-air-code.deleteProject",
+          "when": "view == codea-projects && viewItem =~ /^(project|linkedProject)$/",
+          "group": "z_delete"
         }
       ]
     },
@@ -424,8 +472,15 @@
       "codea-logo": {
         "description": "Codea logo",
         "default": {
-          "fontPath": "resources/icons/codea-logo.woff",
+          "fontPath": "resources/icons/codea-icons.woff",
           "fontCharacter": "\\E000"
+        }
+      },
+      "codea-new": {
+        "description": "New Codea project",
+        "default": {
+          "fontPath": "resources/icons/codea-icons.woff",
+          "fontCharacter": "\\E001"
         }
       }
     },

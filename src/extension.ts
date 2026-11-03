@@ -16,7 +16,8 @@ import { Links } from './links';
 import { LinkSync } from './sync';
 import { LinkedProject } from './links';
 import { CodeaStatus } from './status';
-import { isBuiltInCollection, listCodeaProjects, listCollectionProjects, localProjectUri, ProjectNode, ProjectsViewProvider, remoteProjectPath } from './projects';
+import { collectionOfFolder } from './layout';
+import { isBuiltInCollection, listCodeaProjects, listCollectionProjects, listCollections, localProjectUri, ProjectNode, ProjectsViewProvider, remoteProjectPath } from './projects';
 
 // The uri commands are sent to: the codea:// workspace folder, or Codea's root for linked folders
 export function getWorkspaceUri(): vscode.Uri {
@@ -58,7 +59,6 @@ export function activate(context: vscode.ExtensionContext) {
 	const referenceViewProvider = new ReferenceViewProvider(context.extensionUri);
 	const searchViewProvider = new SearchViewProvider(context.extensionUri);
 	const assetKeyOnDropProvider = new AssetKeyOnDropProvider();
-	const decorationProvider = new CodeaDecorationProvider();
 	const outputChannel = vscode.window.createOutputChannel("Codea", "codea-output");
 	const service = new AirCodeService();
 
@@ -147,7 +147,7 @@ export function activate(context: vscode.ExtensionContext) {
 				return;
 			}
 
-			const linkedFile = (uri && linkedFolders.find(uri)) ? uri : lastLinkedFile;
+			const linkedFile = (uri && linkedFolders.find(uri)) ? uri : lastLinkedFile ?? await pickProjectToPlay();
 			const found = linkedFile && linkedFolders.find(linkedFile);
 			if (linkedFile === undefined || found === undefined) {
 				return;
@@ -156,6 +156,15 @@ export function activate(context: vscode.ExtensionContext) {
 			await syncBeforePlay(found[0]);
 			await airCode.startHost(linkedFolders.airCodeUri(linkedFile));
 		}));
+
+		// With no linked file focused yet: the only linked project, or the one picked
+		async function pickProjectToPlay(): Promise<vscode.Uri | undefined> {
+			const projects = linkedFolders.projects();
+			const picked = projects.length === 1 ? projects[0] : (await vscode.window.showQuickPick(
+				projects.map(project => ({ label: project.remotePath.split('/').pop()!, description: project.remotePath, project })),
+				{ title: "Play which project?" }))?.project;
+			return picked && vscode.Uri.joinPath(picked.localUri, "Main.lua");
+		}
 
 		context.subscriptions.push(vscode.commands.registerCommand('workbench.action.debug.restart', async () => {
 			// The user has clicked the "Restart" button or used the keyboard shortcut
@@ -622,6 +631,7 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
+		sync.startAfresh([{ localUri, remotePath: choice.label }]);
 		await linkedFolders.addLink(folder, localUri, choice.label, host);
 		vscode.window.showInformationMessage(`${vscode.workspace.asRelativePath(localUri)} is linked to ${choice.label} in Codea.`);
 	}));
@@ -684,15 +694,18 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	}));
 
-	// Downloads a project into the workspace, where Codea itself would keep it, and links it
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.getProject', async (node: ProjectNode) => {
 		const folder = await requireFolder();
 		const host = folder && await requireHost();
 		if (folder === undefined || host === undefined) {
 			return;
 		}
+		await getProject(folder, host, node.remotePath);
+	}));
 
-		const localUri = localProjectUri(folder.uri, node.remotePath);
+	// Downloads a project into the workspace, where Codea itself would keep it, and links it
+	async function getProject(folder: vscode.WorkspaceFolder, host: string, remotePath: string) {
+		const localUri = localProjectUri(folder.uri, remotePath);
 
 		let existing: [string, vscode.FileType][] = [];
 		try {
@@ -703,7 +716,7 @@ export function activate(context: vscode.ExtensionContext) {
 		if (existing.length > 0) {
 			const link = "Link";
 			const choice = await vscode.window.showWarningMessage(
-				`${vscode.workspace.asRelativePath(localUri)} already exists. Link it to ${node.remotePath} in Codea? Files that differ will be compared before anything is overwritten.`,
+				`${vscode.workspace.asRelativePath(localUri)} already exists. Link it to ${remotePath} in Codea? Files that differ will be compared before anything is overwritten.`,
 				{ modal: true }, link);
 			if (choice !== link) {
 				return;
@@ -711,16 +724,290 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 
 		await vscode.workspace.fs.createDirectory(localUri);
-		await linkedFolders.addLink(folder, localUri, node.remotePath, host);
+		sync.startAfresh([{ localUri, remotePath }]);
+		await linkedFolders.addLink(folder, localUri, remotePath, host);
 
-		const project = linkedFolders.projects().find(linked => linked.remotePath === node.remotePath);
+		const project = linkedFolders.projects().find(linked => linked.remotePath === remotePath);
 		if (project) {
 			await vscode.window.withProgress(
-				{ location: vscode.ProgressLocation.Notification, title: `Getting ${node.name} from Codea...` },
+				{ location: vscode.ProgressLocation.Notification, title: `Getting ${remotePath.split('/').pop()} from Codea...` },
 				() => sync.sync(project));
 			await vscode.window.showTextDocument(vscode.Uri.joinPath(project.localUri, "Main.lua"));
 		}
+	}
+
+	// Creates a project in Codea and gets it. From a folder in the Explorer or a collection in the
+	// Projects view, the project goes in that collection; otherwise the collection is asked for.
+	// The name is asked for unless given; from the Explorer the second argument is the selection.
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.newProject', async (target?: vscode.Uri | ProjectNode, nameOrSelection?: unknown) => {
+		const givenName = typeof nameOrSelection === 'string' ? nameOrSelection : undefined;
+		const folder = await requireFolder();
+		const host = folder && await requireHost();
+		if (folder === undefined || host === undefined) {
+			return;
+		}
+		const codeaUri = (path: string) => vscode.Uri.from({ scheme: 'codea', authority: host, path: `/${AirCode.rootFolder}/${path}` });
+
+		let collections: string[];
+		try {
+			await airCode.ensureResponsive(codeaUri(''));
+			collections = (await listCollections(airCode, host)).filter(collection => !isBuiltInCollection(airCode, collection));
+		} catch (error) {
+			vscode.window.showErrorMessage(`Could not list the collections in Codea: ${error}`);
+			return;
+		}
+
+		let collection = target instanceof ProjectNode ? target.remotePath
+			: target instanceof vscode.Uri ? collectionOfFolder(path.posix.relative(folder.uri.path, target.path))
+			: undefined;
+		if (collection === undefined) {
+			const newCollection = "$(add) New Collection...";
+			const picked = await vscode.window.showQuickPick(
+				["Documents", ...collections.filter(name => name !== "Documents"), newCollection],
+				{ title: "New Codea Project", placeHolder: "Collection" });
+			collection = picked === newCollection
+				? (await vscode.window.showInputBox({ title: "New Codea Collection", prompt: "Collection name", validateInput: validName }))?.trim()
+				: picked;
+			if (collection === undefined) {
+				return;
+			}
+		}
+
+		const existing = collections.includes(collection)
+			? (await listCollectionProjects(airCode, host, collection)).map(path => path.split('/').pop()!.toLowerCase())
+			: [];
+		const validProjectName = (value: string) => validName(value)
+			?? (existing.includes(value.trim().toLowerCase()) ? `${collection} already has a project named ${value.trim()}.` : undefined);
+		if (givenName !== undefined && validProjectName(givenName) !== undefined) {
+			vscode.window.showErrorMessage(validProjectName(givenName)!);
+			return;
+		}
+		const name = (givenName ?? await vscode.window.showInputBox({
+			title: `New Codea Project in ${collection}`,
+			prompt: "Project name",
+			validateInput: validProjectName,
+		}))?.trim();
+		if (name === undefined) {
+			return;
+		}
+
+		// Codea creates both after answering, so each is waited for
+		const created = await vscode.window.withProgress(
+			{ location: vscode.ProgressLocation.Notification, title: `Creating ${name} in Codea...` },
+			async () => {
+				if (!collections.includes(collection!)) {
+					await airCode.createFolder(codeaUri(collection!));
+					if (!await waitFor(codeaUri(collection!.split('/').slice(0, -1).join('/')), collection!.split('/').pop()!)) {
+						return false;
+					}
+				}
+				await airCode.createFolder(codeaUri(`${collection}/${name}`));
+				return waitFor(codeaUri(`${collection}/${name}`), "Main.lua");
+			});
+		if (!created) {
+			vscode.window.showErrorMessage(`Codea did not create ${name} in ${collection}.`);
+			return;
+		}
+
+		projectsView.refresh();
+		await getProject(folder, host, `${collection}/${name}`);
 	}));
+
+	// Deletes a project in Codea, after asking, then its linked folder here. The link goes first,
+	// so neither the folder going nor Codea's report of the deletion is synced.
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.deleteProject', async (target: vscode.Uri | ProjectNode) => {
+		const folder = await requireFolder();
+		const host = folder && await requireHost();
+		if (folder === undefined || host === undefined) {
+			return;
+		}
+		const linked = target instanceof ProjectNode
+			? linkedFolders.projects().find(project => project.remotePath === target.remotePath)
+			: linkedFolders.projects().find(project => project.localUri.path === target.path);
+		const remotePath = target instanceof ProjectNode ? target.remotePath : linked?.remotePath;
+		if (remotePath === undefined) {
+			vscode.window.showErrorMessage(`${vscode.workspace.asRelativePath(target as vscode.Uri)} is not linked to a project in Codea.`);
+			return;
+		}
+		const projectUri = vscode.Uri.from({ scheme: 'codea', authority: host, path: `/${AirCode.rootFolder}/${remotePath}` });
+
+		let files: number;
+		try {
+			await airCode.ensureResponsive(projectUri);
+			files = (await airCode.readDirectory(projectUri)).filter(([, type]) => type === vscode.FileType.File).length;
+		} catch (error) {
+			vscode.window.showErrorMessage(`Could not read ${remotePath} in Codea: ${error}`);
+			return;
+		}
+		const deleteProject = "Delete Project";
+		const choice = await vscode.window.showWarningMessage(
+			`Delete ${remotePath} in Codea? Its ${files} ${files === 1 ? "file" : "files"} will be deleted on the device, where they cannot be recovered.`,
+			{ modal: true, detail: linked ? `${vscode.workspace.asRelativePath(linked.localUri)} here goes to the Trash.` : undefined },
+			deleteProject);
+		if (choice !== deleteProject) {
+			return;
+		}
+
+		if (linked) {
+			await sync.unlink([linked]);
+		}
+		const collectionUri = projectUri.with({ path: projectUri.path.split('/').slice(0, -1).join('/') });
+		const deleted = await vscode.window.withProgress(
+			{ location: vscode.ProgressLocation.Notification, title: `Deleting ${remotePath} in Codea...` },
+			async () => {
+				try {
+					await airCode.delete(projectUri, { recursive: true });
+				} catch {
+					// Codea refuses while the project runs; whether it is gone decides
+				}
+				return waitFor(collectionUri, remotePath.split('/').pop()!, false);
+			});
+		if (!deleted) {
+			if (linked) {
+				await linkedFolders.addLink(folder, linked.localUri, linked.remotePath, host);
+			}
+			vscode.window.showErrorMessage(`Codea did not delete ${remotePath}. If it is running, stop it and try again.`);
+			return;
+		}
+		outputChannel.appendLine(`Deleted ${remotePath} in Codea`);
+
+		if (linked) {
+			try {
+				await vscode.workspace.fs.delete(linked.localUri, { recursive: true, useTrash: true });
+			} catch {
+				// Already gone here
+			}
+		}
+		projectsView.refresh();
+	}));
+
+	// A linked project's folder renamed in VS Code renames the project in Codea when only its name
+	// changed and it still names the project, or is renamed back when Codea does not; moved anywhere
+	// else, it stays linked to the project. Renames made outside VS Code are only seen as the folder
+	// going missing.
+	// Main.lua renamed is renamed back. A renamed tab is synced as a new file and a deletion.
+	const mainRenames = new Set<string>();
+	context.subscriptions.push(vscode.workspace.onWillRenameFiles(event => {
+		for (const { oldUri, newUri } of event.files) {
+			if (sync.isFolderRename(oldUri)) {
+				sync.renameStarting(oldUri);
+			}
+			if (sync.isMainRename(oldUri)) {
+				sync.renameStarting(oldUri);
+				mainRenames.add(oldUri.toString());
+				sync.renameStarting(newUri);
+			}
+		}
+	}));
+	context.subscriptions.push(vscode.workspace.onDidRenameFiles(async event => {
+		for (const { oldUri, newUri } of event.files) {
+			try {
+				if (mainRenames.delete(oldUri.toString())) {
+					await sync.renameBack(oldUri, newUri);
+				} else {
+					await followRename(oldUri, newUri);
+				}
+			} finally {
+				sync.renameDone(oldUri);
+				sync.renameDone(newUri);
+			}
+		}
+	}));
+
+	async function followRename(oldUri: vscode.Uri, newUri: vscode.Uri) {
+		const oldPath = oldUri.path.replace(/\/$/, '');
+		const moved = linkedFolders.projects().filter(project =>
+			project.localUri.path === oldPath || project.localUri.path.startsWith(`${oldPath}/`));
+		const folder = vscode.workspace.getWorkspaceFolder(newUri);
+		const host = linkedFolders.host();
+		if (moved.length === 0 || folder === undefined || host === undefined) {
+			return;
+		}
+
+		const parent = (path: string) => path.split('/').slice(0, -1).join('/');
+		const oldName = oldPath.split('/').pop()!;
+		let target = newUri;
+		// A project's folder keeps its .codea extension, which Codea and the layout rely on, so a
+		// rename without it gets it back first
+		if (moved.some(project => project.localUri.path === oldPath) && parent(oldPath) === parent(newUri.path)
+			&& oldName.endsWith('.codea') && !newUri.path.endsWith('.codea')) {
+			target = newUri.with({ path: `${newUri.path}.codea` });
+			try {
+				await vscode.workspace.fs.rename(newUri, target, { overwrite: false });
+			} catch {
+				await vscode.workspace.fs.rename(newUri, oldUri);
+				vscode.window.showWarningMessage(`${vscode.workspace.asRelativePath(target)} already exists here, so the folder was renamed back.`);
+				return;
+			}
+		}
+		const newName = target.path.split('/').pop()!;
+
+		for (const project of moved) {
+			const localUri = target.with({ path: target.path + project.localUri.path.slice(oldPath.length) });
+			let remotePath = project.remotePath;
+			const projectName = remotePath.split('/').pop()!;
+			if (project.localUri.path === oldPath && parent(oldPath) === parent(target.path)
+				&& oldName === `${projectName}.codea` && newName.endsWith('.codea') && newName !== oldName) {
+				const renamed = `${parent(remotePath)}/${newName.slice(0, -'.codea'.length)}`;
+				const problem = await renameInCodea(host, remotePath, renamed);
+				if (problem !== undefined) {
+					// The folder keeps the project's name, so it goes back to it
+					await vscode.workspace.fs.rename(target, oldUri);
+					vscode.window.showWarningMessage(`${problem} The folder was renamed back.`);
+					return;
+				}
+				remotePath = renamed;
+			}
+			await sync.moveLink(project, folder, localUri, remotePath);
+		}
+	}
+
+	// Renames a project in Codea, within its collection; says why not when it could not
+	async function renameInCodea(host: string, remotePath: string, renamed: string): Promise<string | undefined> {
+		if (airCode.disconnected) {
+			return `Not connected, so ${remotePath} was not renamed in Codea.`;
+		}
+		const codeaUri = (path: string) => vscode.Uri.from({ scheme: 'codea', authority: host, path: `/${AirCode.rootFolder}/${path}` });
+		const collection = renamed.split('/').slice(0, -1).join('/');
+		const newName = renamed.split('/').pop()!;
+		try {
+			await airCode.ensureResponsive(codeaUri(collection));
+			const existing = (await airCode.readDirectory(codeaUri(collection))).map(([name]) => name.toLowerCase());
+			if (existing.includes(newName.toLowerCase()) && newName.toLowerCase() !== remotePath.split('/').pop()!.toLowerCase()) {
+				return `${collection} already has a project named ${newName}, so ${remotePath} was not renamed in Codea.`;
+			}
+			await airCode.rename(codeaUri(remotePath), codeaUri(renamed), { overwrite: false });
+		} catch (error) {
+			return `Codea did not rename ${remotePath} (${error}).`;
+		}
+		return await waitFor(codeaUri(collection), newName) ? undefined : `Codea did not rename ${remotePath}.`;
+	}
+
+	function validName(value: string): string | undefined {
+		const name = value.trim();
+		if (name === "") {
+			return "Enter a name.";
+		}
+		if (name.includes('/') || name.startsWith('.')) {
+			return "A name cannot contain / or start with a period.";
+		}
+		return undefined;
+	}
+
+	// Whether a Codea folder comes to list the named entry, or to no longer list it, within ten seconds
+	async function waitFor(folderUri: vscode.Uri, entry: string, listed = true): Promise<boolean> {
+		for (let attempt = 0; attempt < 40; attempt++) {
+			try {
+				if ((await airCode.readDirectory(folderUri)).some(([name]) => name === entry) === listed) {
+					return true;
+				}
+			} catch {
+				// Not there yet
+			}
+			await new Promise(resolve => setTimeout(resolve, 250));
+		}
+		return false;
+	}
 
 	// Links many projects at once: the folders and links are made first, then each project's
 	// first sync runs with progress, and files that differ on both sides are asked about together
@@ -730,6 +1017,7 @@ export function activate(context: vscode.ExtensionContext) {
 			for (const entry of entries) {
 				await vscode.workspace.fs.createDirectory(entry.localUri);
 			}
+			sync.startAfresh(entries);
 			await linkedFolders.addLinks(folder, entries, host);
 		} finally {
 			linkingMany = false;
@@ -861,7 +1149,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(vscode.languages.registerDocumentDropEditProvider({ language: 'lua' }, assetKeyOnDropProvider));
 
-	context.subscriptions.push(vscode.window.registerFileDecorationProvider(decorationProvider));
+	context.subscriptions.push(vscode.window.registerFileDecorationProvider(new CodeaDecorationProvider(linkedFolders)));
 }
 
 function reapplyBreakpoints(uri: vscode.Uri) {
