@@ -17,7 +17,8 @@ const isPath = name => (name || '').split('.').every(isName);
 const comment = text => (text || '').trim().split('\n').map(line => `--- ${line.trimEnd()}\n`).join('');
 const luaType = type => {
     const t = (type || '').replace(/ or /g, '|').replace(/\s/g, '');
-    return /^[A-Za-z_][\w.]*(\[\])?(\|[A-Za-z_][\w.]*(\[\])?)*\??$/.test(t) ? t : 'any';
+    // The reference writes None for a value it does not type, such as require.option
+    return t === 'None' ? 'any' : /^[A-Za-z_][\w.]*(\[\])?(\|[A-Za-z_][\w.]*(\[\])?)*\??$/.test(t) ? t : 'any';
 };
 
 function writer(header) {

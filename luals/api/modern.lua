@@ -984,6 +984,19 @@ function hingeChanged(current, previous) end
 ---@overload fun(...): image
 image = {}
 
+--- Create a blank 2D image of exactly `width` by `height` pixels,
+--- whatever the display scale. Takes the same parameters as
+--- `image()`. Use it for pixel art, emulator screens and other
+--- images where each pixel matters.
+---@param width integer The width of the image in pixels
+---@param height integer The height of the image in pixels
+---@param hasMips? boolean Enables mipmapping for this image
+---@param numLayers? integer The number of layers for this image
+---@param format? imageformat The image format
+---@param depthFormat? depthformat The image depth format
+---@return image
+function image.pixel(width, height, hasMips, numLayers, format, depthFormat) end
+
 --- Create a blank cube image (6 faces with equal sized dimensions)
 ---@param size integer The size of the image cube
 function image.cube(size) end
@@ -1053,11 +1066,13 @@ function image.symbol(name, ...) end
 ---@type table
 image.symbol = nil
 
---- The width of the image in pixels
+--- The width of the image in points. For an image made with
+--- `image.pixel()`, points and pixels are the same
 ---@type integer
 image.width = nil
 
---- The height of the image in pixels
+--- The height of the image in points. For an image made with
+--- `image.pixel()`, points and pixels are the same
 ---@type integer
 image.height = nil
 
@@ -4771,7 +4786,7 @@ function require(assetKey, ...) end
 require = {}
 
 --- an option value for require
----@type None
+---@type any
 require.option = nil
 
 ---@class scene
@@ -4819,7 +4834,7 @@ scene.world3d = nil
 --- - `asset.key` - Use an image pointed to by a given asset key
 --- - `image` - Use an image directly (assumed to be a cube image)
 --- - `color` - Use a solid color
----@type None
+---@type any
 scene.sky = nil
 
 --- The blur strength of the skybox
