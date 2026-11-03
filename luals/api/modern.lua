@@ -1174,19 +1174,43 @@ touch.id = nil
 
 --- The current state of the touch, can be:
 --- 
---- - `BEGAN` - the touch began this frame
---- - `MOVING` - the touch moved this frame
---- - `ENDED` - the touch ended this frame
---- - `CANCELLED` - the touch was cancelled (usually by another view or gesture recognizer)
+--- - `BEGAN` - the touch began
+--- - `CHANGED` - the touch moved (`MOVING` is the same value)
+--- - `ENDED` - the touch ended
+--- - `CANCELLED` - the touch was cancelled, usually by a gesture recognizer or the system
 ---@type enum
 touch.state = nil
+
+--- `true` if the touch began with this event
+---@type boolean
+touch.began = nil
+
+--- `true` if the touch moved with this event
+---@type boolean
+touch.changed = nil
+
+--- The same as `changed`
+---@type boolean
+touch.moving = nil
+
+--- `true` if the touch ended with this event
+---@type boolean
+touch.ended = nil
+
+--- `true` if the touch was cancelled
+---@type boolean
+touch.cancelled = nil
+
+--- The number of quick taps in a row at this location, starting at 1
+---@type integer
+touch.tapCount = nil
 
 --- The type of touch, can be:
 --- 
 --- - `touch.direct` - a touch resulting from direct contact with the screen
 --- - `touch.indirect` - a touch that does not result from direct contact with the screen
---- - `touch.pencil` - a touch resulting from the pencil
---- - `touch.pointer` - a touch resulting from a button based device
+--- - `touch.pencil` - a touch from Apple Pencil
+--- - `touch.pointer` - a click from a mouse or trackpad
 ---@type enum
 touch.type = nil
 
@@ -1206,11 +1230,11 @@ touch.prevX = nil
 ---@type number
 touch.prevY = nil
 
---- The x position delta of the touch (in screen coordinates)
+--- The change in x position since the previous event for this touch (in screen coordinates)
 ---@type number
 touch.deltaX = nil
 
---- The y position delta of the touch (in screen coordinates)
+--- The change in y position since the previous event for this touch (in screen coordinates)
 ---@type number
 touch.deltaY = nil
 
@@ -1222,27 +1246,27 @@ touch.pos = nil
 ---@type vec2
 touch.prevPos = nil
 
---- The position delta of the touch (in screen coordinates) as a vector
+--- The change in position since the previous event for this touch (in screen coordinates) as a vector
 ---@type vec2
 touch.delta = nil
 
---- The amount of force being applied (only applies to pencil type touches)
+--- The amount of force being applied, where `1` is an average touch. Reported for Apple Pencil and on devices with 3D Touch, otherwise `0`
 ---@type number
 touch.force = nil
 
---- The maximum amount of force that can be applied (only applies to pencil type touches)
+--- The maximum possible value of `force`
 ---@type number
 touch.maxForce = nil
 
---- The time when this touch event occured (only applies to pencil type touches)
+--- The time when this touch event occurred, in seconds since the device started
 ---@type number
 touch.timestamp = nil
 
---- The azimuth angle of the pencil (only applies to pencil type touches)
+--- The direction the pencil points across the screen, in radians (only applies to pencil type touches)
 ---@type number
 touch.azimuth = nil
 
---- The altitude angle of the pencil
+--- The angle of the pencil above the screen, in radians. `0` is flat against the screen and `math.pi / 2` is perpendicular to it (only applies to pencil type touches)
 ---@type number
 touch.altitude = nil
 
@@ -1262,11 +1286,65 @@ touch.precisePos = nil
 ---@type vec2
 touch.precisePrevPos = nil
 
+--- The first touch that is currently down. It keeps its last state after the touch ends, until a new touch begins. Read it as `touch.current`
+---@type touch
+touch.current = nil
+
+--- Cancels this touch for every entity in `scene` that holds it. Each of those entities receives the touch once more with the `CANCELLED` state
+---@param scene scene The scene whose entities hold the touch
+function touch:cancel(scene) end
+
+--- Gives this touch to `entity` alone. Other entities that hold the touch receive it with the `CANCELLED` state. Does nothing if another entity already holds it exclusively
+---@param entity entity The entity that keeps the touch
+function touch:makeExclusive(entity) end
+
+--- direct touch type constant
+---@type const
+touch.direct = nil
+
+--- indirect touch type constant
+---@type const
+touch.indirect = nil
+
+--- pencil touch type constant
+---@type const
+touch.pencil = nil
+
+--- pointer touch type constant
+---@type const
+touch.pointer = nil
+
+--- touch began state constant
+---@type const
+BEGAN = nil
+
+--- touch moved state constant
+---@type const
+CHANGED = nil
+
+--- The same value as `CHANGED`
+---@type const
+MOVING = nil
+
+--- touch ended state constant
+---@type const
+ENDED = nil
+
+--- touch cancelled state constant
+---@type const
+CANCELLED = nil
+
 ---@class gesture
 ---@overload fun(...): gesture
 gesture = {}
 
---- The current state of the gesture
+--- The current state of the gesture, using the same constants as touches:
+--- 
+--- - `BEGAN` - the gesture was recognized
+--- - `CHANGED` - the gesture moved or changed
+--- - `ENDED` - the gesture finished or was cancelled
+--- 
+--- A tap reports `ENDED` once it is recognized.
 ---@type enum
 gesture.state = nil
 
@@ -1274,7 +1352,7 @@ gesture.state = nil
 ---@type vec2
 gesture.location = nil
 
---- The translation of the gesture event relative to its starting location
+--- The translation of the gesture event relative to its starting location, with positive `y` pointing up
 ---@type vec2
 gesture.translation = nil
 
@@ -1286,19 +1364,19 @@ gesture.delta = nil
 ---@type number
 gesture.pinchScale = nil
 
---- The delta of the pinch distance since last update
+--- The ratio of the pinch scale to its value at the last update. Multiply a size by it to follow the pinch
 ---@type number
 gesture.pinchDelta = nil
 
---- The current change in pinch distance over time
+--- The rate of change of the pinch scale, in scale factor per second
 ---@type number
 gesture.pinchVelocity = nil
 
---- The current angle of a rotation gesture relative to its’ starting angle
+--- The change in angle of a rotation gesture since the last update, in degrees. Positive values are counter-clockwise, the same direction as `rotate()`.
 ---@type number
 gesture.rotationAngle = nil
 
---- The current change in rotation angle over time
+--- The rate of change of the rotation angle, in degrees per second
 ---@type number
 gesture.rotationVelocity = nil
 
@@ -1308,17 +1386,17 @@ gesture.touchCount = nil
 
 key = {}
 
---- Queries whether the key is currently being pressed this frame
+--- Queries whether the key is currently held down
 ---@param keyCode constant The keyCode to query
 ---@return boolean
 function key.pressing(keyCode) end
 
---- Queries whether the key is was pressed down this frame
+--- Queries whether the key went down since the previous frame
 ---@param keyCode constant The keyCode to query
 ---@return boolean
 function key.wasPressed(keyCode) end
 
---- Queries whether the supplied key code was released this frame
+--- Queries whether the key came up since the previous frame
 ---@param keyCode constant The keyCode to query
 ---@return boolean
 function key.wasReleased(keyCode) end
@@ -1330,13 +1408,46 @@ function key.wasReleased(keyCode) end
 --- - `key.cmd`
 --- - `key.shift`
 --- 
---- Use key.pressing(keyCode) to query individual keys such as key.leftAlt.
+--- Use `key.pressing(keyCode)` to query individual keys such as `key.leftAlt`.
+---@return integer
 function key.modifiers() end
 
---- Queries whether the supplied key modifiers are currently pressed
+--- Queries whether all of the supplied key modifiers are currently held. Combine masks with `|`, as in `key.modifiersPressed(key.cmd | key.shift)`
 ---@param modifiers constant The key modifiers to query as a bit field
 ---@return boolean
 function key.modifiersPressed(modifiers) end
+
+---@class key.press
+---@overload fun(...): key.press
+key.press = {}
+
+--- The key, as one of the `key` key code constants such as `key.a` or `key.space`
+---@type const
+key.press.keyCode = nil
+
+--- The modifiers held during this key event, as a bit field of `key.alt`, `key.ctrl`, `key.cmd` and `key.shift`
+---@type integer
+key.press.modifierFlags = nil
+
+--- The text produced by the key, taking modifiers such as shift into account
+---@type string
+key.press.characters = nil
+
+--- alt modifier mask
+---@type const
+key.alt = nil
+
+--- ctrl modifier mask
+---@type const
+key.ctrl = nil
+
+--- command modifier mask
+---@type const
+key.cmd = nil
+
+--- shift modifier mask
+---@type const
+key.shift = nil
 
 --- left alt key constant
 ---@type const
@@ -1346,10 +1457,6 @@ key.leftAlt = nil
 ---@type const
 key.rightAlt = nil
 
---- alt key constant
----@type const
-key.alt = nil
-
 --- left ctrl key constant
 ---@type const
 key.leftCtrl = nil
@@ -1357,10 +1464,6 @@ key.leftCtrl = nil
 --- right ctrl key constant
 ---@type const
 key.rightCtrl = nil
-
---- ctrl key constant
----@type const
-key.ctrl = nil
 
 --- left command key constant
 ---@type const
@@ -1370,10 +1473,6 @@ key.leftCmd = nil
 ---@type const
 key.rightCmd = nil
 
---- command key constant
----@type const
-key.cmd = nil
-
 --- left shift key constant
 ---@type const
 key.leftShift = nil
@@ -1381,10 +1480,6 @@ key.leftShift = nil
 --- right shift key constant
 ---@type const
 key.rightShift = nil
-
---- shift key constant
----@type const
-key.shift = nil
 
 --- escape key constant
 ---@type const
@@ -1734,15 +1829,15 @@ gamepad = {}
 ---@type any
 gamepad.all = nil
 
---- The current main active gamepad (or nil if none connected)
+--- The most recently used gamepad, or `nil` if none is connected
 ---@type gamepad
 gamepad.current = nil
 
---- Gets or creates a virtual gamepad which will substitute on-screen controls if no controller is currently connected
+--- Gets the on-screen gamepad, creating it on first use. It shows a stick at the bottom left and an `A` button at the bottom right, controlled by touch. While a controller is connected it is hidden and mirrors `gamepad.current`
 ---@type gamepad.virtualGamepad
 gamepad.virtual = nil
 
---- Callback for when a gamepad is connected
+--- Callback for when a gamepad is connected. Gamepads that are already connected when the project starts are listed in `gamepad.all` and do not trigger it
 ---@type any
 gamepad.connected = nil
 
@@ -1766,7 +1861,7 @@ gamepad.leftTrigger = nil
 ---@type gamepad.button
 gamepad.rightTrigger = nil
 
---- get the directional pad
+--- The directional pad
 ---@type gamepad.directionalPad
 gamepad.dpad = nil
 
@@ -1822,39 +1917,83 @@ gamepad.touchpadButton = nil
 ---@type gamepad.directionalPad
 gamepad.touchpadSurface = nil
 
---- get the battery level of the gamepad
+--- The battery charge, from `0` to `1`
 ---@type number
 gamepad.batteryLevel = nil
 
---- get the battery state of the gamepad
+--- The battery state, one of `gamepad.charging`, `gamepad.discharging`, `gamepad.full` or `gamepad.unknown`
 ---@type const
 gamepad.batteryState = nil
 
---- get or set the gamepad light color
+--- The color of the controller’s light, on controllers that have one
 ---@type color
 gamepad.light = nil
+
+--- The player number shown on the controller, one of `gamepad.unset`, `gamepad.player1`, `gamepad.player2`, `gamepad.player3` or `gamepad.player4`
+---@type const
+gamepad.playerIndex = nil
+
+--- The name of the controller as reported by its maker
+---@type string
+gamepad.vendorName = nil
+
+--- no player index constant
+---@type const
+gamepad.unset = nil
+
+--- player 1 index constant
+---@type const
+gamepad.player1 = nil
+
+--- player 2 index constant
+---@type const
+gamepad.player2 = nil
+
+--- player 3 index constant
+---@type const
+gamepad.player3 = nil
+
+--- player 4 index constant
+---@type const
+gamepad.player4 = nil
+
+--- battery charging state constant
+---@type const
+gamepad.charging = nil
+
+--- battery discharging state constant
+---@type const
+gamepad.discharging = nil
+
+--- battery full state constant
+---@type const
+gamepad.full = nil
+
+--- battery unknown state constant
+---@type const
+gamepad.unknown = nil
 
 ---@class gamepad.button
 ---@overload fun(...): gamepad.button
 gamepad.button = {}
 
---- get whether this button is being pressed
+--- `true` while the button is held down
 ---@type boolean
 gamepad.button.pressing = nil
 
---- get whether this button was just pressed
+--- `true` only in the frame the button went down
 ---@type boolean
 gamepad.button.pressed = nil
 
---- get whether this button was just released
+--- `true` only in the frame the button came up
 ---@type boolean
 gamepad.button.released = nil
 
---- get the analog value of this button
+--- How far the button is pressed, from `0` to `1`. Triggers report values in between
 ---@type number
 gamepad.button.value = nil
 
---- get whether the touchpad is being touched
+--- `true` while a finger rests on the button, on controllers that can sense it
 ---@type boolean
 gamepad.button.touching = nil
 
@@ -1862,11 +2001,7 @@ gamepad.button.touching = nil
 ---@overload fun(...): gamepad.directionalPad
 gamepad.directionalPad = {}
 
---- get whether this button is being pressed
----@type boolean
-gamepad.directionalPad.pressing = nil
-
---- get the direction as a vec2
+--- The direction, with each axis from `-1` to `1`
 ---@type vec2
 gamepad.directionalPad.dir = nil
 
@@ -1894,13 +2029,29 @@ gamepad.directionalPad.up = nil
 ---@type boolean
 gamepad.directionalPad.down = nil
 
+keyboard = {}
+
+--- Shows the on-screen keyboard. It stays up when the screen is touched, until `keyboard.hide()` is called
+function keyboard.show() end
+
+--- Hides the on-screen keyboard
+function keyboard.hide() end
+
+--- `true` while the on-screen keyboard is on screen. With a hardware keyboard attached, the system may not show it after `keyboard.show()`
+---@type boolean
+keyboard.visible = nil
+
+--- The text typed so far, including text from autocorrection, pasting, and characters still being composed in languages such as Korean or Japanese. Set it to replace the text, for example `keyboard.text = ""` to clear it
+---@type string
+keyboard.text = nil
+
 mouse = {}
 
---- The current horizontal position of the pointer in screen coordinates
+--- The current horizontal position of the pointer in screen coordinates. Updated while the pointer hovers over the viewer and while a button is held
 ---@type number
 mouse.x = nil
 
---- The current vertical position of the pointer in screen coordinates
+--- The current vertical position of the pointer in screen coordinates. Updated while the pointer hovers over the viewer and while a button is held
 ---@type number
 mouse.y = nil
 
@@ -1924,7 +2075,7 @@ mouse.delta = nil
 ---@type vec2
 mouse.scroll = nil
 
---- The left mouse button
+--- The left mouse button. Trackpad clicks also count as the left button
 ---@type mouse.button
 mouse.left = nil
 
@@ -1936,7 +2087,7 @@ mouse.middle = nil
 ---@type mouse.button
 mouse.right = nil
 
---- Whether a mouse or pointer device is currently connected
+--- Whether a mouse or trackpad is currently connected
 ---@type boolean
 mouse.active = nil
 
