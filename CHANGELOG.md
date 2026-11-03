@@ -4,6 +4,7 @@
 - Go to Definition, Find All References and hover in linked projects, through the Lua extension by sumneko, which Codea Air Code sets up with Codea's API, its `class()`, `require(asset...)` and the globals `parameter` functions make, for the linked projects and the projects they use
 - Unlink Folder, in the Explorer and the Projects section, stops syncing a folder and keeps its files on both sides
 - The Projects section can show only the linked projects
+- Link Folder's dialog can pick a `.codea` project folder on macOS, which Codea registers as a package
 ## 1.3.8 (2026/11/02)
 - Projects are kept in local folders linked to Codea and synced both ways, so search, source control and AI coding assistants work with them
 - Projects view: get, link and play Codea's projects; New Project and Delete Project in Codea; renaming a project folder renames it in Codea

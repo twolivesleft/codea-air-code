@@ -632,15 +632,21 @@ export function activate(context: vscode.ExtensionContext) {
 		let localUri = target;
 		if (localUri === undefined) {
 			const editorUri = vscode.window.activeTextEditor?.document.uri;
+			// On macOS, Codea registers .codea folders as packages, which the dialog offers as files only
 			const picked = await vscode.window.showOpenDialog({
-				canSelectFiles: false,
+				canSelectFiles: true,
 				canSelectFolders: true,
+				filters: { "Codea Projects": ["codea"] },
 				defaultUri: editorUri?.scheme === "file" ? vscode.Uri.joinPath(editorUri, "..") : vscode.workspace.workspaceFolders?.[0]?.uri,
 				openLabel: "Link to Codea",
 			});
 			localUri = picked?.[0];
 		}
 		if (localUri === undefined) {
+			return;
+		}
+		if (localUri.scheme === "file" && !fs.statSync(localUri.fsPath, { throwIfNoEntry: false })?.isDirectory()) {
+			vscode.window.showErrorMessage(`${path.basename(localUri.fsPath)} is not a folder.`);
 			return;
 		}
 
