@@ -28,8 +28,10 @@ function OnSetText(uri, text)
     end
 
     -- x = require(asset.documents.Lib) returns the project's environment, its globals
-    for start, finish in text:gmatch("=%s*()require%s*%(%s*asset[%w_%.]*%s*%)()") do
-        diffs[#diffs + 1] = { start = start, finish = finish - 1, text = "_G" }
+    for start, args, finish in text:gmatch("=%s*()require%s*(%b())()") do
+        if args:match("^%(%s*asset[%s%.%[]") then
+            diffs[#diffs + 1] = { start = start, finish = finish - 1, text = "_G" }
+        end
     end
 
     table.sort(diffs, function (a, b) return a.start < b.start end)

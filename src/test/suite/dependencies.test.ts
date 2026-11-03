@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 
-import { dependenciesIn, dependencyFile } from '../../dependencies';
+import { dependenciesIn, dependencyFile, requiredIn } from '../../dependencies';
 
 suite('dependenciesIn', () => {
 	test('lists a project\'s dependencies as collection and project', () => {
@@ -46,3 +46,19 @@ suite('dependencyFile', () => {
 	});
 });
 
+
+suite('requiredIn', () => {
+	test('a project in Documents, or in a collection', () => {
+		assert.deepStrictEqual(requiredIn(`local ui = require(asset.documents.UI)
+common = require(asset.documents["iPad Projects"].Common, require.option.noImport)
+require(asset.documents['Games'] . Engine)`), [
+			{ collection: 'Documents', project: 'UI' },
+			{ collection: 'iPad Projects', project: 'Common' },
+			{ collection: 'Games', project: 'Engine' },
+		]);
+	});
+
+	test('not a file of the project, nor another asset', () => {
+		assert.deepStrictEqual(requiredIn('require(asset.Helpers) require(asset.builtin.Lib) require(asset.documents.A.B.C)'), []);
+	});
+});

@@ -62,7 +62,12 @@ folder's settings: `luals/api/*.lua` as a library (Codea's API) and `luals/plugi
 `parameter.number/integer/boolean/text/color("Name", ...)` call makes. The folder counts as set up
 when `Lua.runtime.plugin` names that plugin; there is no setting of its own, which a window that
 updated the extension without reloading would not know. `Lua.workspace.ignoreDir` lists every
-folder but the linked projects (entries starting with `/`; LuaLS has no `!` to re-include). Its completion and signature
+folder but the linked projects (entries starting with `/`; LuaLS has no `!` to re-include). The local
+projects they require or depend on, found beside them or in a folder named after the collection, are
+added to `Lua.workspace.library`, for their definitions without their warnings; `ignoreDir` names each
+of those itself, since LuaLS reads no library inside a folder it ignores. A watcher on `*.lua` and
+`Info.plist` keeps both current. A required project created while LuaLS runs, under a path with a
+space, was not read as a library until LuaLS restarted. Its completion and signature
 help are turned off; its diagnostics stay on, because they are what makes LuaLS read again a file
 changed on disk. A change made just after a file was created is taken for its creation, and missed.
 

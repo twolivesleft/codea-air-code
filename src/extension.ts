@@ -47,6 +47,7 @@ export function activate(context: vscode.ExtensionContext) {
 	const linkedFolders = links;
 	const luaDefinitions = new LuaDefinitions(context, linkedFolders);
 	context.subscriptions.push(vscode.extensions.onDidChange(() => luaDefinitions.update()));
+	context.subscriptions.push(luaDefinitions.watch());
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.setUpGoToDefinition', () => luaDefinitions.setUp()));
 
 	let workspaceUri = getWorkspaceUri();
