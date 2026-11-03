@@ -45,7 +45,7 @@ export function deactivate() {
 export function activate(context: vscode.ExtensionContext) {
 	links = new Links(context);
 	const linkedFolders = links;
-	const luaDefinitions = new LuaDefinitions(context.extensionPath, linkedFolders);
+	const luaDefinitions = new LuaDefinitions(context, linkedFolders);
 	context.subscriptions.push(vscode.extensions.onDidChange(() => luaDefinitions.update()));
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.setUpGoToDefinition', () => luaDefinitions.setUp()));
 

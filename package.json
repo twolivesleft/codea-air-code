@@ -575,19 +575,6 @@
           },
           "default": {},
           "description": "Local folders kept in sync with Codea projects, from a path relative to the workspace folder to the project in Codea, e.g. \"iPad Projects/EmuTests\"."
-        },
-        "codea-air-code.luaDefinitions": {
-          "type": "string",
-          "scope": "resource",
-          "enum": [
-            "on",
-            "off"
-          ],
-          "enumDescriptions": [
-            "The Lua extension is set up for the Codea projects in this folder",
-            "The Lua extension is left alone in this folder"
-          ],
-          "description": "Whether Codea Air Code sets up the Lua extension (sumneko.lua) for Go to Definition, Find References and hover in the linked projects."
         }
       }
     },

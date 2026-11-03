@@ -81,7 +81,7 @@ With the [Lua extension](https://marketplace.visualstudio.com/items?itemName=sum
 - modern dependencies required with `require(asset.documents.Lib)`;
 - Codea's API, legacy and modern, with its documentation on hover.
 
-When the Lua extension is installed, Codea Air Code asks once per folder, or run `Codea: Set Up Go to Definition`, which also installs it. Auto-completion and signature help still come from Codea; the Lua extension adds warnings about your code, such as an unused local. Dependencies only resolve when they are linked in the same folder, and a name defined in several linked projects lists each of them.
+When the Lua extension is installed, Codea Air Code asks once per folder, or run `Codea: Set Up Go to Definition`, which also installs it. Auto-completion and signature help still come from Codea; the Lua extension adds warnings about your code, such as an unused local. Only the linked projects are read, so a folder holding many other projects, such as a git repository of them, does not slow it down or fill the Problems view; dependencies resolve when they are linked too. A name defined in several linked projects lists each of them.
 
 ### Sidebar
 
