@@ -73,7 +73,9 @@ function carbide() {
             const [doc, names] = params(entry);
             w.lines.push(`${description}${doc}function ${module}:${entry.name}(${names}) end\n`);
         } else if (entry.kind === 'attribute' || entry.kind === 'classattribute') {
-            w.lines.push(`${description}---@type ${luaType(entry.type)}\n${full} = nil\n`);
+            // A setting that is also the table of its values, such as image.filter and image.filter.point
+            const values = (entry.description || '').includes(`${full}.`) && !['any', 'table'].includes(luaType(entry.type)) ? '|table' : '';
+            w.lines.push(`${description}---@type ${luaType(entry.type)}${values}\n${full} = nil\n`);
         } else if (entry.kind === 'class') {
             const name = entry.module ? `${entry.module}.${entry.name}` : entry.name;
             w.table(name, true);

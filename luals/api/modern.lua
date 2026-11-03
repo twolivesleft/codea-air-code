@@ -1031,6 +1031,12 @@ function image.read(key) end
 ---@param image image The image to save
 function image.save(key, image) end
 
+--- Creates a copy of the 64 by 64 lookup image (`rgba16f`) that Codea’s
+--- physically based lighting uses for image based lighting, for use in your
+--- own shaders
+---@return image
+function image.dfg() end
+
 --- Create an image from an SF Symbol. Returns `nil` if no symbol of that
 --- name exists.
 --- 
@@ -1093,7 +1099,7 @@ image.hasMips = nil
 --- - `image.type.texture` - a 2D image
 --- - `image.type.cube` - a cube image, created with `image.cube()`
 --- - `image.type.volume` - a volume image, created with `image.volume()`
----@type imageType
+---@type imageType|table
 image.type = nil
 
 --- The number of mips this image has
@@ -1108,9 +1114,109 @@ image.sampler = nil
 ---@type boolean
 image.smooth = nil
 
+--- How this image is filtered when drawn larger or smaller than its size:
+--- 
+--- - `image.filter.point` - nearest pixel, for pixel art
+--- - `image.filter.linear` - blends neighbouring pixels
+--- - `image.filter.default` - follows `style.filter`, the default
+---@type integer|table
+image.filter = nil
+
+--- How this image repeats when a mesh’s texture coordinates go beyond 0 and 1:
+--- 
+--- - `image.wrap.tile` - repeats the image
+--- - `image.wrap.clamp` - stretches the edge pixels
+--- - `image.wrap.mirror` - repeats the image, flipping every other copy
+--- - `image.wrap.default` - follows `style.wrap`, the default
+---@type integer|table
+image.wrap = nil
+
+--- A new `image.slice` covering the whole image, to configure and
+--- draw with `sprite()`
+---@type image.slice
+image.slice = nil
+
 --- The asset key for this image (if it has one)
 ---@type assetKey
 image.key = nil
+
+--- Sets the colour of a pixel. `x` and `y` start at 1, from the bottom
+--- left corner, and are in points like `width` and `height`,
+--- so on an image made with `image()` a point covers several pixels.
+--- Use `image.pixel()` to set each pixel on its own.
+--- 
+--- The change is made to the image’s copy in memory. Call `apply()`
+--- before drawing the image or saving it.
+---@param x integer The x coordinate, from 1 to width
+---@param y integer The y coordinate, from 1 to height
+---@param color color The colour to set
+function image:setPixel(x, y, color) end
+
+--- Sets the colour of a pixel from its red, green, blue and alpha values,
+--- from 0 to 255
+---@param x integer The x coordinate, from 1 to width
+---@param y integer The y coordinate, from 1 to height
+---@param r number The red value
+---@param g number The green value
+---@param b number The blue value
+---@param a number The alpha value
+function image:setPixel(x, y, r, g, b, a) end
+
+--- Returns the red, green, blue and alpha values of a pixel, from 0 to 255.
+--- Coordinates are as in `setPixel()`.
+--- 
+--- This reads the image’s copy in memory, which holds what was set with
+--- `setPixel()`. A blank image reads as all zeros, and so does what
+--- was drawn into the image until `readback()` copies it.
+---@param x integer The x coordinate, from 1 to width
+---@param y integer The y coordinate, from 1 to height
+---@return number
+---@return number
+---@return number
+---@return number
+function image:getPixel(x, y) end
+
+--- Sets a pixel from raw values, as the image stores them: 0 to 1 for most
+--- formats, and any value for float formats such as `image.rgba32f`.
+--- Coordinates are as in `setPixel()`. Given a single value, sets
+--- red, green and blue to it, with an alpha of 1
+---@param x integer The x coordinate, from 1 to width
+---@param y integer The y coordinate, from 1 to height
+---@param r number The red value, or the value for red, green and blue
+---@param g number The green value (optional)
+---@param b number The blue value (optional)
+---@param a number The alpha value (optional | default = 1)
+function image:setValue(x, y, r, g, b, a) end
+
+--- Returns the raw red, green, blue and alpha values of a pixel, as the
+--- image stores them: 0 to 1 for most formats, and any value for float
+--- formats. Coordinates are as in `setPixel()`
+---@param x integer The x coordinate, from 1 to width
+---@param y integer The y coordinate, from 1 to height
+---@return number
+---@return number
+---@return number
+---@return number
+function image:getValue(x, y) end
+
+--- Sets every pixel from a function, called with the coordinates of each
+--- pixel, which returns its red, green, blue and alpha values as raw values,
+--- 0 to 1 for most formats. The function must return all four. Call
+--- `apply()` afterwards to see the result
+---@param func function A function taking x and y and returning r, g, b, a
+function image:setForEach(func) end
+
+--- Sends the pixels set with `setPixel()` to the image, so that they
+--- show when it is drawn or saved
+function image:apply() end
+
+--- Copies what was drawn into the image back to its copy in memory, so that
+--- `getPixel()` can read it. Waits until the copy is done.
+--- 
+--- Drawing is finished at the end of a frame: read back in a later frame
+--- than the one that drew into the image, and for drawing done in `setup()`,
+--- from the second frame on.
+function image:readback() end
 
 --- Generates a guassian pyramid of pre-computed irradiance levels, used for image based lighting
 ---@param samples integer The number of samples to use (optional | default = 1024)
@@ -3615,7 +3721,7 @@ motion.heading = nil
 --- You can set `motion.attitude.referenceFrame` to specify the frame of reference in which the attitude is expressed.
 --- 
 --- The value can be one of the following `motion.referenceFrame.XArbitraryZVertical`, `motion.referenceFrame.XArbitraryCorrectedZVertical`, `motion.referenceFrame.XMagneticNorthZVertical`, `motion.referenceFrame.XTrueNorthZVertical`.
----@type motion.private.attitude
+---@type motion.private.attitude|table
 motion.attitude = nil
 
 --- Magnetic field data.
