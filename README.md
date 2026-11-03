@@ -103,6 +103,8 @@ To get all your projects at once, click the download button at the top of the se
 
 The New Project button at the top of the section, or next to a collection, creates a project in Codea and gets it (see [Creating, Renaming and Deleting Projects](#creating-renaming-and-deleting-projects)). A linked project lists its dependencies under it (see [Dependencies](#dependencies)), and projects in iCloud are marked with a cloud in the Explorer.
 
+The filter button at the top of the section shows only the linked projects and the collections holding them; click it again to show all projects.
+
 <img width="420" alt="Projects" src="images/projects.png">
 
 #### Assets

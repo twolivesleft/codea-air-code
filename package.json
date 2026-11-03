@@ -222,6 +222,16 @@
       {
         "command": "codea-air-code.unlinkFolder",
         "title": "Codea: Unlink Folder"
+      },
+      {
+        "command": "codea-air-code.showLinkedProjectsOnly",
+        "title": "Codea: Show Linked Projects Only",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "codea-air-code.showAllProjects",
+        "title": "Codea: Show All Projects",
+        "icon": "$(filter-filled)"
       }
     ],
     "keybindings": [
@@ -476,6 +486,16 @@
         {
           "command": "codea-air-code.syncLinkedFolders",
           "when": "view == workbench.explorer.fileView && codea-air-code.isLinked",
+          "group": "navigation"
+        },
+        {
+          "command": "codea-air-code.showLinkedProjectsOnly",
+          "when": "view == codea-projects && !codea-air-code.projectsLinkedOnly",
+          "group": "navigation"
+        },
+        {
+          "command": "codea-air-code.showAllProjects",
+          "when": "view == codea-projects && codea-air-code.projectsLinkedOnly",
           "group": "navigation"
         },
         {

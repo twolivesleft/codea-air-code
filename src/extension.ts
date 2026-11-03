@@ -752,9 +752,25 @@ export function activate(context: vscode.ExtensionContext) {
 	}));
 	context.subscriptions.push(linkedFolders.onDidChange(() => assetsView.refresh()));
 
-	const projectsView = new ProjectsViewProvider(airCode, linkedFolders);
-	context.subscriptions.push(vscode.window.createTreeView(ProjectsViewProvider.viewType, { treeDataProvider: projectsView }));
-	context.subscriptions.push(linkedFolders.onDidChange(() => projectsView.refresh()));
+	const projectsView = new ProjectsViewProvider(airCode, linkedFolders, context.workspaceState);
+	const projectsTree = vscode.window.createTreeView(ProjectsViewProvider.viewType, { treeDataProvider: projectsView });
+	context.subscriptions.push(projectsTree);
+	const updateProjectsMessage = () => {
+		projectsTree.message = projectsView.linkedOnly && linkedFolders.projects().filter(project => !isAssetPack(project)).length === 0
+			? "No project is linked. Show all projects to get or link one."
+			: undefined;
+	};
+	updateProjectsMessage();
+	context.subscriptions.push(linkedFolders.onDidChange(() => {
+		projectsView.refresh();
+		updateProjectsMessage();
+	}));
+	for (const [command, linkedOnly] of [['codea-air-code.showLinkedProjectsOnly', true], ['codea-air-code.showAllProjects', false]] as const) {
+		context.subscriptions.push(vscode.commands.registerCommand(command, async () => {
+			await projectsView.setLinkedOnly(linkedOnly);
+			updateProjectsMessage();
+		}));
+	}
 
 	function fileFolder(): vscode.WorkspaceFolder | undefined {
 		return vscode.workspace.workspaceFolders?.find(folder => folder.uri.scheme === "file");
