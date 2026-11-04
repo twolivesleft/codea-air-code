@@ -8,6 +8,7 @@ import { AirCodePath } from './aircodepath';
 import { AssetNode, AssetsViewProvider } from './assets';
 import { ParametersViewProvider } from './parameters';
 import { ReferenceViewProvider } from './reference';
+import { LuaDefinitions } from './luals';
 import { CodeaDecorationProvider } from './decorator';
 import { InlineDebugAdapterFactory } from './debug-adapter/InlineDebugAdapterFactory';
 import { AssetKeyOnDropProvider } from './drop';
@@ -44,6 +45,10 @@ export function deactivate() {
 export function activate(context: vscode.ExtensionContext) {
 	links = new Links(context);
 	const linkedFolders = links;
+	const luaDefinitions = new LuaDefinitions(context, linkedFolders);
+	context.subscriptions.push(vscode.extensions.onDidChange(() => luaDefinitions.update()));
+	context.subscriptions.push(luaDefinitions.watch());
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.setUpGoToDefinition', () => luaDefinitions.setUp()));
 
 	let workspaceUri = getWorkspaceUri();
 	vscode.commands.executeCommand('setContext', 'codea-air-code.isLinked', linkedFolders.isLinked());
@@ -202,8 +207,10 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(sync.onDidChangeBusy(busy => status.setSyncing(busy)));
 
 	function linksChanged() {
+		luaDefinitions.update();
 		vscode.commands.executeCommand('setContext', 'codea-air-code.isLinked', linkedFolders.isLinked());
 		vscode.commands.executeCommand('setContext', 'codea-air-code.hasLocalHost', linkedFolders.host() !== undefined);
+		vscode.commands.executeCommand('setContext', 'codea-air-code.linkedFolders', linkedFolders.projects().map(project => project.localUri.fsPath));
 		updateWatchedPaths();
 		airCode.restartLanguageClient();
 		// A folder with a Codea host is connected, linked projects or not
@@ -621,19 +628,55 @@ export function activate(context: vscode.ExtensionContext) {
 		return host;
 	}
 
+	// Makes a project in Codea from a folder holding one, in the collection where the folder is and
+	// named like it unless changed, then links them
+	async function linkToNewProject(folder: vscode.WorkspaceFolder, host: string, localUri: vscode.Uri) {
+		const localName = path.basename(localUri.path).replace(/\.codea$/, '');
+		const remotePath = await createCodeaProject(folder, host, vscode.Uri.joinPath(localUri, '..'), undefined, localName);
+		if (remotePath === undefined) {
+			return;
+		}
+		projectsView.refresh();
+		await linkNewProject(folder, host, localUri, remotePath);
+		vscode.window.showInformationMessage(`${vscode.workspace.asRelativePath(localUri)} is linked to ${remotePath}, a new project in Codea with its files.`);
+	}
+
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.linkFolderToNewProject', async (localUri?: vscode.Uri) => {
+		const folder = localUri && vscode.workspace.getWorkspaceFolder(localUri);
+		if (localUri === undefined || folder === undefined) {
+			return;
+		}
+		if (!isProjectFolder(localUri)) {
+			vscode.window.showErrorMessage(`${vscode.workspace.asRelativePath(localUri)} holds no project: Codea needs a Main.lua to run one.`);
+			return;
+		}
+		const host = await requireHost();
+		if (host !== undefined) {
+			await linkToNewProject(folder, host, localUri);
+		}
+	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.resolveConflicts', () => sync.resolveUnresolved()));
+
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.linkFolder', async (target?: vscode.Uri) => {
 		let localUri = target;
 		if (localUri === undefined) {
 			const editorUri = vscode.window.activeTextEditor?.document.uri;
+			// On macOS, Codea registers .codea folders as packages, which the dialog offers as files only
 			const picked = await vscode.window.showOpenDialog({
-				canSelectFiles: false,
+				canSelectFiles: true,
 				canSelectFolders: true,
+				filters: { "Codea Projects": ["codea"] },
 				defaultUri: editorUri?.scheme === "file" ? vscode.Uri.joinPath(editorUri, "..") : vscode.workspace.workspaceFolders?.[0]?.uri,
 				openLabel: "Link to Codea",
 			});
 			localUri = picked?.[0];
 		}
 		if (localUri === undefined) {
+			return;
+		}
+		if (localUri.scheme === "file" && !fs.statSync(localUri.fsPath, { throwIfNoEntry: false })?.isDirectory()) {
+			vscode.window.showErrorMessage(`${path.basename(localUri.fsPath)} is not a folder.`);
 			return;
 		}
 
@@ -670,11 +713,21 @@ export function activate(context: vscode.ExtensionContext) {
 			items.unshift({ ...guess, picked: true });
 		}
 
+		// A folder holding a project can also become a new one in Codea
+		const newProject = { label: "$(add) New Project in Codea...", description: "with this folder's files", picked: false };
+		if (isProjectFolder(localUri)) {
+			items.splice(guess ? 1 : 0, 0, newProject);
+		}
+
 		const choice = await vscode.window.showQuickPick(items, {
 			title: `Link ${vscode.workspace.asRelativePath(localUri)} to a Codea project`,
 			placeHolder: "Codea project",
 		});
 		if (choice === undefined) {
+			return;
+		}
+		if (choice === newProject) {
+			await linkToNewProject(folder, host, localUri);
 			return;
 		}
 
@@ -746,9 +799,25 @@ export function activate(context: vscode.ExtensionContext) {
 	}));
 	context.subscriptions.push(linkedFolders.onDidChange(() => assetsView.refresh()));
 
-	const projectsView = new ProjectsViewProvider(airCode, linkedFolders);
-	context.subscriptions.push(vscode.window.createTreeView(ProjectsViewProvider.viewType, { treeDataProvider: projectsView }));
-	context.subscriptions.push(linkedFolders.onDidChange(() => projectsView.refresh()));
+	const projectsView = new ProjectsViewProvider(airCode, linkedFolders, context.workspaceState);
+	const projectsTree = vscode.window.createTreeView(ProjectsViewProvider.viewType, { treeDataProvider: projectsView });
+	context.subscriptions.push(projectsTree);
+	const updateProjectsMessage = () => {
+		projectsTree.message = projectsView.linkedOnly && linkedFolders.projects().filter(project => !isAssetPack(project)).length === 0
+			? "No project is linked. Show all projects to get or link one."
+			: undefined;
+	};
+	updateProjectsMessage();
+	context.subscriptions.push(linkedFolders.onDidChange(() => {
+		projectsView.refresh();
+		updateProjectsMessage();
+	}));
+	for (const [command, linkedOnly] of [['codea-air-code.showLinkedProjectsOnly', true], ['codea-air-code.showAllProjects', false]] as const) {
+		context.subscriptions.push(vscode.commands.registerCommand(command, async () => {
+			await projectsView.setLinkedOnly(linkedOnly);
+			updateProjectsMessage();
+		}));
+	}
 
 	function fileFolder(): vscode.WorkspaceFolder | undefined {
 		return vscode.workspace.workspaceFolders?.find(folder => folder.uri.scheme === "file");
@@ -814,14 +883,28 @@ export function activate(context: vscode.ExtensionContext) {
 	}));
 
 	// Downloads a project into the workspace, where Codea itself would keep it, and links it
-	async function getProject(folder: vscode.WorkspaceFolder, host: string, remotePath: string) {
+	async function getProject(folder: vscode.WorkspaceFolder, host: string, remotePath: string, created = false) {
 		const localUri = localProjectUri(folder.uri, remotePath);
+		const name = remotePath.split('/').pop()!;
 
 		let existing: [string, vscode.FileType][] = [];
 		try {
 			existing = await vscode.workspace.fs.readDirectory(localUri);
 		} catch {
 			// The folder does not exist yet
+		}
+		if (existing.length > 0 && created && isProjectFolder(localUri)) {
+			const use = "Use the Folder's Files";
+			const choice = await vscode.window.showWarningMessage(
+				`${vscode.workspace.asRelativePath(localUri)} already holds a project. Use its files for ${remotePath} in Codea?`,
+				{ modal: true, detail: "The files Codea made for the new project are replaced by the folder's. Files only Codea has, such as an Info.plist the folder lacks, come to the folder." },
+				use);
+			if (choice !== use) {
+				return;
+			}
+			await linkNewProject(folder, host, localUri, remotePath);
+			await vscode.window.showTextDocument(vscode.Uri.joinPath(localUri, "Main.lua"));
+			return;
 		}
 		if (existing.length > 0) {
 			const link = "Link";
@@ -839,11 +922,22 @@ export function activate(context: vscode.ExtensionContext) {
 
 		const project = linkedFolders.projects().find(linked => linked.remotePath === remotePath);
 		if (project) {
-			await vscode.window.withProgress(
-				{ location: vscode.ProgressLocation.Notification, title: `Getting ${remotePath.split('/').pop()} from Codea...` },
-				() => sync.sync(project));
+			await sync.syncMany([project], `Getting ${name} from Codea...`);
 			await vscode.window.showTextDocument(vscode.Uri.joinPath(project.localUri, "Main.lua"));
 		}
+	}
+
+	// A folder holding a project, as Codea needs one to run
+	function isProjectFolder(uri: vscode.Uri): boolean {
+		return uri.scheme === "file" && fs.existsSync(path.join(uri.fsPath, "Main.lua"));
+	}
+
+	// Sends a folder's files to a project just made in Codea, then links them. The files go first:
+	// the sync that linking starts would otherwise take Codea's new files for changes made there.
+	async function linkNewProject(folder: vscode.WorkspaceFolder, host: string, localUri: vscode.Uri, remotePath: string) {
+		sync.startAfresh([{ localUri, remotePath }]);
+		await sync.pushFolder({ localUri, remotePath }, `Sending ${vscode.workspace.asRelativePath(localUri)} to Codea...`);
+		await linkedFolders.addLink(folder, localUri, remotePath, host);
 	}
 
 	// Creates a project in Codea and gets it. From a folder in the Explorer or a collection in the
@@ -856,6 +950,16 @@ export function activate(context: vscode.ExtensionContext) {
 		if (folder === undefined || host === undefined) {
 			return;
 		}
+		const remotePath = await createCodeaProject(folder, host, target, givenName);
+		if (remotePath !== undefined) {
+			projectsView.refresh();
+			await getProject(folder, host, remotePath, true);
+		}
+	}));
+
+	// Creates a project in Codea and returns its path, asking for the collection unless the target
+	// gives it, and for the name unless given, starting from the suggested one
+	async function createCodeaProject(folder: vscode.WorkspaceFolder, host: string, target: vscode.Uri | ProjectNode | undefined, givenName?: string, suggestedName?: string): Promise<string | undefined> {
 		const codeaUri = (path: string) => vscode.Uri.from({ scheme: 'codea', authority: host, path: `/${AirCode.rootFolder}/${path}` });
 
 		let collections: string[];
@@ -864,7 +968,7 @@ export function activate(context: vscode.ExtensionContext) {
 			collections = (await listCollections(airCode, host)).filter(collection => !isBuiltInCollection(airCode, collection));
 		} catch (error) {
 			vscode.window.showErrorMessage(`Could not list the collections in Codea: ${error}`);
-			return;
+			return undefined;
 		}
 
 		let collection = target instanceof ProjectNode ? target.remotePath
@@ -879,7 +983,7 @@ export function activate(context: vscode.ExtensionContext) {
 				? (await vscode.window.showInputBox({ title: "New Codea Collection", prompt: "Collection name", validateInput: validName }))?.trim()
 				: picked;
 			if (collection === undefined) {
-				return;
+				return undefined;
 			}
 		}
 
@@ -890,15 +994,16 @@ export function activate(context: vscode.ExtensionContext) {
 			?? (existing.includes(value.trim().toLowerCase()) ? `${collection} already has a project named ${value.trim()}.` : undefined);
 		if (givenName !== undefined && validProjectName(givenName) !== undefined) {
 			vscode.window.showErrorMessage(validProjectName(givenName)!);
-			return;
+			return undefined;
 		}
 		const name = (givenName ?? await vscode.window.showInputBox({
 			title: `New Codea Project in ${collection}`,
 			prompt: "Project name",
+			value: suggestedName,
 			validateInput: validProjectName,
 		}))?.trim();
 		if (name === undefined) {
-			return;
+			return undefined;
 		}
 
 		// Codea creates both after answering, so each is waited for
@@ -916,15 +1021,32 @@ export function activate(context: vscode.ExtensionContext) {
 			});
 		if (!created) {
 			vscode.window.showErrorMessage(`Codea did not create ${name} in ${collection}.`);
-			return;
+			return undefined;
 		}
 
-		projectsView.refresh();
-		await getProject(folder, host, `${collection}/${name}`);
-	}));
+		return `${collection}/${name}`;
+	}
 
 	// Deletes a project in Codea, after asking, then its linked folder here. The link goes first,
 	// so neither the folder going nor Codea's report of the deletion is synced.
+	// Stops keeping a folder in sync; its files stay as they are, here and in Codea
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.unlinkFolder', async (target?: vscode.Uri | ProjectNode) => {
+		let linked = target instanceof ProjectNode
+			? linkedFolders.projects().find(project => project.remotePath === target.remotePath)
+			: target && linkedFolders.projects().find(project => project.localUri.fsPath === target.fsPath);
+		if (target === undefined) {
+			const pick = await vscode.window.showQuickPick(
+				linkedFolders.projects().map(project => ({ label: vscode.workspace.asRelativePath(project.localUri), description: project.remotePath, project })),
+				{ title: "Unlink a folder from Codea" });
+			linked = pick?.project;
+		}
+		if (linked === undefined) {
+			return;
+		}
+		await sync.unlink([linked]);
+		vscode.window.showInformationMessage(`${vscode.workspace.asRelativePath(linked.localUri)} is no longer kept in sync with ${linked.remotePath}. Its files stay here and in Codea.`);
+	}));
+
 	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.deleteProject', async (target: vscode.Uri | ProjectNode) => {
 		const folder = await requireFolder();
 		const host = folder && await requireHost();

@@ -101,10 +101,23 @@ export class ProjectsViewProvider implements vscode.TreeDataProvider<ProjectNode
     private _onDidChangeTreeData = new vscode.EventEmitter<ProjectNode | DependencyNode | undefined>();
     onDidChangeTreeData = this._onDidChangeTreeData.event;
 
-    constructor(private readonly airCode: AirCode, private readonly links: Links) { }
+    constructor(private readonly airCode: AirCode, private readonly links: Links, private readonly state: vscode.Memento) {
+        vscode.commands.executeCommand('setContext', 'codea-air-code.projectsLinkedOnly', this.linkedOnly);
+    }
 
     refresh() {
         this._onDidChangeTreeData.fire(undefined);
+    }
+
+    // Lists only the linked projects, and the collections holding them
+    get linkedOnly(): boolean {
+        return this.state.get<boolean>('projectsLinkedOnly') ?? false;
+    }
+
+    async setLinkedOnly(linkedOnly: boolean) {
+        await this.state.update('projectsLinkedOnly', linkedOnly);
+        await vscode.commands.executeCommand('setContext', 'codea-air-code.projectsLinkedOnly', linkedOnly);
+        this.refresh();
     }
 
     linkedProject(node: ProjectNode): LinkedProject | undefined {
@@ -161,10 +174,16 @@ export class ProjectsViewProvider implements vscode.TreeDataProvider<ProjectNode
         }
 
         try {
+            const linkedPaths = this.links.projects().map(project => project.remotePath);
             if (node === undefined) {
-                return (await listCollections(this.airCode, host)).map(collection => new ProjectNode(collection, false));
+                const collections = await listCollections(this.airCode, host);
+                return collections
+                    .filter(collection => !this.linkedOnly || linkedPaths.some(path => path.startsWith(`${collection}/`)))
+                    .map(collection => new ProjectNode(collection, false));
             }
-            const projects = (await listFolders(this.airCode, host, node.remotePath)).sort((a, b) => a.localeCompare(b));
+            const projects = (await listFolders(this.airCode, host, node.remotePath))
+                .filter(project => !this.linkedOnly || linkedPaths.includes(`${node.remotePath}/${project}`))
+                .sort((a, b) => a.localeCompare(b));
             // Codea lists a Dependencies folder in a project that has some; only linked projects are asked
             return Promise.all(projects.map(async project => {
                 const remotePath = `${node.remotePath}/${project}`;

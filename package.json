@@ -2,7 +2,7 @@
   "name": "codea-air-code",
   "displayName": "Codea Air Code",
   "description": "A remote editor and debugger for Codea projects.",
-  "version": "1.3.8",
+  "version": "1.3.9",
   "publisher": "twolivesleft",
   "license": "MIT",
   "homepage": "https://twolivesleft.github.io/codea-air-code/",
@@ -214,6 +214,32 @@
       {
         "command": "codea-air-code.disconnect",
         "title": "Codea: Disconnect"
+      },
+      {
+        "command": "codea-air-code.setUpGoToDefinition",
+        "title": "Codea: Set Up Go to Definition"
+      },
+      {
+        "command": "codea-air-code.unlinkFolder",
+        "title": "Codea: Unlink Folder"
+      },
+      {
+        "command": "codea-air-code.resolveConflicts",
+        "title": "Codea: Resolve Sync Conflicts"
+      },
+      {
+        "command": "codea-air-code.linkFolderToNewProject",
+        "title": "Codea: Link Folder to a New Project..."
+      },
+      {
+        "command": "codea-air-code.showLinkedProjectsOnly",
+        "title": "Codea: Show Linked Projects Only",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "codea-air-code.showAllProjects",
+        "title": "Codea: Show All Projects",
+        "icon": "$(filter-filled)"
       }
     ],
     "keybindings": [
@@ -431,17 +457,39 @@
         {
           "command": "codea-air-code.revealAssetPack",
           "when": "false"
+        },
+        {
+          "command": "codea-air-code.unlinkFolder",
+          "when": "codea-air-code.isLinked"
+        },
+        {
+          "command": "codea-air-code.resolveConflicts",
+          "when": "codea-air-code.isLinked"
+        },
+        {
+          "command": "codea-air-code.linkFolderToNewProject",
+          "when": "false"
         }
       ],
       "explorer/context": [
         {
           "command": "codea-air-code.linkFolder",
-          "when": "explorerResourceIsFolder && resourceScheme == file",
+          "when": "explorerResourceIsFolder && resourceScheme == file && !(resourcePath in codea-air-code.linkedFolders)",
+          "group": "a_codea"
+        },
+        {
+          "command": "codea-air-code.linkFolderToNewProject",
+          "when": "explorerResourceIsFolder && resourceScheme == file && resourceFilename =~ /\\.codea$/ && !(resourcePath in codea-air-code.linkedFolders)",
+          "group": "a_codea"
+        },
+        {
+          "command": "codea-air-code.unlinkFolder",
+          "when": "explorerResourceIsFolder && resourcePath in codea-air-code.linkedFolders",
           "group": "a_codea"
         },
         {
           "command": "codea-air-code.newProject",
-          "when": "explorerResourceIsFolder && resourceScheme == file && codea-air-code.hasLocalHost",
+          "when": "explorerResourceIsFolder && resourceScheme == file && codea-air-code.hasLocalHost && !(resourceFilename =~ /\\.codea$/)",
           "group": "a_codea"
         },
         {
@@ -459,6 +507,16 @@
         {
           "command": "codea-air-code.syncLinkedFolders",
           "when": "view == workbench.explorer.fileView && codea-air-code.isLinked",
+          "group": "navigation"
+        },
+        {
+          "command": "codea-air-code.showLinkedProjectsOnly",
+          "when": "view == codea-projects && !codea-air-code.projectsLinkedOnly",
+          "group": "navigation"
+        },
+        {
+          "command": "codea-air-code.showAllProjects",
+          "when": "view == codea-projects && codea-air-code.projectsLinkedOnly",
           "group": "navigation"
         },
         {
@@ -512,6 +570,11 @@
           "command": "codea-air-code.newProject",
           "when": "view == codea-projects && viewItem == collection",
           "group": "inline"
+        },
+        {
+          "command": "codea-air-code.unlinkFolder",
+          "when": "view == codea-projects && viewItem == linkedProject",
+          "group": "y_link"
         },
         {
           "command": "codea-air-code.deleteProject",
@@ -645,7 +708,7 @@
           {
             "id": "linkFolder",
             "title": "Already have the files?",
-            "description": "If your folder already holds a project, for example from a git repository, right-click its folder in the Explorer and choose Link Folder to Project. The files on both sides are compared before anything is copied.\n[Link a Folder](command:codea-air-code.linkFolder)",
+            "description": "If your folder already holds a project, for example from a git repository, right-click its folder in the Explorer. Choose Link Folder to a New Project if Codea does not have it yet: Codea Air Code makes it there with the folder's files. Choose Link Folder to Project for a project Codea already has: the files on both sides are compared before anything is copied.\n[Link a Folder](command:codea-air-code.linkFolder)",
             "media": {
               "markdown": "media/walkthrough/link.md"
             },
@@ -700,6 +763,14 @@
               "onCommand:codea-assets.focus",
               "onCommand:codea-air-code.linkAssetPack"
             ]
+          },
+          {
+            "id": "goToDefinition",
+            "title": "Go to definitions",
+            "description": "Install the Lua extension to jump to the definition of a function, a class or a Codea API, in your tabs, your linked dependencies and Codea's reference.\n[Set Up Go to Definition](command:codea-air-code.setUpGoToDefinition)",
+            "media": {
+              "markdown": "media/walkthrough/definitions.md"
+            }
           }
         ]
       }
@@ -711,7 +782,8 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js"
+    "test": "node ./out/test/runTest.js",
+    "generate-lua-api": "node scripts/generate-lua-api.js"
   },
   "dependencies": {
     "@types/vscode-webview": "^1.57.1",
@@ -740,6 +812,7 @@
     "@vscode/test-electron": "^2.2.3",
     "eslint": "^8.34.0",
     "glob": "^8.1.0",
+    "js-yaml": "^4.1.0",
     "mocha": "^10.2.0",
     "typescript": "^4.9.5"
   }

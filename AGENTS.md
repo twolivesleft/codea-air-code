@@ -54,6 +54,33 @@ including files in iCloud projects shared with other people. The rules that prev
 The end-to-end checks for these (three runs on one profile, as reloads) are described in
 the linked-folders handoff; run them after any change to `src/sync.ts`.
 
+## Go to Definition (LuaLS)
+
+Definitions come from the Lua extension (`sumneko.lua`), which `src/luals.ts` configures in the
+folder's settings: `luals/api/*.lua` as a library (Codea's API) and `luals/plugin.lua`, which makes
+`X = class()` a type, reads `x = require(asset...)` as the globals, and declares the global a
+`parameter.number/integer/boolean/text/color("Name", ...)` call makes. The folder counts as set up
+when `Lua.runtime.plugin` names that plugin; there is no setting of its own, which a window that
+updated the extension without reloading would not know. `Lua.workspace.ignoreDir` lists every
+folder but the linked projects (entries starting with `/`; LuaLS has no `!` to re-include). The local
+projects they require or depend on, found beside them or in a folder named after the collection, are
+added to `Lua.workspace.library`, for their definitions without their warnings; `ignoreDir` names each
+of those itself, since LuaLS reads no library inside a folder it ignores. A watcher on `*.lua` and
+`Info.plist` keeps both current. A required project created while LuaLS runs, under a path with a
+space, was not read as a library until LuaLS restarted. Its completion and signature
+help are turned off; its diagnostics stay on, because they are what makes LuaLS read again a file
+changed on disk. A change made just after a file was created is taken for its creation, and missed.
+
+`luals/api` is generated from codea-super's reference, Carbide JSON and legacy YAML. Run it again
+when Codea's API changes:
+
+```bash
+npm run generate-lua-api -- ~/Git/codea-super
+```
+
+`.e2e/luals.js` checks it against the simulator with LuaLS installed:
+`LUALS=<extensions dir with sumneko.lua> .e2e/run.sh luals`.
+
 ## Releasing
 
 Publishing is automated with Marketplace Trusted Publishing (GitHub OIDC). No

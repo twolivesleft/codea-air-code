@@ -72,6 +72,25 @@ Types can easily be documented using a triple-slash (`---`) comment.
 
 <img width="486" alt="Auto Documentation" src="images/document_1.png">
 
+#### Go to Definition
+
+With the [Lua extension](https://marketplace.visualstudio.com/items?itemName=sumneko.lua) by sumneko installed, Codea Air Code sets it up for your linked projects, so Go to Definition (F12), Find All References and hover work on your code and Codea's API:
+
+- functions and variables in other tabs, in folders inside the project, and in the other linked projects, such as its dependencies;
+- classes made with `class()` and their methods, as in `ship:draw()`;
+- modern dependencies required with `require(asset.documents.Lib)`;
+- the globals made by `parameter.number`, `parameter.integer`, `parameter.boolean`, `parameter.text` and `parameter.color`, which lead to the call that makes them;
+- Codea's API, legacy and modern, with its documentation on hover.
+
+When the Lua extension is installed, Codea Air Code offers to set it up in a folder with linked projects; or run `Codea: Set Up Go to Definition`, which also installs it. Auto-completion and signature help still come from Codea; the Lua extension adds warnings about your code, such as an unused local. Only the linked projects are read, along with the definitions of the projects in the folder they require or list in their `Info.plist`, so a folder holding many other projects, such as a git repository of them, does not slow it down or fill the Problems view. A required project is looked for beside the project that requires it, or in a folder named after its collection. A name defined in several linked projects lists each of them, and files open in an editor keep their warnings until they are closed.
+
+A global that may not exist, checked before it is used, is reported as undefined. Tell the Lua extension it is expected on that line:
+
+```lua
+---@diagnostic disable-next-line: undefined-global
+if scratchTrailColor then
+```
+
 ### Sidebar
 
 The Codea Sidebar gives access to the Projects, Assets, Reference and Parameters sections.
@@ -83,6 +102,8 @@ The Projects section lists the collections and projects in Codea. Click the down
 To get all your projects at once, click the download button at the top of the section, or the one next to a collection to get all of its projects. Codea's built-in collections, such as Examples, are left out of the first, but each of their projects can still be got on its own.
 
 The New Project button at the top of the section, or next to a collection, creates a project in Codea and gets it (see [Creating, Renaming and Deleting Projects](#creating-renaming-and-deleting-projects)). A linked project lists its dependencies under it (see [Dependencies](#dependencies)), and projects in iCloud are marked with a cloud in the Explorer.
+
+The filter button at the top of the section shows only the linked projects and the collections holding them; click it again to show all projects.
 
 <img width="420" alt="Projects" src="images/projects.png">
 
@@ -155,7 +176,7 @@ The `Codea: Get Started with Codea Projects` command opens a walkthrough of thes
 1. Open a folder for your projects with `File > Open Folder...`: an empty folder to start, or one you already have, such as a git repository of Codea projects.
 2. In the Codea Sidebar, open the Projects section and click `Connect to Codea` (see [Connection](#connection)).
 3. Click the download button next to a project to get it, or the one at the top of the section to get all your projects. Projects are copied into your folder the same way Codea organizes its files (`Project.codea` for Documents, `Collection/Project.codea` for other collections).
-4. If your folder already holds your projects, laid out the same way, run `Codea: Link All Matching Folders...` to link them all to the projects of the same name in Codea, or right-click one project's folder in the Explorer and choose `Codea: Link Folder to Project...`.
+4. If your folder already holds your projects, laid out the same way, run `Codea: Link All Matching Folders...` to link them all to the projects of the same name in Codea, or right-click one project's folder in the Explorer and choose `Codea: Link Folder to Project...`. A project folder that Codea does not have yet is linked with `Codea: Link Folder to a New Project...`, which makes the project in Codea, in the collection the folder is in, with the folder's files; Link Folder to Project offers the same at the top of its list.
 5. Edit the project, then play it with the play button in the status bar.
 
 ### Linked Folders
@@ -177,7 +198,7 @@ Changes are kept in sync both ways:
 
 - Files saved here, created, deleted, or changed by any other tool are sent to Codea right away.
 - Changes made in Codea, or by another app on the device, come back within a second. With older versions of Codea, linked folders are checked every 10 seconds instead.
-- If a file changed on both sides, you will be asked whether to keep the local version or Codea's, and you can compare them first. Nothing is overwritten until you choose. When many projects are linked at once, the files that differ are listed together, to keep one side for all of them or review each.
+- If a file changed on both sides, you will be asked whether to keep the local version or Codea's, and you can compare them first. Nothing is overwritten until you choose. After linking, reloading or reconnecting, the files that differ are asked about together in a dialog, to keep one side for all of them or review each. A file still waiting for a choice is not synced, and the status bar shows how many there are; click it, or run `Codea: Resolve Sync Conflicts`, to choose.
 
 Deletions are handled carefully, since Codea deletes files for good:
 
@@ -185,6 +206,8 @@ Deletions are handled carefully, since Codea deletes files for good:
 - Deleting more than 5 files at once asks first; anything but `Delete in Codea` brings them back.
 - `Main.lua` and `Info.plist` are put back if they are deleted, and `Main.lua` is renamed back if it is renamed: Codea projects need them.
 - A linked project whose folder goes missing, here or in Codea, is not synced. You are asked whether to get it again or unlink it, and nothing is changed in Codea.
+
+To stop syncing a folder, right-click it in the Explorer, or its project in the Projects section, and choose `Unlink Folder`. Its files stay as they are, here and in Codea, and it can be linked again later.
 
 The Codea items in the status bar show the connection and play the project you are working on. Clicking the Codea item shows a menu to sync, reconnect or link a folder. Syncing can also be started with the button at the top of the Explorer.
 
@@ -270,9 +293,11 @@ All commands included with this extension are prefixed with `Codea:`.
 | `Get All Projects`     | Get every project from Codea into the open folder, linked.            |
 | `Link All Matching Folders...` | Link the folder's projects to the projects of the same name in Codea. |
 | `Link Folder to Project...` | Keep a local folder in sync with a project in Codea.             |
+| `Link Folder to a New Project...` | Make a project in Codea from a local project folder, and keep them in sync. |
 | `New Project...`       | Create a project in Codea and get it into the folder, linked.         |
 | `Delete Project in Codea...` | Delete a project in Codea, and move its linked folder to the Trash. |
 | `Sync Linked Folders`  | Sync all linked folders with Codea now.                               |
+| `Unlink Folder`        | Stop syncing a folder with its project; its files stay on both sides. |
 | `Disconnect`           | Disconnect the folder from Codea until you connect again.             |
 | `Execute current line` | Executes the Lua code on the active line.                             |
 | `Execute selection`    | Executes the select Lua code in Codea.                                |
@@ -281,6 +306,7 @@ All commands included with this extension are prefixed with `Codea:`.
 | `Add dependency...`    | Add a dependency to a project, as Codea's editor does.                |
 | `Find reference...`    | Look-up the reference for the selected word.                          |
 | `Set runtime...`       | Change the current project's runtime between legacy and modern.       |
+| `Set Up Go to Definition` | Set up the Lua extension for Go to Definition in the linked projects, installing it if needed. |
 
 ## Requirements
 
