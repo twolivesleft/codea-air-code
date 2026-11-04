@@ -101,7 +101,7 @@ The Projects section lists the collections and projects in Codea. Click the down
 
 To get all your projects at once, click the download button at the top of the section, or the one next to a collection to get all of its projects. Codea's built-in collections, such as Examples, are left out of the first, but each of their projects can still be got on its own.
 
-The New Project button at the top of the section, or next to a collection, creates a project in Codea and gets it (see [Creating, Renaming and Deleting Projects](#creating-renaming-and-deleting-projects)). A linked project lists its dependencies under it (see [Dependencies](#dependencies)), and in the Explorer, linked folders are marked with a link, or a cloud for projects in iCloud.
+The New Project button at the top of the section, or next to a collection, creates a project in Codea and gets it (see [Creating, Renaming and Deleting Projects](#creating-renaming-and-deleting-projects)). A linked project lists its dependencies under it (see [Dependencies](#dependencies)), and projects in iCloud are marked with a cloud in the Explorer.
 
 The filter button at the top of the section shows only the linked projects and the collections holding them; click it again to show all projects.
 

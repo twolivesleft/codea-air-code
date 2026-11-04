@@ -2,7 +2,7 @@ import { AirCodePath } from './aircodepath';
 import { CancellationToken, Event, EventEmitter, FileDecoration, FileDecorationProvider, ProviderResult, Uri } from "vscode";
 import { Links } from './links';
 
-// Marks iCloud projects by their path, and linked folders by the project they hold
+// Marks iCloud projects: codea:// ones by their path, linked folders by the project they hold
 export class CodeaDecorationProvider implements FileDecorationProvider {
     private _onDidChange = new EventEmitter<undefined>();
     onDidChangeFileDecorations: Event<undefined> = this._onDidChange.event;
@@ -12,18 +12,17 @@ export class CodeaDecorationProvider implements FileDecorationProvider {
     }
 
     provideFileDecoration(uri: Uri, token: CancellationToken): ProviderResult<FileDecoration> {
-        if (uri.scheme !== 'file') {
-            return new AirCodePath(uri.path).isCloud ? { badge: '☁️', tooltip: 'iCloud' } : undefined;
+        const isCloud = uri.scheme === 'file'
+            ? this.links.projects().some(project => project.localUri.path === uri.path && project.remotePath.startsWith('iCloud/'))
+            : new AirCodePath(uri.path).isCloud;
+
+        if (isCloud) {
+            return {
+                badge: '☁️',
+                tooltip: 'iCloud'
+            };
         }
 
-        const linked = this.links.projects().find(project => project.localUri.path === uri.path);
-        if (linked === undefined) {
-            return undefined;
-        }
-
-        return {
-            badge: linked.remotePath.startsWith('iCloud/') ? '☁️' : '🔗',
-            tooltip: `Linked to ${linked.remotePath}`
-        };
+        return undefined;
     }
 }

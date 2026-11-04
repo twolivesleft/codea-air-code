@@ -7,7 +7,6 @@
 - Link Folder to a New Project, on a project folder Codea does not have yet, makes it in Codea with the folder's files; Link Folder offers the same, and New Project named like such a folder uses its files
 - Files changed on both sides are asked about in a dialog after linking, reloading or reconnecting, and those still waiting are shown in the status bar until resolved
 - Link Folder's dialog can pick a `.codea` project folder on macOS, which Codea registers as a package
-- Linked folders are marked with a link in the Explorer, and named by the project they are linked to on hover
 ## 1.3.8 (2026/11/02)
 - Projects are kept in local folders linked to Codea and synced both ways, so search, source control and AI coding assistants work with them
 - Projects view: get, link and play Codea's projects; New Project and Delete Project in Codea; renaming a project folder renames it in Codea
