@@ -4,6 +4,8 @@ import { AirCode } from './aircode';
 // The next frame is asked for as soon as one arrives: on an iPhone, spacing frames out
 // cost a running project more frames per second than capturing continuously
 const FRAME_INTERVAL = 0;
+// One frame travels back while Codea captures the next
+const FRAMES_IN_FLIGHT = 2;
 const RETRY_INTERVAL = 1000;
 const QUALITY = 0.6;
 
@@ -69,45 +71,55 @@ export class DevicePreview {
         this.onDidChangeEmitter.fire(true);
     }
 
-    // Asks for one frame at a time, so a slow connection slows the preview rather than queuing frames
+    // Asks for a few frames at a time, so a slow connection slows the preview rather than queuing frames
     private async run() {
         if (this.running) {
             return;
         }
         this.running = true;
         try {
-            while (this.panel?.visible && !this.paused && this.request.width > 0 && this.request.height > 0) {
-                const panel = this.panel;
-                // The panel can close while a frame is on its way
-                const post = (message: object) => {
-                    if (this.panel === panel) {
-                        panel.webview.postMessage(message);
-                    }
-                };
-                const { width, height, project } = this.request;
-                const started = Date.now();
-                let wait = FRAME_INTERVAL;
-                try {
-                    if (!this.airCode.capturesFrames) {
-                        // Connecting tells what this Codea supports
-                        await this.airCode.getInformation(this.uri());
-                    }
-                    if (this.airCode.capturesFrames) {
-                        const frame = await this.airCode.captureFrame(this.uri(), width, height, QUALITY, project);
-                        post({ type: 'frame', ...frame });
-                        if (frame.data === undefined) {
+            let asked = 0;
+            let shown = 0;
+            const ask = async () => {
+                while (this.panel?.visible && !this.paused && this.request.width > 0 && this.request.height > 0) {
+                    const panel = this.panel;
+                    // The panel can close while a frame is on its way
+                    const post = (message: object) => {
+                        if (this.panel === panel) {
+                            panel.webview.postMessage(message);
+                        }
+                    };
+                    const { width, height, project } = this.request;
+                    const sequence = ++asked;
+                    const started = Date.now();
+                    let wait = FRAME_INTERVAL;
+                    try {
+                        if (!this.airCode.capturesFrames) {
+                            // Connecting tells what this Codea supports
+                            await this.airCode.getInformation(this.uri());
+                        }
+                        if (this.airCode.capturesFrames) {
+                            const frame = await this.airCode.captureFrame(this.uri(), width, height, QUALITY, project);
+                            // A frame that arrives after a newer one is dropped
+                            if (sequence > shown) {
+                                shown = sequence;
+                                post({ type: 'frame', ...frame });
+                            }
+                            if (frame.data === undefined) {
+                                wait = RETRY_INTERVAL;
+                            }
+                        } else {
+                            post({ type: 'message', text: "Update Codea to see the device's screen here." });
                             wait = RETRY_INTERVAL;
                         }
-                    } else {
-                        post({ type: 'message', text: "Update Codea to see the device's screen here." });
+                    } catch {
+                        post({ type: 'message', text: "Waiting for Codea..." });
                         wait = RETRY_INTERVAL;
                     }
-                } catch {
-                    post({ type: 'message', text: "Waiting for Codea..." });
-                    wait = RETRY_INTERVAL;
+                    await new Promise(resolve => setTimeout(resolve, Math.max(0, wait - (Date.now() - started))));
                 }
-                await new Promise(resolve => setTimeout(resolve, Math.max(0, wait - (Date.now() - started))));
-            }
+            };
+            await Promise.all(Array.from({ length: FRAMES_IN_FLIGHT }, ask));
         } finally {
             this.running = false;
         }
