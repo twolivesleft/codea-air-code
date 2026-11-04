@@ -14,7 +14,8 @@ import {
     GetFunctionsResponse,
     FindReferenceResponse, 
     GetAssetKeyResponse,
-    FileVersion} from './responses';
+    FileVersion,
+    Frame} from './responses';
 import { Command } from './commands';
 import * as Parameters from './parameters';
 import * as Reference from './reference';
@@ -81,6 +82,8 @@ export class AirCode implements vscode.FileSystemProvider {
     // Whether Codea keeps files in folders inside a project, lists them, and creates the folders
     listsSubfolders = false;
     hasModernReference = false;
+    // Whether Codea sends its screen as frames, for the device preview
+    capturesFrames = false;
     // Collections that ship with Codea, which getting every project skips
     builtInCollections: string[] = ["Examples", "Craft"];
     private lastAnswer = 0;
@@ -373,6 +376,7 @@ export class AirCode implements vscode.FileSystemProvider {
             airCode.listsFileVersions = information.listsFileVersions === true;
             airCode.listsSubfolders = information.listsSubfolders === true;
             airCode.hasModernReference = information.hasModernReference === true;
+            airCode.capturesFrames = information.capturesFrames === true;
             if (information.builtInCollections) {
                 airCode.builtInCollections = information.builtInCollections;
             }
@@ -879,6 +883,11 @@ export class AirCode implements vscode.FileSystemProvider {
     // The files of a folder with Codea's modification dates, in one request
     async listFileVersions(uri: vscode.Uri): Promise<FileVersion[]> {
         return this.sendCommand<FileVersion[]>(uri, Command.ListFileVersions.from(uri.path));
+    }
+
+    // The running project, or the device's whole screen, no larger than maxWidth by maxHeight pixels
+    async captureFrame(uri: vscode.Uri, maxWidth: number, maxHeight: number, quality: number, project: boolean): Promise<Frame> {
+        return this.sendCommand<Frame>(uri, Command.CaptureFrame.from(maxWidth, maxHeight, quality, project));
     }
 
     // VS Code FileSystemProvider Implementation

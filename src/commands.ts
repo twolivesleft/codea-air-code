@@ -37,7 +37,8 @@ export namespace Command {
         | "probeGetFunctionDetails"
         | "probeFindReference"
         | "watchFiles"
-        | "listFileVersions";
+        | "listFileVersions"
+        | "captureFrame";
 
     export interface GetInformation extends Command {
         command: 'getInformation';
@@ -194,6 +195,14 @@ export namespace Command {
     export interface ListFileVersions extends Command {
         command: 'listFileVersions';
         path: string;
+    }
+
+    export interface CaptureFrame extends Command {
+        command: 'captureFrame';
+        maxWidth: number;
+        maxHeight: number;
+        quality: number;
+        project: boolean;
     }
 
     // Convenience Initializers
@@ -375,6 +384,12 @@ export namespace Command {
     export namespace ListFileVersions {
         export function from(path: string): ListFileVersions {
             return { command: 'listFileVersions', path };
+        }
+    }
+
+    export namespace CaptureFrame {
+        export function from(maxWidth: number, maxHeight: number, quality: number, project: boolean): CaptureFrame {
+            return { command: 'captureFrame', maxWidth, maxHeight, quality, project };
         }
     }
 }

@@ -8,6 +8,7 @@ This extension connects Visual Studio Code to the [Codea](https://codea.io/) iOS
   - [Projects in Local Folders](#projects-in-local-folders)
   - [Editor](#editor)
   - [Sidebar](#sidebar)
+  - [Device Preview](#device-preview)
   - [Debugger](#debugger)
 - [Installation](#installation)
 - [Usage](#usage)
@@ -136,6 +137,10 @@ The second section of the Codea Sidebar will show the current parameters for the
 All parameters can be controlled directly from Visual Studio Code even if the parameters are hidden in Codea, making it easier to tweak the projects.
 
 <img width="302" alt="Parameters" src="images/parameters_2.png">
+
+### Device Preview
+
+Click the device button in the status bar, or run `Codea: Show or Hide the Device's Screen`, to see the device in a panel beside your code. It shows the running project, or the whole screen with Codea's own interface, and greys out when no project is running. The panel can be resized or moved to its own window, and zoomed to fit, to the device's actual size, or to half or twice that. Frames are only asked for while the panel is visible, and not while files sync.
 
 ### Debugger
 
@@ -307,10 +312,11 @@ All commands included with this extension are prefixed with `Codea:`.
 | `Find reference...`    | Look-up the reference for the selected word.                          |
 | `Set runtime...`       | Change the current project's runtime between legacy and modern.       |
 | `Set Up Go to Definition` | Set up the Lua extension for Go to Definition in the linked projects, installing it if needed. |
+| `Show or Hide the Device's Screen` | Show the running project, or the device's whole screen, in a panel beside your code. |
 
 ## Requirements
 
-Codea 3.10. Folders inside projects and the dependencies of modern projects need Codea 3.20. With versions of Codea that do not report changes made on the device, linked folders are checked for them every 10 seconds.
+Codea 3.10. Folders inside projects, the dependencies of modern projects and the device preview need Codea 3.20. With versions of Codea that do not report changes made on the device, linked folders are checked for them every 10 seconds.
 
 <a href="http://itunes.apple.com/app/id439571171?mt=8"><img height="40" alt="Screenshot of the editor" src="images/App-Store-Badge.png"></a>
 
