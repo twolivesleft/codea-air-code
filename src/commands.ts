@@ -38,7 +38,8 @@ export namespace Command {
         | "probeFindReference"
         | "watchFiles"
         | "listFileVersions"
-        | "captureFrame";
+        | "captureFrame"
+        | "sendTouch";
 
     export interface GetInformation extends Command {
         command: 'getInformation';
@@ -196,6 +197,18 @@ export namespace Command {
         command: 'listFileVersions';
         path: string;
     }
+
+    export interface SendTouch extends Command {
+        command: 'sendTouch';
+        touchId: number;
+        phase: TouchPhase;
+        x: number;
+        y: number;
+        prevX: number;
+        prevY: number;
+    }
+
+    export type TouchPhase = 'began' | 'moved' | 'ended' | 'cancelled';
 
     export interface CaptureFrame extends Command {
         command: 'captureFrame';
@@ -384,6 +397,12 @@ export namespace Command {
     export namespace ListFileVersions {
         export function from(path: string): ListFileVersions {
             return { command: 'listFileVersions', path };
+        }
+    }
+
+    export namespace SendTouch {
+        export function from(touchId: number, phase: TouchPhase, x: number, y: number, prevX: number, prevY: number): SendTouch {
+            return { command: 'sendTouch', touchId, phase, x, y, prevX, prevY };
         }
     }
 

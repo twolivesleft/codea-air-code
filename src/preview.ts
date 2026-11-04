@@ -60,6 +60,9 @@ export class DevicePreview {
             if (message.type === 'request') {
                 this.request = { width: message.width, height: message.height, project: message.project };
                 this.run();
+            } else if (message.type === 'touch' && this.airCode.takesTouches) {
+                this.airCode.sendTouch(this.uri(), message.touchId, message.phase, message.x, message.y, message.prevX, message.prevY)
+                    .catch(() => undefined);
             }
         });
         panel.onDidChangeViewState(() => this.run());
@@ -103,7 +106,7 @@ export class DevicePreview {
                             // A frame that arrives after a newer one is dropped
                             if (sequence > shown) {
                                 shown = sequence;
-                                post({ type: 'frame', ...frame });
+                                post({ type: 'frame', touches: this.airCode.takesTouches, ...frame });
                             }
                             if (frame.data === undefined) {
                                 wait = RETRY_INTERVAL;
@@ -144,6 +147,7 @@ export class DevicePreview {
 	#frame { margin: auto; display: block; }
 	#stage.fit #frame { max-width: 100%; max-height: 100%; object-fit: contain; }
 	#frame.idle { opacity: 0.3; filter: grayscale(1); }
+	#frame.touchable { cursor: pointer; touch-action: none; }
 	#message { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--vscode-descriptionForeground); pointer-events: none; }
 </style>
 </head>
@@ -173,6 +177,9 @@ export class DevicePreview {
 	const scopes = { project: document.getElementById('project'), screen: document.getElementById('screen') };
 	// The size in points of what was last shown, which a zoom other than Fit is applied to
 	let points;
+	// The drag in progress, sent as a touch of the running project
+	let drag;
+	let nextTouchId = 1;
 
 	function request() {
 		let width = stage.clientWidth, height = stage.clientHeight;
@@ -203,6 +210,61 @@ export class DevicePreview {
 		request();
 	}
 
+	// A point of the image in the device's points, from its top left
+	function devicePoint(event) {
+		const box = frame.getBoundingClientRect();
+		return {
+			x: (event.clientX - box.left) / box.width * points.width,
+			y: (event.clientY - box.top) / box.height * points.height,
+		};
+	}
+
+	function sendTouch(phase, point) {
+		vscode.postMessage({ type: 'touch', touchId: drag.id, phase,
+			x: point.x, y: point.y, prevX: drag.last.x, prevY: drag.last.y });
+		drag.last = point;
+	}
+
+	frame.addEventListener('pointerdown', event => {
+		if (!frame.classList.contains('touchable') || event.button !== 0 || drag) {
+			return;
+		}
+		event.preventDefault();
+		frame.setPointerCapture(event.pointerId);
+		const point = devicePoint(event);
+		drag = { id: nextTouchId++, pointerId: event.pointerId, last: point };
+		sendTouch('began', point);
+	});
+	// Moves are sent at most once per display refresh, the last one each time
+	frame.addEventListener('pointermove', event => {
+		if (!drag || event.pointerId !== drag.pointerId) {
+			return;
+		}
+		const scheduled = drag.pending !== undefined;
+		drag.pending = devicePoint(event);
+		if (!scheduled) {
+			requestAnimationFrame(() => {
+				if (drag && drag.pending) {
+					sendTouch('moved', drag.pending);
+					drag.pending = undefined;
+				}
+			});
+		}
+	});
+	const release = phase => event => {
+		if (!drag || event.pointerId !== drag.pointerId) {
+			return;
+		}
+		if (drag.pending) {
+			sendTouch('moved', drag.pending);
+		}
+		sendTouch(phase, devicePoint(event));
+		drag = undefined;
+	};
+	frame.addEventListener('pointerup', release('ended'));
+	frame.addEventListener('pointercancel', release('cancelled'));
+	frame.addEventListener('dragstart', event => event.preventDefault());
+
 	scopes.project.addEventListener('click', () => { state.project = true; points = undefined; apply(); });
 	scopes.screen.addEventListener('click', () => { state.project = false; points = undefined; apply(); });
 	zoom.addEventListener('change', () => { state.zoom = zoom.value; apply(); });
@@ -213,6 +275,8 @@ export class DevicePreview {
 		if (data.type === 'frame' && data.data) {
 			frame.src = 'data:image/jpeg;base64,' + data.data;
 			frame.classList.remove('idle');
+			// Touches go to the running project, so only a frame of it takes them
+			frame.classList.toggle('touchable', data.touches && state.project);
 			message.textContent = '';
 			const changed = !points || points.width !== data.pointWidth || points.height !== data.pointHeight;
 			points = { width: data.pointWidth, height: data.pointHeight };
@@ -222,9 +286,11 @@ export class DevicePreview {
 			}
 		} else if (data.type === 'frame') {
 			frame.classList.add('idle');
+			frame.classList.remove('touchable');
 			message.textContent = 'No project running';
 		} else if (data.type === 'message') {
 			frame.classList.add('idle');
+			frame.classList.remove('touchable');
 			message.textContent = data.text;
 		}
 	});
