@@ -19,3 +19,17 @@ export class AirCodePath {
         }
     }
 }
+
+// Codea names a project's chunks by their path with everything outside Swift's urlPathAllowed
+// percent-encoded, and the debugger matches breakpoints to chunks by that name
+export function encodeChunkPath(path: string): string {
+    return path.replace(/[^A-Za-z0-9\-._~!$&'()*+,;=:@/]/gu, encodeURIComponent);
+}
+
+export function decodeChunkPath(path: string): string {
+    try {
+        return decodeURIComponent(path);
+    } catch {
+        return path;
+    }
+}
