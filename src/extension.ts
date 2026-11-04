@@ -16,6 +16,7 @@ import { AirCodeService } from './service';
 import { isAssetPack, Links } from './links';
 import { LinkSync } from './sync';
 import { LinkedProject } from './links';
+import { OutputLinkProvider } from './outputlinks';
 import { CodeaStatus } from './status';
 import { DevicePreview } from './preview';
 import { collectionOfFolder } from './layout';
@@ -58,6 +59,7 @@ export function activate(context: vscode.ExtensionContext) {
 	const referenceViewProvider = new ReferenceViewProvider(context.extensionUri);
 	const assetKeyOnDropProvider = new AssetKeyOnDropProvider();
 	const outputChannel = vscode.window.createOutputChannel("Codea", "codea-output");
+	context.subscriptions.push(vscode.languages.registerDocumentLinkProvider({ language: 'codea-output' }, new OutputLinkProvider(linkedFolders)));
 	const service = new AirCodeService();
 
 	// Start the service to browse for codea-air-code services.
