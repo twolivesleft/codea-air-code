@@ -223,7 +223,7 @@ To connect your folder to Codea, click `Connect to Codea` in the Projects sectio
 
 <img width="596" alt="Host Connection" src="images/connect_2.png">
 
-To find the device's IP to connect to if the device is not in the list, use the Air Code icon on the project selection screen in Codea. The default port is `18513`. The address is saved with the folder's settings, so the folder reconnects on its own the next time it is opened.
+A device plugged in with a USB cable is listed first, by name, when Codea is open on it (see [USB Connection](#usb-connection)). To find the device's IP to connect to if the device is not in the list, use the Air Code icon on the project selection screen in Codea. The default port is `18513`. The address is saved with the folder's settings, so the folder reconnects on its own the next time it is opened.
 
 Clicking the Codea item in the status bar shows a menu to disconnect, reconnect, or connect to another device. While disconnected, changes stay where they are made, and are synced when the folder connects again.
 
