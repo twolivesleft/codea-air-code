@@ -140,7 +140,11 @@ All parameters can be controlled directly from Visual Studio Code even if the pa
 
 ### Device Preview
 
-Click the device button in the status bar, or run `Codea: Show or Hide the Device's Screen`, to see the device in a panel beside your code. It shows the running project, or the whole screen with Codea's own interface, and greys out when no project is running. The panel can be resized or moved to its own window, and zoomed to fit, to the device's actual size, or to half or twice that. Frames are only asked for while the panel is visible, and not while files sync.
+Click the device button in the status bar, or run `Codea: Show or Hide the Device's Screen`, to see the device in a panel beside your code. `Project` shows only the running project, without Codea's buttons, and greys out when no project is running; `Screen` shows the whole screen with Codea's own interface. The panel can be resized or moved to its own window, and zoomed to fit, to the device's actual size, or to half or twice that.
+
+Showing the project, click or drag on it to touch it: the project's `touched` function gets the touch as if it came from the screen, one finger at a time.
+
+The first time the panel opens, iOS asks whether Codea may record its screen. Allowing it lets Codea send frames without slowing the project down; otherwise Codea draws each frame itself, which costs the project some of its frame rate. Frames are only asked for while the panel is visible, and not while files sync.
 
 ### Debugger
 

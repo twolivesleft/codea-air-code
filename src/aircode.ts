@@ -84,6 +84,8 @@ export class AirCode implements vscode.FileSystemProvider {
     hasModernReference = false;
     // Whether Codea sends its screen as frames, for the device preview
     capturesFrames = false;
+    // Whether Codea takes touches for the running project from the device preview
+    takesTouches = false;
     // Collections that ship with Codea, which getting every project skips
     builtInCollections: string[] = ["Examples", "Craft"];
     private lastAnswer = 0;
@@ -377,6 +379,7 @@ export class AirCode implements vscode.FileSystemProvider {
             airCode.listsSubfolders = information.listsSubfolders === true;
             airCode.hasModernReference = information.hasModernReference === true;
             airCode.capturesFrames = information.capturesFrames === true;
+            airCode.takesTouches = information.takesTouches === true;
             if (information.builtInCollections) {
                 airCode.builtInCollections = information.builtInCollections;
             }
@@ -883,6 +886,11 @@ export class AirCode implements vscode.FileSystemProvider {
     // The files of a folder with Codea's modification dates, in one request
     async listFileVersions(uri: vscode.Uri): Promise<FileVersion[]> {
         return this.sendCommand<FileVersion[]>(uri, Command.ListFileVersions.from(uri.path));
+    }
+
+    // A touch for the running project, in the points of the frames captureFrame sends of it
+    async sendTouch(uri: vscode.Uri, touchId: number, phase: Command.TouchPhase, x: number, y: number, prevX: number, prevY: number): Promise<void> {
+        await this.sendCommand(uri, Command.SendTouch.from(touchId, phase, x, y, prevX, prevY));
     }
 
     // The running project, or the device's whole screen, no larger than maxWidth by maxHeight pixels

@@ -23,6 +23,7 @@ export type GetInformationResponse = {
     listsSubfolders?: boolean;
     hasModernReference?: boolean;
     capturesFrames?: boolean;
+    takesTouches?: boolean;
     builtInCollections?: string[];
 }
 
