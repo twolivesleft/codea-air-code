@@ -1,8 +1,11 @@
 # Change Log
 
-## 1.3.10 (2026/11/03)
+## 1.3.10 (2026/11/05)
 - The device preview shows the running project, or the device's whole screen, in a panel beside your code, from the device button in the status bar; it can be zoomed to fit or to the device's size (Codea 3.20)
 - Clicking or dragging on the running project in the device preview touches it (Codea 3.20)
+- Devices plugged in over USB are listed first, by name, when connecting, and connect without iproxy
+- The file and line of an error in the Output panel opens that file at that line
+- Breakpoints resolve in linked projects whose path has a space, such as `My Games`
 
 ## 1.3.9 (2026/11/03)
 - Go to Definition, Find All References and hover in linked projects, through the Lua extension by sumneko, which Codea Air Code sets up with Codea's API, its `class()`, `require(asset...)` and the globals `parameter` functions make, for the linked projects and the projects they use
