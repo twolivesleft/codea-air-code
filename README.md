@@ -144,7 +144,7 @@ Click the device button in the status bar, or run `Codea: Show or Hide the Devic
 
 Showing the project, click or drag on it to touch it: the project's `touched` function gets the touch as if it came from the screen, one finger at a time.
 
-The first time the panel opens, iOS asks whether Codea may record its screen. Allowing it lets Codea send frames without slowing the project down; otherwise Codea draws each frame itself, which costs the project some of its frame rate. Frames are only asked for while the panel is visible, and not while files sync.
+The first time the panel opens after Codea starts, iOS asks whether Codea may record its screen. Allowing it lets Codea send frames without slowing the project down; otherwise Codea draws each frame itself, which costs the project some of its frame rate. Frames are only asked for while the panel is visible, and not while files sync.
 
 ### Debugger
 
