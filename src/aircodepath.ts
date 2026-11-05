@@ -33,3 +33,20 @@ export function decodeChunkPath(path: string): string {
         return path;
     }
 }
+
+// A chunk and line as Lua writes them in errors and tracebacks, e.g. "iPad%20Projects/EmuTests/CPU.lua:416"
+export interface ChunkLine {
+    start: number;
+    end: number;
+    chunk: string;
+    line: number;
+}
+
+export function chunkLinesIn(text: string): ChunkLine[] {
+    return [...text.matchAll(/([^\s:'"()[\]]+\.lua):(\d+)/g)].map(match => ({
+        start: match.index!,
+        end: match.index! + match[0].length,
+        chunk: match[1],
+        line: Number(match[2]),
+    }));
+}

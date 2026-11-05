@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 
-import { decodeChunkPath, encodeChunkPath } from '../../aircodepath';
+import { chunkLinesIn, decodeChunkPath, encodeChunkPath } from '../../aircodepath';
 
 suite('chunk paths', () => {
 	test('encode a path as Codea names its chunks', () => {
@@ -16,5 +16,25 @@ suite('chunk paths', () => {
 
 	test('leave a path that is not encoded as it is', () => {
 		assert.strictEqual(decodeChunkPath('/Codea/Mine/100%.lua'), '/Codea/Mine/100%.lua');
+	});
+});
+
+suite('chunk lines', () => {
+	test('find the file and line of an error', () => {
+		const text = 'ERROR: Error in call to draw():\niPad%20Projects/EmuTests/CPU.lua:416: attempt to index a nil value';
+		assert.deepStrictEqual(chunkLinesIn(text.split('\n')[1]), [
+			{ start: 0, end: 36, chunk: 'iPad%20Projects/EmuTests/CPU.lua', line: 416 },
+		]);
+	});
+
+	test('find every one in a traceback', () => {
+		assert.deepStrictEqual(chunkLinesIn("\tMy%20Games/Emu/GPU.lua:12: in function 'step' (Mine/Emu/Dependencies/Utils/Bits.lua:3)").map(found => found.chunk), [
+			'My%20Games/Emu/GPU.lua',
+			'Mine/Emu/Dependencies/Utils/Bits.lua',
+		]);
+	});
+
+	test('leave text without one alone', () => {
+		assert.deepStrictEqual(chunkLinesIn('PRINT: score 12: high.lua is the best'), []);
 	});
 });

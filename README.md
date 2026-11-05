@@ -10,6 +10,7 @@ This extension connects Visual Studio Code to the [Codea](https://codea.io/) iOS
   - [Sidebar](#sidebar)
   - [Device Preview](#device-preview)
   - [Debugger](#debugger)
+  - [Output](#output)
 - [Installation](#installation)
 - [Usage](#usage)
   - [Getting Started](#getting-started)
@@ -169,6 +170,10 @@ Enter a valid Lua expression which must be `true` for the breakpoint to hit.
 Log Messages can be set on breakpoints to print the message in the Debug Console instead of breaking the execution. This can also be used to print the result of expressions within curly braces as can be seen in the following example:
 
 <img width="821" alt="Logpoint" src="images/logpoint.png">
+
+### Output
+
+The running project's prints and errors appear in the `Codea` channel of the Output panel. The file and line of an error, such as `Main.lua:12`, is a link: Ctrl+click it (⌘+click on Mac) to open the file at that line, in the linked folder if the project is linked, or in Codea otherwise.
 
 ## Installation
 
