@@ -1,6 +1,9 @@
 import * as bonjour from 'bonjour';
 import * as vscode from 'vscode';
 import * as ipaddr from 'ipaddr.js';
+import { deviceName, isListening, usbDevices, usbHost } from './usbmux';
+
+const codeaPort = 18513;
 
 class CustomServiceItem implements vscode.QuickPickItem {
 	label: string;
@@ -34,6 +37,28 @@ class FoundServiceItem implements vscode.QuickPickItem {
 		this.label = `${address}:${port}`;
 		this.detail = name;
 	}
+}
+
+class UsbServiceItem implements vscode.QuickPickItem {
+	label: string;
+	description = 'USB';
+	detail: string;
+
+	constructor(public host: string, name: string) {
+		this.label = `$(plug) ${name}`;
+		this.detail = `Connect to Codea over USB`;
+	}
+}
+
+// Codea on each device connected over USB
+async function findUsbServices(): Promise<UsbServiceItem[]> {
+	const items: UsbServiceItem[] = [];
+	for (const device of await usbDevices()) {
+		if (await isListening(device, codeaPort)) {
+			items.push(new UsbServiceItem(usbHost(device.udid, codeaPort), await deviceName(device) ?? device.udid));
+		}
+	}
+	return items;
 }
 
 // This class is used to browse and keep track of active codea-air-code services.
@@ -74,26 +99,34 @@ export class AirCodeService {
         const disposables: vscode.Disposable[] = [];
         try {
             return await new Promise<string | undefined>((resolve, reject) => {
-                const input = vscode.window.createQuickPick<CustomServiceItem | FoundServiceItem>();
-                input.placeholder = "Select a device, or enter its IP and port. For USB, enter Codea's port and a local port, such as 18513:18514.";
-                input.items = [
-                    new CustomServiceItem(""),
-                    ...this.services.map((service) => new FoundServiceItem(service.name, this.getIPv4(service), service.port))
-                ];
+                const input = vscode.window.createQuickPick<CustomServiceItem | UsbServiceItem | FoundServiceItem>();
+                input.placeholder = "Select a device, or enter its IP and port.";
+                let usbItems: UsbServiceItem[] = [];
+                // A device on USB comes first until an address is typed
+                const update = () => {
+                    const found = this.services.map((service) => new FoundServiceItem(service.name, this.getIPv4(service), service.port));
+                    const custom = new CustomServiceItem(input.value);
+                    input.items = input.value === '' && usbItems.length > 0
+                        ? [...usbItems, custom, ...found]
+                        : [custom, ...usbItems, ...found];
+                };
+                update();
+                input.busy = true;
+                findUsbServices().then(items => {
+                    usbItems = items;
+                    input.busy = false;
+                    update();
+                });
                 disposables.push(
-                    input.onDidChangeValue(value => {
-                        const customItem = new CustomServiceItem(value);
-                        input.items = [
-                            customItem,
-                            ...this.services.map((service) => new FoundServiceItem(service.name, this.getIPv4(service), service.port))
-                        ];
-                    }),
+                    input.onDidChangeValue(() => update()),
                     input.onDidChangeSelection(items => {
                         input.onDidHide(() => {});
                         input.hide();
                         if (items[0] instanceof FoundServiceItem) {
                             const item = items[0] as FoundServiceItem;
                             resolve(`${item.address}:${item.port}`);
+                        } else if (items[0] instanceof UsbServiceItem) {
+                            resolve(items[0].host);
                         } else {
                             const item = items[0] as CustomServiceItem;
                             resolve(item.text);

@@ -232,7 +232,7 @@ To connect your folder to Codea, click `Connect to Codea` in the Projects sectio
 
 <img width="596" alt="Host Connection" src="images/connect_2.png">
 
-To find the device's IP to connect to if the device is not in the list, use the Air Code icon on the project selection screen in Codea. The default port is `18513`. The address is saved with the folder's settings, so the folder reconnects on its own the next time it is opened.
+A device plugged in with a USB cable is listed first, by name, when Codea is open on it (see [USB Connection](#usb-connection)). To find the device's IP to connect to if the device is not in the list, use the Air Code icon on the project selection screen in Codea. The default port is `18513`. The address is saved with the folder's settings, so the folder reconnects on its own the next time it is opened.
 
 Clicking the Codea item in the status bar shows a menu to disconnect, reconnect, or connect to another device. While disconnected, changes stay where they are made, and are synced when the folder connects again.
 
@@ -244,13 +244,9 @@ Clicking the Codea item in the status bar shows a menu to disconnect, reconnect,
 
 ### USB Connection
 
-If Wi-Fi is not accessible or is slow, you can connect to Codea over a USB connection using iproxy, a utility part of libusbmuxd (or libimobiledevice).
+If Wi-Fi is not accessible or is slow, you can connect to Codea over a USB cable. Plug the device in, open Codea, and choose it at the top of the list when connecting: devices on USB where Codea answers are listed first, by name. This goes through the service that Finder and Xcode use to reach a device, which is part of macOS; on Windows it comes with Apple's device support (the Apple Devices app or iTunes).
 
-For Mac and Linux platforms, libusbmuxd can be installed through Homebrew using `brew install libusbmuxd` (refer to [https://brew.sh/](https://brew.sh/) for Homebrew installation).
-
-Windows executables including iproxy.exe are also available (look for `libimobiledevice windows binaries`). Make sure iTunes is installed on your Windows system and that the directory of iproxy.exe is included in your PATH environment variable.
-
-Once iproxy is available, connect to Codea and, instead of an address, enter the port used in Codea for Air Code followed by a local port to open on your computer, for example `18513:18514`.
+You can also connect through iproxy, a utility part of libusbmuxd (`brew install libusbmuxd` on Mac and Linux): instead of an address, enter the port used in Codea for Air Code followed by a local port to open on your computer, for example `18513:18514`.
 
 #### Multi-window
 
