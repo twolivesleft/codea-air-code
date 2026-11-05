@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as vscode from 'vscode';
 
 import { AirCode } from './aircode';
+import { decodeChunkPath, encodeChunkPath } from './aircodepath';
 import { dependenciesIn, dependencyFile } from './dependencies';
 
 // A local folder kept in sync with a project in Codea
@@ -108,9 +109,9 @@ export class Links {
         return projectUri && vscode.Uri.joinPath(projectUri, relative);
     }
 
-    // Accepts a path under /Codea/, as the debugger reports it, or a codea:// uri
+    // Accepts a path under /Codea/, encoded as the debugger reports it, or a codea:// uri
     toLocal(remote: string | vscode.Uri): vscode.Uri | undefined {
-        const path = typeof remote === 'string' ? remote : remote.path;
+        const path = typeof remote === 'string' ? decodeChunkPath(remote) : remote.path;
         const match = path.match(/\/Codea\/(.*)$/);
         if (match === null) {
             return undefined;
@@ -217,7 +218,7 @@ export class Links {
         const rewritePath = (path: string): string => {
             if (direction === 'toRemote') {
                 const remote = this.toRemote(vscode.Uri.file(path));
-                return remote === undefined ? path : `codea://${remote.authority}${remote.path}`;
+                return remote === undefined ? path : `codea://${remote.authority}${encodeChunkPath(remote.path)}`;
             }
             return this.toLocal(path)?.fsPath ?? path;
         };
