@@ -17,6 +17,7 @@ import { isAssetPack, Links } from './links';
 import { LinkSync } from './sync';
 import { LinkedProject } from './links';
 import { CodeaStatus } from './status';
+import { DevicePreview } from './preview';
 import { collectionOfFolder } from './layout';
 import { isBuiltInCollection, listCodeaProjects, listCollectionProjects, listCollections, localProjectUri, DependencyNode, ProjectNode, ProjectsViewProvider, remoteProjectPath } from './projects';
 
@@ -90,6 +91,11 @@ export function activate(context: vscode.ExtensionContext) {
 	const status = new CodeaStatus(context);
 	airCode.status = status;
 	status.setVisible(false);
+
+	const devicePreview = new DevicePreview(airCode, getWorkspaceUri);
+	devicePreview.onDidChange(open => status.setPreviewOpen(open));
+	context.subscriptions.push(vscode.commands.registerCommand('codea-air-code.toggleDevicePreview', () => devicePreview.toggle()));
+	context.subscriptions.push(vscode.window.registerWebviewPanelSerializer(DevicePreview.viewType, devicePreview.serializer()));
 
 	const storage = context.storageUri?.fsPath ?? context.globalStorageUri.fsPath;
 	const sync = new LinkSync(linkedFolders, airCode, LinkSync.storeIn(path.join(storage, 'sync')), outputChannel);
@@ -205,6 +211,7 @@ export function activate(context: vscode.ExtensionContext) {
 	}
 
 	context.subscriptions.push(sync.onDidChangeBusy(busy => status.setSyncing(busy)));
+	context.subscriptions.push(sync.onDidChangeBusy(busy => devicePreview.setPaused(busy)));
 
 	function linksChanged() {
 		luaDefinitions.update();

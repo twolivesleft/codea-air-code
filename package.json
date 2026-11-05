@@ -2,7 +2,7 @@
   "name": "codea-air-code",
   "displayName": "Codea Air Code",
   "description": "A remote editor and debugger for Codea projects.",
-  "version": "1.3.9",
+  "version": "1.3.10",
   "publisher": "twolivesleft",
   "license": "MIT",
   "homepage": "https://twolivesleft.github.io/codea-air-code/",
@@ -33,7 +33,8 @@
   "activationEvents": [
     "onFileSystem:codea",
     "workspaceContains:.vscode/settings.json",
-    "onView:codea-projects"
+    "onView:codea-projects",
+    "onWebviewPanel:codea-air-code.devicePreview"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -226,6 +227,11 @@
       {
         "command": "codea-air-code.resolveConflicts",
         "title": "Codea: Resolve Sync Conflicts"
+      },
+      {
+        "command": "codea-air-code.toggleDevicePreview",
+        "title": "Codea: Show or Hide the Device's Screen",
+        "icon": "$(device-mobile)"
       },
       {
         "command": "codea-air-code.linkFolderToNewProject",

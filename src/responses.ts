@@ -22,7 +22,18 @@ export type GetInformationResponse = {
     listsFileVersions?: boolean;
     listsSubfolders?: boolean;
     hasModernReference?: boolean;
+    capturesFrames?: boolean;
     builtInCollections?: string[];
+}
+
+// A JPEG of the running project or of the whole screen, in base64; no data when the
+// project was asked for and none runs. The size in points is the captured view's.
+export type Frame = {
+    data?: string;
+    width: number;
+    height: number;
+    pointWidth: number;
+    pointHeight: number;
 }
 
 export type FileVersion = {
