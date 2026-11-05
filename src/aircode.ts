@@ -4,6 +4,8 @@ import { AirCodePath } from './aircodepath';
 import { TextDecoder, TextEncoder } from 'util';
 import { WebSocket, Event, OPEN, MessageEvent, CloseEvent, CONNECTING } from 'ws';
 import { Result } from './result';
+import { forwardToDevice, parseUsbHost } from './usbmux';
+import * as net from 'net';
 import { 
     Response, 
     StartHostResponse, 
@@ -54,6 +56,8 @@ export class AirCode implements vscode.FileSystemProvider {
     closingSocket = false;
     checkingProxy = false;
     proxyProcess: cp.ChildProcess | undefined;
+    // The local address forwarded to each device over USB, by its codea:// host
+    usbForwarders = new Map<string, Promise<net.Server>>();
     commandId: number = 0;
     promises = new Map<number, (data: any) => void>();
     outputChannel: vscode.OutputChannel;
@@ -113,6 +117,9 @@ export class AirCode implements vscode.FileSystemProvider {
             this.proxyProcess.kill();
             this.proxyProcess = undefined;
         }
+
+        this.usbForwarders.forEach(forwarder => forwarder.then(server => server.close(), () => {}));
+        this.usbForwarders.clear();
     }
 
     logLsp(message: String) {
@@ -222,6 +229,22 @@ export class AirCode implements vscode.FileSystemProvider {
     }
 
     async checkForProxy(host: string, showError: boolean = true): Promise<string> {
+        const usb = parseUsbHost(host);
+        if (usb !== undefined) {
+            let forwarder = this.usbForwarders.get(host);
+            if (forwarder === undefined) {
+                forwarder = forwardToDevice(usb.udid, usb.port);
+                this.usbForwarders.set(host, forwarder);
+            }
+            try {
+                const address = (await forwarder).address() as net.AddressInfo;
+                return `127.0.0.1:${address.port}`;
+            } catch (error) {
+                this.usbForwarders.delete(host);
+                throw error;
+            }
+        }
+
         // Check if this is a USB connection (e.g. codea://18513:18514, i.e. codea://codeaPort:localPort)
         // Try to parse both parts as numbers
         const parts = host.split(':');

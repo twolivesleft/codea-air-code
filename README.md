@@ -235,13 +235,9 @@ Clicking the Codea item in the status bar shows a menu to disconnect, reconnect,
 
 ### USB Connection
 
-If Wi-Fi is not accessible or is slow, you can connect to Codea over a USB connection using iproxy, a utility part of libusbmuxd (or libimobiledevice).
+If Wi-Fi is not accessible or is slow, you can connect to Codea over a USB cable. Plug the device in, open Codea, and choose it at the top of the list when connecting: devices on USB where Codea answers are listed first, by name. This goes through the service that Finder and Xcode use to reach a device, which is part of macOS; on Windows it comes with Apple's device support (the Apple Devices app or iTunes).
 
-For Mac and Linux platforms, libusbmuxd can be installed through Homebrew using `brew install libusbmuxd` (refer to [https://brew.sh/](https://brew.sh/) for Homebrew installation).
-
-Windows executables including iproxy.exe are also available (look for `libimobiledevice windows binaries`). Make sure iTunes is installed on your Windows system and that the directory of iproxy.exe is included in your PATH environment variable.
-
-Once iproxy is available, connect to Codea and, instead of an address, enter the port used in Codea for Air Code followed by a local port to open on your computer, for example `18513:18514`.
+You can also connect through iproxy, a utility part of libusbmuxd (`brew install libusbmuxd` on Mac and Linux): instead of an address, enter the port used in Codea for Air Code followed by a local port to open on your computer, for example `18513:18514`.
 
 #### Multi-window
 
