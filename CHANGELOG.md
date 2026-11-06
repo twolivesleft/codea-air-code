@@ -1,5 +1,8 @@
 # Change Log
 
+## 1.3.11 (2026/11/05)
+- Fixed connections that Codea drops, such as over USB while the device is locked, being kept open, which stopped Search from working after a while
+
 ## 1.3.10 (2026/11/05)
 - The device preview shows the running project, or the device's whole screen, in a panel beside your code, from the device button in the status bar; it can be zoomed to fit or to the device's size (Codea 3.20)
 - Clicking or dragging on the running project in the device preview touches it (Codea 3.20)
