@@ -365,7 +365,12 @@ export class AirCode implements vscode.FileSystemProvider {
 
         let airCode = this;
 
+        // A connection that fails reports an error, which throws without a listener and leaves its socket open
+        let opened = false;
+        ws.onerror = () => {};
+
         ws.onopen = async function () {
+            opened = true;
             let information = await airCode.askInformation(ws);
 
             let version = information.version;
@@ -546,7 +551,7 @@ export class AirCode implements vscode.FileSystemProvider {
 
         ws.onclose = async function (event: CloseEvent) {
             const current = airCode.webSockets.get(host);
-            if (current !== undefined && current !== ws) {
+            if (!opened || (current !== undefined && current !== ws)) {
                 return;
             }
 
